@@ -2,7 +2,6 @@ use bevy::prelude::*;
 
 pub struct HumanControlledEntity(pub Entity);
 
-#[derive(Default)]
 pub struct Textures {
     pub empty: Handle<ColorMaterial>,
     pub penguin: Handle<ColorMaterial>,
@@ -27,7 +26,6 @@ pub struct Textures {
     pub immortal: Handle<ColorMaterial>,
 }
 
-#[derive(Default)]
 pub struct Fonts {
     pub font1: Handle<Font>,
 }

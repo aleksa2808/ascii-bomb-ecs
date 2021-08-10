@@ -13,7 +13,6 @@ use wasm_bindgen::prelude::*;
 
 use crate::camera::SimpleOrthoProjection;
 use crate::events::*;
-use crate::resources::*;
 use crate::systems::*;
 
 #[wasm_bindgen]
@@ -33,9 +32,7 @@ pub fn run() {
 
     use bevy::render::camera::camera_system;
 
-    app.insert_resource(Textures::default())
-        .insert_resource(Fonts::default())
-        .add_system(exit_on_esc_system.system())
+    app.add_system(exit_on_esc_system.system())
         .add_system(exit_on_window_close_system.system())
         .add_startup_system(setup.system())
         .add_system_to_stage(

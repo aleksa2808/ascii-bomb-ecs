@@ -19,8 +19,6 @@ use crate::types::{Direction, *};
 pub fn setup(
     mut commands: Commands,
     mut materials: ResMut<Assets<ColorMaterial>>,
-    mut textures: ResMut<Textures>,
-    mut fonts: ResMut<Fonts>,
     asset_server: Res<AssetServer>,
 ) {
     // let colors = vec![
@@ -50,32 +48,33 @@ pub fn setup(
     //     });
     // }
 
-    textures.empty = materials.add(asset_server.load("sprites/empty.png").into());
-    textures.penguin = materials.add(asset_server.load("sprites/penguin.png").into());
-    textures.immortal_penguin =
-        materials.add(asset_server.load("sprites/immortal_penguin.png").into());
-    textures.crook = materials.add(asset_server.load("sprites/crook.png").into());
-    textures.immortal_crook = materials.add(asset_server.load("sprites/immortal_crook.png").into());
-    textures.hatter = materials.add(asset_server.load("sprites/hatter.png").into());
-    textures.immortal_hatter =
-        materials.add(asset_server.load("sprites/immortal_hatter.png").into());
-    textures.bat = materials.add(asset_server.load("sprites/bat.png").into());
-    textures.immortal_bat = materials.add(asset_server.load("sprites/immortal_bat.png").into());
-    textures.bomb = materials.add(asset_server.load("sprites/bomb.png").into());
-    textures.fire = materials.add(asset_server.load("sprites/fire.png").into());
-    textures.wall = materials.add(asset_server.load("sprites/wall.png").into());
-    textures.destructible_wall =
-        materials.add(asset_server.load("sprites/destructible_wall.png").into());
-    textures.burning_wall = materials.add(asset_server.load("sprites/burning_wall.png").into());
-    textures.burning_item = materials.add(asset_server.load("sprites/burning_item.png").into());
-    textures.bombs_up = materials.add(asset_server.load("sprites/bombs_up.png").into());
-    textures.range_up = materials.add(asset_server.load("sprites/range_up.png").into());
-    textures.lives_up = materials.add(asset_server.load("sprites/lives_up.png").into());
-    textures.wall_hack = materials.add(asset_server.load("sprites/wall_hack.png").into());
-    textures.bomb_push = materials.add(asset_server.load("sprites/bomb_push.png").into());
-    textures.immortal = materials.add(asset_server.load("sprites/immortal.png").into());
+    let textures = Textures {
+        empty: materials.add(asset_server.load("sprites/empty.png").into()),
+        penguin: materials.add(asset_server.load("sprites/penguin.png").into()),
+        immortal_penguin: materials.add(asset_server.load("sprites/immortal_penguin.png").into()),
+        crook: materials.add(asset_server.load("sprites/crook.png").into()),
+        immortal_crook: materials.add(asset_server.load("sprites/immortal_crook.png").into()),
+        hatter: materials.add(asset_server.load("sprites/hatter.png").into()),
+        immortal_hatter: materials.add(asset_server.load("sprites/immortal_hatter.png").into()),
+        bat: materials.add(asset_server.load("sprites/bat.png").into()),
+        immortal_bat: materials.add(asset_server.load("sprites/immortal_bat.png").into()),
+        bomb: materials.add(asset_server.load("sprites/bomb.png").into()),
+        fire: materials.add(asset_server.load("sprites/fire.png").into()),
+        wall: materials.add(asset_server.load("sprites/wall.png").into()),
+        destructible_wall: materials.add(asset_server.load("sprites/destructible_wall.png").into()),
+        burning_wall: materials.add(asset_server.load("sprites/burning_wall.png").into()),
+        burning_item: materials.add(asset_server.load("sprites/burning_item.png").into()),
+        bombs_up: materials.add(asset_server.load("sprites/bombs_up.png").into()),
+        range_up: materials.add(asset_server.load("sprites/range_up.png").into()),
+        lives_up: materials.add(asset_server.load("sprites/lives_up.png").into()),
+        wall_hack: materials.add(asset_server.load("sprites/wall_hack.png").into()),
+        bomb_push: materials.add(asset_server.load("sprites/bomb_push.png").into()),
+        immortal: materials.add(asset_server.load("sprites/immortal.png").into()),
+    };
 
-    fonts.font1 = asset_server.load("fonts/FiraMono-Medium.ttf");
+    let fonts = Fonts {
+        font1: asset_server.load("fonts/FiraMono-Medium.ttf"),
+    };
 
     const WIDTH: usize = 15;
     const HEIGHT: usize = 11;
@@ -323,6 +322,9 @@ pub fn setup(
     for pos in breakable_positions {
         spawn_wall(&mut commands, pos, true, &mut empty);
     }
+
+    commands.insert_resource(textures);
+    commands.insert_resource(fonts);
 }
 
 pub fn handle_keyboard_input(
