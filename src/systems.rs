@@ -1,4 +1,22 @@
-fn setup(
+use std::collections::{HashMap, HashSet};
+use std::time::Duration;
+
+use bevy::prelude::*;
+use bevy::render::camera::Camera;
+use bevy::render::camera::VisibleEntities;
+use rand::prelude::*;
+use rand::Rng;
+
+use crate::camera::*;
+use crate::components::*;
+use crate::constants::*;
+use crate::events::*;
+use crate::helpers::*;
+use crate::item::*;
+use crate::resources::*;
+use crate::types::{Direction, *};
+
+pub fn setup(
     mut commands: Commands,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut textures: ResMut<Textures>,
@@ -117,6 +135,7 @@ fn setup(
                 ..Default::default()
             });
         })
+        .insert(Player {})
         .insert(Health {
             lives: 1,
             max_health: 2,
@@ -172,6 +191,7 @@ fn setup(
                 ..Default::default()
             });
         })
+        .insert(Player {})
         .insert(Health {
             lives: 1,
             max_health: 2,
@@ -305,7 +325,7 @@ fn setup(
     }
 }
 
-fn handle_keyboard_input(
+pub fn handle_keyboard_input(
     human_controlled_entity: Res<HumanControlledEntity>,
     keyboard_input: Res<Input<KeyCode>>,
     mut ev_player_action: EventWriter<PlayerActionEvent>,
@@ -332,7 +352,7 @@ fn handle_keyboard_input(
     }
 }
 
-fn handle_mouse_input(
+pub fn handle_mouse_input(
     human_controlled_entity: Res<HumanControlledEntity>,
     mouse_button_input: Res<Input<MouseButton>>,
     windows: Res<Windows>,
@@ -389,7 +409,7 @@ fn handle_mouse_input(
     }
 }
 
-fn player_move(
+pub fn player_move(
     mut commands: Commands,
     mut ev_player_action: EventReader<PlayerActionEvent>,
     mut q: QuerySet<(
@@ -491,7 +511,7 @@ fn player_move(
     }
 }
 
-fn moving_object_update(
+pub fn moving_object_update(
     time: Res<Time>,
     mut commands: Commands,
     mut q: QuerySet<(
@@ -532,7 +552,7 @@ fn moving_object_update(
     }
 }
 
-fn pick_up_item(
+pub fn pick_up_item(
     mut commands: Commands,
     mut query: Query<
         (
@@ -551,22 +571,22 @@ fn pick_up_item(
     for (ie, i, ip) in query2.iter() {
         if let Some((pe, mut h, mut color, _, mut bomb_satchel, immortal_material)) = query
             .iter_mut()
-            .filter(|(_, _, _, pp, _)| **pp == *ip)
+            .filter(|(_, _, _, pp, _, _)| **pp == *ip)
             .choose(&mut rng)
         {
             println!("powered up: {:?}", ip);
             match i {
-                Item::Upgrade(item::Upgrade::BombsUp) => bomb_satchel.bombs_available += 1,
-                Item::Upgrade(item::Upgrade::RangeUp) => bomb_satchel.bomb_range += 1,
-                Item::Upgrade(item::Upgrade::LivesUp) => h.lives += 1,
-                Item::Power(item::Power::Immortal) => {
+                Item::Upgrade(Upgrade::BombsUp) => bomb_satchel.bombs_available += 1,
+                Item::Upgrade(Upgrade::RangeUp) => bomb_satchel.bomb_range += 1,
+                Item::Upgrade(Upgrade::LivesUp) => h.lives += 1,
+                Item::Power(Power::Immortal) => {
                     commands.entity(pe).insert_bundle(ImmortalBundle::default());
-                    *color = immortal_material.clone();
+                    *color = immortal_material.0.clone();
                 }
-                Item::Power(item::Power::WallHack) => {
+                Item::Power(Power::WallHack) => {
                     commands.entity(pe).insert(WallHack {});
                 }
-                Item::Power(item::Power::BombPush) => {
+                Item::Power(Power::BombPush) => {
                     commands.entity(pe).insert(BombPush {});
                 }
             };
@@ -576,7 +596,7 @@ fn pick_up_item(
     }
 }
 
-fn bomb_drop(
+pub fn bomb_drop(
     mut commands: Commands,
     textures: Res<Textures>,
     fonts: Res<Fonts>,
@@ -652,7 +672,7 @@ fn bomb_drop(
     }
 }
 
-fn animate_fuse(
+pub fn animate_fuse(
     time: Res<Time>,
     fonts: Res<Fonts>,
     query: Query<&Perishable, With<Bomb>>,
@@ -741,7 +761,7 @@ fn animate_fuse(
     }
 }
 
-fn perishable_tick(
+pub fn perishable_tick(
     time: Res<Time>,
     mut commands: Commands,
     textures: Res<Textures>,
@@ -777,19 +797,19 @@ fn perishable_tick(
                     let item = Item::generate(false);
                     let mut ec = commands.spawn_bundle(SpriteBundle {
                         material: match item {
-                            Item::Upgrade(item::Upgrade::BombsUp) => textures.bombs_up.clone(),
-                            Item::Upgrade(item::Upgrade::RangeUp) => textures.range_up.clone(),
-                            Item::Upgrade(item::Upgrade::LivesUp) => textures.lives_up.clone(),
-                            Item::Power(item::Power::WallHack) => textures.wall_hack.clone(),
-                            Item::Power(item::Power::BombPush) => textures.bomb_push.clone(),
-                            Item::Power(item::Power::Immortal) => textures.immortal.clone(),
+                            Item::Upgrade(Upgrade::BombsUp) => textures.bombs_up.clone(),
+                            Item::Upgrade(Upgrade::RangeUp) => textures.range_up.clone(),
+                            Item::Upgrade(Upgrade::LivesUp) => textures.lives_up.clone(),
+                            Item::Power(Power::WallHack) => textures.wall_hack.clone(),
+                            Item::Power(Power::BombPush) => textures.bomb_push.clone(),
+                            Item::Power(Power::Immortal) => textures.immortal.clone(),
                         },
                         transform: Transform::from_xyz(get_x(position.x), get_y(position.y), 20.0),
                         sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
                         ..Default::default()
                     });
                     ec.insert(*position).insert(item);
-                    if let Item::Power(item::Power::BombPush) = item {
+                    if let Item::Power(Power::BombPush) = item {
                         ec.with_children(|parent| {
                             parent.spawn_bundle(Text2dBundle {
                                 text: Text::with_section(
@@ -820,7 +840,7 @@ fn perishable_tick(
     }
 }
 
-fn handle_explosion(
+pub fn handle_explosion(
     mut commands: Commands,
     textures: Res<Textures>,
     query: Query<&Position, With<Solid>>,
@@ -864,7 +884,7 @@ fn handle_explosion(
     }
 }
 
-fn immortality_tick(
+pub fn immortality_tick(
     time: Res<Time>,
     mut commands: Commands,
     mut query: Query<(
@@ -889,7 +909,7 @@ fn immortality_tick(
     }
 }
 
-fn animate_immortality(
+pub fn animate_immortality(
     time: Res<Time>,
     mut query: Query<
         (
@@ -914,13 +934,13 @@ fn animate_immortality(
     }
 }
 
-fn fire_effect(mut query: Query<&Position, With<Fire>>, mut ev_burn: EventWriter<BurnEvent>) {
+pub fn fire_effect(mut query: Query<&Position, With<Fire>>, mut ev_burn: EventWriter<BurnEvent>) {
     for position in query.iter_mut() {
         ev_burn.send(BurnEvent(*position));
     }
 }
 
-fn melee_attack(
+pub fn melee_attack(
     query: Query<(&Position, &TeamAlignment), With<MeleeAttacker>>,
     query2: Query<(Entity, &Position, &TeamAlignment), With<Player>>,
     mut ev_damage: EventWriter<DamageEvent>,
@@ -935,7 +955,7 @@ fn melee_attack(
     }
 }
 
-fn player_burn(
+pub fn player_burn(
     query: Query<(Entity, &Position), (With<Player>, Without<Immortal>)>,
     query2: Query<&Position, With<Wall>>,
     mut ev_burn: EventReader<BurnEvent>,
@@ -953,38 +973,38 @@ fn player_burn(
     }
 }
 
-fn player_damage(
+pub fn player_damage(
     mut commands: Commands,
     mut query: Query<
         (
             Entity,
-            &mut Player,
+            &mut Health,
             &mut Handle<ColorMaterial>,
             &ImmortalMaterial,
         ),
-        Without<Immortal>,
+        (With<Player>, Without<Immortal>),
     >,
     mut ev_damage: EventReader<DamageEvent>,
 ) {
     let mut damaged_players = HashSet::new();
 
     for DamageEvent(entity) in ev_damage.iter() {
-        if let Ok((pe, mut player, mut color, immortal_material)) = query.get_mut(*entity) {
+        if let Ok((pe, mut health, mut color, immortal_material)) = query.get_mut(*entity) {
             if damaged_players.contains(&pe) {
                 continue;
             }
             damaged_players.insert(pe);
 
             println!("damage to player {:?}", pe);
-            player.health -= 1;
+            health.health -= 1;
 
             let mut gain_immortality = false;
-            if player.health == 0 {
-                player.lives -= 1;
-                if player.lives == 0 {
+            if health.health == 0 {
+                health.lives -= 1;
+                if health.lives == 0 {
                     commands.entity(pe).despawn_recursive();
                 } else {
-                    player.health = player.max_health;
+                    health.health = health.max_health;
                     gain_immortality = true;
                 }
             } else {
@@ -999,7 +1019,7 @@ fn player_damage(
     }
 }
 
-fn bomb_burn(
+pub fn bomb_burn(
     mut query: Query<(&mut Perishable, &Position), With<Bomb>>,
     mut ev_burn: EventReader<BurnEvent>,
 ) {
@@ -1017,7 +1037,7 @@ fn bomb_burn(
     }
 }
 
-fn destructible_wall_burn(
+pub fn destructible_wall_burn(
     textures: Res<Textures>,
     mut commands: Commands,
     mut query: Query<
@@ -1043,7 +1063,7 @@ fn destructible_wall_burn(
     }
 }
 
-fn item_burn(
+pub fn item_burn(
     textures: Res<Textures>,
     mut commands: Commands,
     mut query: Query<(Entity, &Position), With<Item>>,

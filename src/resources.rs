@@ -1,31 +1,33 @@
-struct HumanControlledEntity(Entity);
+use bevy::prelude::*;
+
+pub struct HumanControlledEntity(pub Entity);
 
 #[derive(Default)]
-struct Textures {
-    empty: Handle<ColorMaterial>,
-    penguin: Handle<ColorMaterial>,
-    immortal_penguin: Handle<ColorMaterial>,
-    crook: Handle<ColorMaterial>,
-    immortal_crook: Handle<ColorMaterial>,
-    hatter: Handle<ColorMaterial>,
-    immortal_hatter: Handle<ColorMaterial>,
-    bat: Handle<ColorMaterial>,
-    immortal_bat: Handle<ColorMaterial>,
-    bomb: Handle<ColorMaterial>,
-    fire: Handle<ColorMaterial>,
-    wall: Handle<ColorMaterial>,
-    destructible_wall: Handle<ColorMaterial>,
-    burning_wall: Handle<ColorMaterial>,
-    burning_item: Handle<ColorMaterial>,
-    bombs_up: Handle<ColorMaterial>,
-    range_up: Handle<ColorMaterial>,
-    lives_up: Handle<ColorMaterial>,
-    wall_hack: Handle<ColorMaterial>,
-    bomb_push: Handle<ColorMaterial>,
-    immortal: Handle<ColorMaterial>,
+pub struct Textures {
+    pub empty: Handle<ColorMaterial>,
+    pub penguin: Handle<ColorMaterial>,
+    pub immortal_penguin: Handle<ColorMaterial>,
+    pub crook: Handle<ColorMaterial>,
+    pub immortal_crook: Handle<ColorMaterial>,
+    pub hatter: Handle<ColorMaterial>,
+    pub immortal_hatter: Handle<ColorMaterial>,
+    pub bat: Handle<ColorMaterial>,
+    pub immortal_bat: Handle<ColorMaterial>,
+    pub bomb: Handle<ColorMaterial>,
+    pub fire: Handle<ColorMaterial>,
+    pub wall: Handle<ColorMaterial>,
+    pub destructible_wall: Handle<ColorMaterial>,
+    pub burning_wall: Handle<ColorMaterial>,
+    pub burning_item: Handle<ColorMaterial>,
+    pub bombs_up: Handle<ColorMaterial>,
+    pub range_up: Handle<ColorMaterial>,
+    pub lives_up: Handle<ColorMaterial>,
+    pub wall_hack: Handle<ColorMaterial>,
+    pub bomb_push: Handle<ColorMaterial>,
+    pub immortal: Handle<ColorMaterial>,
 }
 
 #[derive(Default)]
-struct Fonts {
-    font1: Handle<Font>,
+pub struct Fonts {
+    pub font1: Handle<Font>,
 }

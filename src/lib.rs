@@ -1,24 +1,20 @@
+mod camera;
 mod components;
 mod constants;
+mod events;
 mod helpers;
 mod item;
 mod resources;
 mod systems;
 mod types;
 
-use std::{
-    collections::{HashMap, HashSet},
-    time::Duration,
-};
-
-use bevy::{
-    input::system::exit_on_esc_system,
-    prelude::*,
-    render::camera::{Camera, CameraProjection, DepthCalculation, VisibleEntities},
-    window::exit_on_window_close_system,
-};
-use rand::{prelude::IteratorRandom, Rng};
+use bevy::{input::system::exit_on_esc_system, prelude::*, window::exit_on_window_close_system};
 use wasm_bindgen::prelude::*;
+
+use crate::camera::SimpleOrthoProjection;
+use crate::events::*;
+use crate::resources::*;
+use crate::systems::*;
 
 #[wasm_bindgen]
 pub fn run() {

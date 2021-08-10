@@ -1,12 +1,12 @@
 #[derive(Clone, Copy)]
-enum Direction {
+pub enum Direction {
     Left,
     Right,
     Up,
     Down,
 }
 
-enum PlayerAction {
+pub enum PlayerAction {
     Move(Direction),
     DropBomb,
 }
