@@ -1,3 +1,3 @@
 fn main() {
-    ascii_bomb_ecs::run();
+    ascii_bomb_ecs_lib::run();
 }
