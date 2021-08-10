@@ -98,7 +98,7 @@ pub fn setup(
     // spawn player
     let base_material = textures.penguin.clone();
     let immortal_material = textures.immortal_penguin.clone();
-    let player_entity = commands
+    commands
         .spawn_bundle(SpriteBundle {
             material: base_material.clone(),
             transform: Transform::from_xyz(
@@ -135,6 +135,7 @@ pub fn setup(
             });
         })
         .insert(Player {})
+        .insert(HumanControlled(0))
         .insert(Health {
             lives: 1,
             max_health: 2,
@@ -145,10 +146,7 @@ pub fn setup(
             bombs_available: 3,
             bomb_range: 2,
         })
-        .insert(TeamAlignment(0))
-        .id();
-
-    commands.insert_resource(HumanControlledEntity(player_entity));
+        .insert(TeamAlignment(0));
 
     let enemy_spawn_position = Position {
         y: HEIGHT as isize - 2,
@@ -328,84 +326,77 @@ pub fn setup(
 }
 
 pub fn handle_keyboard_input(
-    human_controlled_entity: Res<HumanControlledEntity>,
     keyboard_input: Res<Input<KeyCode>>,
+    query: Query<(Entity, &HumanControlled), With<Player>>,
     mut ev_player_action: EventWriter<PlayerActionEvent>,
 ) {
-    for (key_code, direction) in [
-        (KeyCode::Up, Direction::Up),
-        (KeyCode::Down, Direction::Down),
-        (KeyCode::Left, Direction::Left),
-        (KeyCode::Right, Direction::Right),
-    ] {
-        if keyboard_input.just_pressed(key_code) {
-            ev_player_action.send(PlayerActionEvent(
-                human_controlled_entity.0,
-                PlayerAction::Move(direction),
-            ));
+    for (entity, _) in query.iter().filter(|(_, hc)| hc.0 == 0) {
+        for (key_code, direction) in [
+            (KeyCode::Up, Direction::Up),
+            (KeyCode::Down, Direction::Down),
+            (KeyCode::Left, Direction::Left),
+            (KeyCode::Right, Direction::Right),
+        ] {
+            if keyboard_input.just_pressed(key_code) {
+                ev_player_action.send(PlayerActionEvent(entity, PlayerAction::Move(direction)));
+            }
         }
-    }
 
-    if keyboard_input.just_pressed(KeyCode::Space) {
-        ev_player_action.send(PlayerActionEvent(
-            human_controlled_entity.0,
-            PlayerAction::DropBomb,
-        ));
+        if keyboard_input.just_pressed(KeyCode::Space) {
+            ev_player_action.send(PlayerActionEvent(entity, PlayerAction::DropBomb));
+        }
     }
 }
 
 pub fn handle_mouse_input(
-    human_controlled_entity: Res<HumanControlledEntity>,
     mouse_button_input: Res<Input<MouseButton>>,
     windows: Res<Windows>,
+    query: Query<(Entity, &HumanControlled), With<Player>>,
     mut ev_player_action: EventWriter<PlayerActionEvent>,
 ) {
-    if mouse_button_input.just_pressed(MouseButton::Left) {
-        let window = windows.get_primary().unwrap();
+    for (entity, _) in query.iter().filter(|(_, hc)| hc.0 == 0) {
+        if mouse_button_input.just_pressed(MouseButton::Left) {
+            let window = windows.get_primary().unwrap();
 
-        if let Some(position) = window.cursor_position() {
-            let width = window.width();
-            let height = window.height();
+            if let Some(position) = window.cursor_position() {
+                let width = window.width();
+                let height = window.height();
 
-            let scale_x = position.x / width;
-            let scale_y = position.y / height;
+                let scale_x = position.x / width;
+                let scale_y = position.y / height;
 
-            println!(
-                "mouse click: {:?} / w: {}, h: {} / scale_x: {}, scale_y: {}",
-                position, width, height, scale_x, scale_y
-            );
+                println!(
+                    "mouse click: {:?} / w: {}, h: {} / scale_x: {}, scale_y: {}",
+                    position, width, height, scale_x, scale_y
+                );
 
-            if scale_x < 0.25 {
-                ev_player_action.send(PlayerActionEvent(
-                    human_controlled_entity.0,
-                    PlayerAction::Move(Direction::Left),
-                ))
-            }
-            if scale_x >= 0.75 {
-                ev_player_action.send(PlayerActionEvent(
-                    human_controlled_entity.0,
-                    PlayerAction::Move(Direction::Right),
-                ))
-            }
+                if scale_x < 0.25 {
+                    ev_player_action.send(PlayerActionEvent(
+                        entity,
+                        PlayerAction::Move(Direction::Left),
+                    ))
+                }
+                if scale_x >= 0.75 {
+                    ev_player_action.send(PlayerActionEvent(
+                        entity,
+                        PlayerAction::Move(Direction::Right),
+                    ))
+                }
 
-            if scale_y < 0.25 {
-                ev_player_action.send(PlayerActionEvent(
-                    human_controlled_entity.0,
-                    PlayerAction::Move(Direction::Down),
-                ))
-            }
-            if scale_y >= 0.75 {
-                ev_player_action.send(PlayerActionEvent(
-                    human_controlled_entity.0,
-                    PlayerAction::Move(Direction::Up),
-                ))
-            }
+                if scale_y < 0.25 {
+                    ev_player_action.send(PlayerActionEvent(
+                        entity,
+                        PlayerAction::Move(Direction::Down),
+                    ))
+                }
+                if scale_y >= 0.75 {
+                    ev_player_action
+                        .send(PlayerActionEvent(entity, PlayerAction::Move(Direction::Up)))
+                }
 
-            if (0.25..0.75).contains(&scale_x) && (0.25..0.75).contains(&scale_y) {
-                ev_player_action.send(PlayerActionEvent(
-                    human_controlled_entity.0,
-                    PlayerAction::DropBomb,
-                ));
+                if (0.25..0.75).contains(&scale_x) && (0.25..0.75).contains(&scale_y) {
+                    ev_player_action.send(PlayerActionEvent(entity, PlayerAction::DropBomb));
+                }
             }
         }
     }

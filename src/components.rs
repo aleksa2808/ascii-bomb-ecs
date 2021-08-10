@@ -10,6 +10,9 @@ pub struct Position {
 
 pub struct Player;
 
+// usize represents the controller/player number
+pub struct HumanControlled(pub usize);
+
 pub struct Moving {
     pub direction: Direction,
     pub step_timer: Timer,

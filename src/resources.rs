@@ -1,7 +1,5 @@
 use bevy::prelude::*;
 
-pub struct HumanControlledEntity(pub Entity);
-
 pub struct Textures {
     pub empty: Handle<ColorMaterial>,
     pub penguin: Handle<ColorMaterial>,
