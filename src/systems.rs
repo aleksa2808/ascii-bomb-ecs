@@ -189,6 +189,8 @@ pub fn setup(
             });
         })
         .insert(Player {})
+        .insert(MobAI::default())
+        .insert(MoveCooldown(Timer::from_seconds(0.4, false)))
         .insert(Health {
             lives: 1,
             max_health: 2,
@@ -300,11 +302,12 @@ pub fn setup(
     let fillable_num = empty.len();
 
     // reserve room for the player
-    for (y_offset, x_offset) in [(0, 0), (1, 0), (0, 1), (-1, 0), (0, -1)] {
-        empty.remove(&Position {
-            y: player_spawn_position.y + y_offset,
-            x: player_spawn_position.x + x_offset,
-        });
+    empty.remove(&player_spawn_position);
+    for position in Direction::LIST
+        .iter()
+        .map(|direction| player_spawn_position.offset(direction))
+    {
+        empty.remove(&position);
     }
 
     let per = 0.0;
@@ -402,7 +405,48 @@ pub fn handle_mouse_input(
     }
 }
 
+pub fn mob_ai(
+    mut query: Query<(Entity, &Position, &mut MobAI), With<Player>>,
+    query2: Query<&Position, With<Solid>>,
+    mut ev_player_action: EventWriter<PlayerActionEvent>,
+) {
+    let solids: HashSet<Position> = query2.iter().copied().collect();
+
+    for (entity, position, mut mob_ai) in query.iter_mut() {
+        let mut potential_directions: HashSet<Direction> =
+            Direction::LIST.iter().copied().collect();
+
+        if let Some(direction) = mob_ai.direction {
+            if !solids.contains(&position.offset(&direction)) {
+                ev_player_action.send(PlayerActionEvent(entity, PlayerAction::Move(direction)));
+            } else {
+                mob_ai.direction = None;
+                potential_directions.remove(&direction);
+            }
+        }
+
+        if mob_ai.direction.is_none() {
+            // pick potential directions in random order
+            let mut potential_directions: Vec<Direction> =
+                potential_directions.into_iter().collect();
+            potential_directions.shuffle(&mut rand::thread_rng());
+
+            // move towards one that leads to passable terrain (if existing)
+            let passable_dir = potential_directions
+                .iter()
+                .find(|direction| !solids.contains(&position.offset(&direction)))
+                .copied();
+            if let Some(direction) = passable_dir {
+                mob_ai.direction = passable_dir;
+                ev_player_action.send(PlayerActionEvent(entity, PlayerAction::Move(direction)));
+                break;
+            }
+        }
+    }
+}
+
 pub fn player_move(
+    time: Res<Time>,
     mut commands: Commands,
     mut ev_player_action: EventReader<PlayerActionEvent>,
     mut q: QuerySet<(
@@ -414,6 +458,7 @@ pub fn player_move(
                 &mut Sprite,
                 Option<&WallHack>,
                 Option<&BombPush>,
+                Option<&mut MoveCooldown>,
             ),
             With<Player>,
         >,
@@ -433,68 +478,80 @@ pub fn player_move(
         .map(|(e, _, p, d, b)| (*p, (e, d.is_some(), b.is_some())))
         .collect();
 
-    for PlayerActionEvent(entity, action) in ev_player_action.iter() {
-        if let Ok((entity, children, mut position, mut sprite, wall_hack, bomb_push)) =
-            q.q0_mut().get_mut(*entity)
+    for (entity, direction) in ev_player_action.iter().filter_map(|p| {
+        if let PlayerAction::Move(direction) = p.1 {
+            Some((p.0, direction))
+        } else {
+            None
+        }
+    }) {
+        if let Ok((
+            entity,
+            children,
+            mut position,
+            mut sprite,
+            wall_hack,
+            bomb_push,
+            mut move_cooldown,
+        )) = q.q0_mut().get_mut(entity)
         {
-            let mut moved = false;
+            // visual / sprite flipping
+            match direction {
+                Direction::Left => {
+                    sprite.flip_x = true;
 
-            if let PlayerAction::Move(direction) = action {
-                let (y_offset, x_offset) = match direction {
-                    Direction::Up => (-1, 0),
-                    Direction::Down => (1, 0),
-                    Direction::Left => (0, -1),
-                    Direction::Right => (0, 1),
-                };
-
-                let new_pos = Position {
-                    y: position.y + y_offset,
-                    x: position.x + x_offset,
-                };
-                let solid = solids.get(&new_pos);
-
-                if solid.is_none() || (matches!(solid, Some((_, true, _))) && wall_hack.is_some()) {
-                    position.y += y_offset;
-                    position.x += x_offset;
-                    moved = true;
-                } else if bomb_push.is_some() {
-                    if let Some((e, _, true)) = solid {
-                        commands.entity(*e).insert(Moving {
-                            direction: *direction,
-                            step_timer: Timer::from_seconds(0.01, true),
-                        });
+                    for c in children.iter() {
+                        if let Ok(mut transform) = query2.get_mut(*c) {
+                            let translation = &mut transform.translation;
+                            translation.x = -(TILE_WIDTH as f32 / 12.0);
+                            translation.y = TILE_HEIGHT as f32 / 8.0;
+                        }
                     }
                 }
+                Direction::Right => {
+                    sprite.flip_x = false;
 
-                match direction {
-                    Direction::Left => {
-                        sprite.flip_x = true;
-
-                        for c in children.iter() {
-                            if let Ok(mut transform) = query2.get_mut(*c) {
-                                let translation = &mut transform.translation;
-                                translation.x = -(TILE_WIDTH as f32 / 12.0);
-                                translation.y = TILE_HEIGHT as f32 / 8.0;
-                            }
+                    for c in children.iter() {
+                        if let Ok(mut transform) = query2.get_mut(*c) {
+                            let translation = &mut transform.translation;
+                            translation.x = TILE_WIDTH as f32 / 12.0;
+                            translation.y = TILE_HEIGHT as f32 / 8.0;
                         }
                     }
-                    Direction::Right => {
-                        sprite.flip_x = false;
+                }
+                _ => (),
+            }
 
-                        for c in children.iter() {
-                            if let Ok(mut transform) = query2.get_mut(*c) {
-                                let translation = &mut transform.translation;
-                                translation.x = TILE_WIDTH as f32 / 12.0;
-                                translation.y = TILE_HEIGHT as f32 / 8.0;
-                            }
-                        }
-                    }
-                    _ => (),
+            if let Some(move_cooldown) = move_cooldown.as_mut() {
+                move_cooldown.0.tick(time.delta());
+                if !move_cooldown.0.finished() {
+                    continue;
+                }
+            }
+
+            let new_position = position.offset(&direction);
+            let solid = solids.get(&new_position);
+
+            let mut moved = false;
+            if solid.is_none() || (matches!(solid, Some((_, true, _))) && wall_hack.is_some()) {
+                *position = new_position;
+                moved = true;
+            } else if bomb_push.is_some() {
+                if let Some((e, _, true)) = solid {
+                    commands
+                        .entity(*e)
+                        .insert(Moving { direction })
+                        .insert(MoveCooldown(Timer::from_seconds(0.01, true)));
                 }
             }
 
             if moved {
                 println!("{:?}", position);
+
+                if let Some(mut move_cooldown) = move_cooldown {
+                    move_cooldown.0.reset();
+                }
+
                 let mut transform = query2.get_mut(entity).unwrap();
                 let translation = &mut transform.translation;
                 translation.x = get_x(position.x);
@@ -508,32 +565,25 @@ pub fn moving_object_update(
     time: Res<Time>,
     mut commands: Commands,
     mut q: QuerySet<(
-        Query<(Entity, &mut Moving, &mut Position, &mut Transform)>,
+        Query<(
+            Entity,
+            &Moving,
+            &mut MoveCooldown,
+            &mut Position,
+            &mut Transform,
+        )>,
         Query<&Position, Or<(With<Solid>, With<Item>)>>,
     )>,
 ) {
     let impassables: HashSet<Position> = q.q1().iter().copied().collect();
 
-    for (entity, mut moving, mut position, mut transform) in q.q0_mut().iter_mut() {
-        moving.step_timer.tick(time.delta());
+    for (entity, moving, mut move_cooldown, mut position, mut transform) in q.q0_mut().iter_mut() {
+        move_cooldown.0.tick(time.delta());
 
-        if moving.step_timer.just_finished() {
-            let (y_offset, x_offset) = match moving.direction {
-                Direction::Up => (-1, 0),
-                Direction::Down => (1, 0),
-                Direction::Left => (0, -1),
-                Direction::Right => (0, 1),
-            };
-
-            if impassables
-                .get(&Position {
-                    y: position.y + y_offset,
-                    x: position.x + x_offset,
-                })
-                .is_none()
-            {
-                position.y += y_offset;
-                position.x += x_offset;
+        if move_cooldown.0.just_finished() {
+            let new_position = position.offset(&moving.direction);
+            if impassables.get(&new_position).is_none() {
+                *position = new_position;
 
                 let translation = &mut transform.translation;
                 translation.x = get_x(position.x);

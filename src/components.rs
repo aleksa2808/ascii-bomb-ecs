@@ -8,14 +8,37 @@ pub struct Position {
     pub x: isize,
 }
 
+impl Position {
+    pub fn offset(&self, direction: &Direction) -> Self {
+        let (y_offset, x_offset) = match direction {
+            Direction::Right => (0, 1),
+            Direction::Down => (1, 0),
+            Direction::Left => (0, -1),
+            Direction::Up => (-1, 0),
+        };
+
+        Position {
+            y: self.y + y_offset,
+            x: self.x + x_offset,
+        }
+    }
+}
+
 pub struct Player;
 
 // usize represents the controller/player number
 pub struct HumanControlled(pub usize);
 
+#[derive(Default)]
+pub struct MobAI {
+    pub direction: Option<Direction>,
+}
+
+pub struct MoveCooldown(pub Timer);
+
+// currently used for bomb movement only, will stop before items
 pub struct Moving {
     pub direction: Direction,
-    pub step_timer: Timer,
 }
 
 pub struct Health {

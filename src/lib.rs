@@ -42,6 +42,8 @@ pub fn run() {
         // handle input
         .add_system(handle_keyboard_input.system().label("input"))
         .add_system(handle_mouse_input.system().label("input"))
+        // handle AI
+        .add_system(mob_ai.system().label("input"))
         // handle movement + extra actions
         .add_system(player_move.system().after("input"))
         .add_system(moving_object_update.system())
