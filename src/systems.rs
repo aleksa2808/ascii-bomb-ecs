@@ -49,7 +49,7 @@ pub fn setup(
     // }
 
     let textures = Textures {
-        empty: materials.add(asset_server.load("sprites/empty.png").into()),
+        // players + effects
         penguin: materials.add(asset_server.load("sprites/penguin.png").into()),
         immortal_penguin: materials.add(asset_server.load("sprites/immortal_penguin.png").into()),
         crook: materials.add(asset_server.load("sprites/crook.png").into()),
@@ -58,29 +58,33 @@ pub fn setup(
         immortal_hatter: materials.add(asset_server.load("sprites/immortal_hatter.png").into()),
         bat: materials.add(asset_server.load("sprites/bat.png").into()),
         immortal_bat: materials.add(asset_server.load("sprites/immortal_bat.png").into()),
+        // bomb + fire
         bomb: materials.add(asset_server.load("sprites/bomb.png").into()),
         fire: materials.add(asset_server.load("sprites/fire.png").into()),
+        // map tiles
+        empty: materials.add(asset_server.load("sprites/empty.png").into()),
         wall: materials.add(asset_server.load("sprites/wall.png").into()),
         destructible_wall: materials.add(asset_server.load("sprites/destructible_wall.png").into()),
         burning_wall: materials.add(asset_server.load("sprites/burning_wall.png").into()),
-        burning_item: materials.add(asset_server.load("sprites/burning_item.png").into()),
+        // items
         bombs_up: materials.add(asset_server.load("sprites/bombs_up.png").into()),
         range_up: materials.add(asset_server.load("sprites/range_up.png").into()),
         lives_up: materials.add(asset_server.load("sprites/lives_up.png").into()),
         wall_hack: materials.add(asset_server.load("sprites/wall_hack.png").into()),
         bomb_push: materials.add(asset_server.load("sprites/bomb_push.png").into()),
         immortal: materials.add(asset_server.load("sprites/immortal.png").into()),
+        burning_item: materials.add(asset_server.load("sprites/burning_item.png").into()),
     };
 
     let fonts = Fonts {
         font1: asset_server.load("fonts/FiraMono-Medium.ttf"),
     };
 
-    const WIDTH: usize = 15;
-    const HEIGHT: usize = 11;
+    const MAP_WIDTH: usize = 15;
+    const MAP_HEIGHT: usize = 11;
 
     // spawn camera
-    let projection = SimpleOrthoProjection::new(WIDTH, HEIGHT);
+    let projection = SimpleOrthoProjection::new(MAP_WIDTH, MAP_HEIGHT);
     let cam_name = bevy::render::render_graph::base::camera::CAMERA_2D;
     let mut camera = Camera::default();
     camera.name = Some(cam_name.to_string());
@@ -94,6 +98,8 @@ pub fn setup(
     ));
 
     let player_spawn_position = Position { y: 1, x: 1 };
+
+    // map generation //
 
     // spawn player
     let base_material = textures.penguin.clone();
@@ -111,29 +117,6 @@ pub fn setup(
         })
         .insert(BaseMaterial(base_material))
         .insert(ImmortalMaterial(immortal_material))
-        .with_children(|parent| {
-            parent.spawn_bundle(Text2dBundle {
-                text: Text::with_section(
-                    '.',
-                    TextStyle {
-                        font: fonts.font1.clone(),
-                        font_size: 10.0,
-                        color: Color::rgb_u8(242, 242, 242),
-                        ..Default::default()
-                    },
-                    TextAlignment {
-                        vertical: VerticalAlign::Center,
-                        horizontal: HorizontalAlign::Center,
-                    },
-                ),
-                transform: Transform::from_xyz(
-                    TILE_WIDTH as f32 / 12.0,
-                    TILE_HEIGHT as f32 / 8.0,
-                    0.1,
-                ),
-                ..Default::default()
-            });
-        })
         .insert(Player {})
         .insert(HumanControlled(0))
         .insert(Health {
@@ -148,16 +131,66 @@ pub fn setup(
         })
         .insert(TeamAlignment(0));
 
-    let enemy_spawn_position = Position {
-        y: HEIGHT as isize - 2,
-        x: WIDTH as isize - 2,
-    };
+    // spawn enemies
 
-    // spawn enemy
-    let base_material = textures.crook.clone();
-    let immortal_material = textures.immortal_crook.clone();
-    commands
-        .spawn_bundle(SpriteBundle {
+    // TODO: move somewhere else
+    let level = 1;
+
+    let mob_num = level % 5 + 2 + level / 5;
+
+    // hardcoded for 11x15
+    let x = [
+        MAP_WIDTH - 4,
+        MAP_WIDTH - 2,
+        11,
+        5,
+        1,
+        MAP_WIDTH - 6,
+        MAP_WIDTH - 6,
+        7,
+    ];
+    let y = [
+        MAP_HEIGHT - 8,
+        1,
+        MAP_HEIGHT - 2,
+        MAP_HEIGHT - 6,
+        9,
+        5,
+        MAP_HEIGHT - 4,
+        7,
+    ];
+    let mut rng = rand::thread_rng();
+    let bias = rng.gen::<usize>() % 20;
+
+    let mut enemy_spawn_positions = vec![];
+    for i in 0..mob_num {
+        let (base_material, immortal_material, wall_hack, health) = if i > 3 {
+            if i > 5 {
+                (textures.bat.clone(), textures.immortal_bat.clone(), true, 3)
+            } else {
+                (
+                    textures.hatter.clone(),
+                    textures.immortal_hatter.clone(),
+                    false,
+                    2,
+                )
+            }
+        } else {
+            (
+                textures.crook.clone(),
+                textures.immortal_crook.clone(),
+                false,
+                1,
+            )
+        };
+
+        let enemy_spawn_position = Position {
+            x: x[(i as usize + bias) % 6] as isize,
+            y: y[(i as usize + bias) % 6] as isize,
+        };
+        enemy_spawn_positions.push(enemy_spawn_position);
+
+        let mut ec = commands.spawn_bundle(SpriteBundle {
             material: base_material.clone(),
             transform: Transform::from_xyz(
                 get_x(enemy_spawn_position.x),
@@ -166,76 +199,29 @@ pub fn setup(
             ),
             sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
             ..Default::default()
-        })
-        .insert(BaseMaterial(base_material))
-        .insert(ImmortalMaterial(immortal_material))
-        .with_children(|parent| {
-            parent.spawn_bundle(Text2dBundle {
-                text: Text::with_section(
-                    ".  .",
-                    TextStyle {
-                        font: fonts.font1.clone(),
-                        font_size: 10.0,
-                        color: Color::rgb_u8(242, 242, 242),
-                        ..Default::default()
-                    },
-                    TextAlignment {
-                        vertical: VerticalAlign::Center,
-                        horizontal: HorizontalAlign::Center,
-                    },
-                ),
-                transform: Transform::from_xyz(0.0, TILE_HEIGHT as f32 / 8.0, 0.1),
-                ..Default::default()
-            });
-        })
-        .insert(Player {})
-        .insert(MobAI::default())
-        .insert(MoveCooldown(Timer::from_seconds(0.4, false)))
-        .insert(Health {
-            lives: 1,
-            max_health: 2,
-            health: 2,
-        })
-        .insert(enemy_spawn_position)
-        .insert(MeleeAttacker {})
-        .insert(TeamAlignment(1));
-
-    // spawn walls
-    let mut empty: HashSet<Position> = (0..HEIGHT)
-        .map(|y| {
-            (0..WIDTH).map(move |x| Position {
-                y: y as isize,
-                x: x as isize,
-            })
-        })
-        .flatten()
-        .collect();
-
-    let spawn_wall = |commands: &mut Commands,
-                      position: Position,
-                      destructible: bool,
-                      empty: &mut HashSet<Position>| {
-        let mut x = commands.spawn_bundle(SpriteBundle {
-            material: if destructible {
-                textures.destructible_wall.clone()
-            } else {
-                textures.wall.clone()
-            },
-            transform: Transform::from_xyz(get_x(position.x), get_y(position.y), 0.0),
-            sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
-            ..Default::default()
         });
-        x.insert(Wall {}).insert(Solid {}).insert(position);
+        ec.insert(BaseMaterial(base_material))
+            .insert(ImmortalMaterial(immortal_material))
+            .insert(Player {})
+            .insert(MobAI::default())
+            .insert(MoveCooldown(Timer::from_seconds(0.4, false)))
+            .insert(Health {
+                lives: 1,
+                max_health: health,
+                health,
+            })
+            .insert(enemy_spawn_position)
+            .insert(MeleeAttacker {})
+            .insert(TeamAlignment(1));
 
-        if destructible {
-            x.insert(Destructible {});
+        if wall_hack {
+            ec.insert(WallHack);
         }
+    }
 
-        empty.remove(&position);
-    };
-
-    for j in 0..HEIGHT {
-        for i in 0..WIDTH {
+    // place empty/passable tiles
+    for j in 0..MAP_HEIGHT {
+        for i in 0..MAP_WIDTH {
             commands.spawn_bundle(SpriteBundle {
                 material: textures.empty.clone(),
                 transform: Transform::from_xyz(get_x(i as isize), get_y(j as isize), 0.0),
@@ -245,83 +231,126 @@ pub fn setup(
         }
     }
 
-    for i in 0..WIDTH {
-        spawn_wall(
-            &mut commands,
-            Position {
-                y: 0,
-                x: i as isize,
-            },
-            false,
-            &mut empty,
-        );
-        spawn_wall(
-            &mut commands,
-            Position {
-                y: (HEIGHT - 1) as isize,
-                x: i as isize,
-            },
-            false,
-            &mut empty,
-        );
+    // spawn walls
+    let mut stone_wall_positions = HashSet::new();
+    for i in 0..MAP_WIDTH {
+        // top
+        stone_wall_positions.insert(Position {
+            y: 0,
+            x: i as isize,
+        });
+        // bottom
+        stone_wall_positions.insert(Position {
+            y: (MAP_HEIGHT - 1) as isize,
+            x: i as isize,
+        });
     }
-    for i in 1..HEIGHT {
-        spawn_wall(
-            &mut commands,
-            Position {
-                y: i as isize,
-                x: 0,
-            },
-            false,
-            &mut empty,
-        );
-        spawn_wall(
-            &mut commands,
-            Position {
-                y: i as isize,
-                x: (WIDTH - 1) as isize,
-            },
-            false,
-            &mut empty,
-        );
+    for i in 1..MAP_HEIGHT {
+        // left
+        stone_wall_positions.insert(Position {
+            y: i as isize,
+            x: 0,
+        });
+        // right
+        stone_wall_positions.insert(Position {
+            y: i as isize,
+            x: (MAP_WIDTH - 1) as isize,
+        });
     }
-    for i in (2..HEIGHT).step_by(2) {
-        for j in (2..WIDTH).step_by(2) {
-            spawn_wall(
-                &mut commands,
-                Position {
-                    y: i as isize,
-                    x: j as isize,
-                },
-                false,
-                &mut empty,
-            );
+    // checkered middle
+    for i in (2..MAP_HEIGHT).step_by(2) {
+        for j in (2..MAP_WIDTH).step_by(2) {
+            stone_wall_positions.insert(Position {
+                y: i as isize,
+                x: j as isize,
+            });
         }
     }
 
-    let fillable_num = empty.len();
+    for position in stone_wall_positions.iter() {
+        commands
+            .spawn_bundle(SpriteBundle {
+                material: textures.wall.clone(),
+                transform: Transform::from_xyz(get_x(position.x), get_y(position.y), 0.0),
+                sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+                ..Default::default()
+            })
+            .insert(Wall {})
+            .insert(Solid {})
+            .insert(*position);
+    }
 
-    // reserve room for the player
-    empty.remove(&player_spawn_position);
+    let mut destructible_wall_potential_positions: HashSet<Position> = (0..MAP_HEIGHT)
+        .map(|y| {
+            (0..MAP_WIDTH).map(move |x| Position {
+                y: y as isize,
+                x: x as isize,
+            })
+        })
+        .flatten()
+        .filter(|p| !stone_wall_positions.contains(p))
+        .collect();
+
+    let number_of_passable_positions = destructible_wall_potential_positions.len();
+
+    // reserve room for the player (cross-shaped)
+    destructible_wall_potential_positions.remove(&player_spawn_position);
     for position in Direction::LIST
         .iter()
-        .map(|direction| player_spawn_position.offset(direction))
+        .map(|direction| player_spawn_position.offset(direction, 1))
     {
-        empty.remove(&position);
+        destructible_wall_potential_positions.remove(&position);
     }
 
-    let per = 0.0;
-    let fill = (fillable_num as f32 * (per as f32 / 100.0)) as usize;
-    if empty.len() < fill {
-        panic!("at the disco");
+    // reserve room for the enemies (line-shaped)
+    for enemy_spawn_position in enemy_spawn_positions {
+        destructible_wall_potential_positions.remove(&enemy_spawn_position);
+
+        for direction in [
+            [Direction::Left, Direction::Right],
+            [Direction::Up, Direction::Down],
+        ]
+        .choose(&mut rng)
+        .unwrap()
+        {
+            for j in 1..3 {
+                let position = enemy_spawn_position.offset(&direction, j);
+                if stone_wall_positions.contains(&position) {
+                    break;
+                }
+                destructible_wall_potential_positions.remove(&position);
+            }
+        }
     }
 
-    let breakable_positions = empty
+    let percent_of_passable_positions_to_fill = 50.0;
+    let num_of_destructible_walls_to_place = (number_of_passable_positions as f32
+        * percent_of_passable_positions_to_fill
+        / 100.0) as usize;
+    if destructible_wall_potential_positions.len() < num_of_destructible_walls_to_place {
+        panic!(
+            "Not enough passable positions available for placing destructible walls. Have {}, but need at least {}",
+            destructible_wall_potential_positions.len(),
+            num_of_destructible_walls_to_place
+        );
+    }
+
+    for position in destructible_wall_potential_positions
         .iter()
         .copied()
-        .choose_multiple(&mut rand::thread_rng(), fill);
-    for pos in breakable_positions {
-        spawn_wall(&mut commands, pos, true, &mut empty);
+        .choose_multiple(&mut rand::thread_rng(), num_of_destructible_walls_to_place)
+    {
+        commands
+            .spawn_bundle(SpriteBundle {
+                material: textures.destructible_wall.clone(),
+                transform: Transform::from_xyz(get_x(position.x), get_y(position.y), 0.0),
+                sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+                ..Default::default()
+            })
+            .insert(Wall {})
+            .insert(Solid {})
+            .insert(Destructible {})
+            .insert(position);
     }
 
     commands.insert_resource(textures);
@@ -406,18 +435,19 @@ pub fn handle_mouse_input(
 }
 
 pub fn mob_ai(
-    mut query: Query<(Entity, &Position, &mut MobAI), With<Player>>,
-    query2: Query<&Position, With<Solid>>,
+    mut query: Query<(Entity, &Position, &mut MobAI, Option<&WallHack>), With<Player>>,
+    query2: Query<(&Position, Option<&Destructible>), With<Solid>>,
     mut ev_player_action: EventWriter<PlayerActionEvent>,
 ) {
-    let solids: HashSet<Position> = query2.iter().copied().collect();
+    let solids: HashMap<Position, bool> = query2.iter().map(|(p, d)| (*p, d.is_some())).collect();
 
-    for (entity, position, mut mob_ai) in query.iter_mut() {
+    for (entity, position, mut mob_ai, wall_hack) in query.iter_mut() {
         let mut potential_directions: HashSet<Direction> =
             Direction::LIST.iter().copied().collect();
 
         if let Some(direction) = mob_ai.direction {
-            if !solids.contains(&position.offset(&direction)) {
+            let result = solids.get(&position.offset(&direction, 1));
+            if result.is_none() || (wall_hack.is_some() && matches!(result, Some(true))) {
                 ev_player_action.send(PlayerActionEvent(entity, PlayerAction::Move(direction)));
             } else {
                 mob_ai.direction = None;
@@ -434,7 +464,10 @@ pub fn mob_ai(
             // move towards one that leads to passable terrain (if existing)
             let passable_dir = potential_directions
                 .iter()
-                .find(|direction| !solids.contains(&position.offset(&direction)))
+                .find(|direction| {
+                    let result = solids.get(&position.offset(&direction, 1));
+                    result.is_none() || (wall_hack.is_some() && matches!(result, Some(true)))
+                })
                 .copied();
             if let Some(direction) = passable_dir {
                 mob_ai.direction = passable_dir;
@@ -453,7 +486,6 @@ pub fn player_move(
         Query<
             (
                 Entity,
-                &Children,
                 &mut Position,
                 &mut Sprite,
                 Option<&WallHack>,
@@ -485,40 +517,13 @@ pub fn player_move(
             None
         }
     }) {
-        if let Ok((
-            entity,
-            children,
-            mut position,
-            mut sprite,
-            wall_hack,
-            bomb_push,
-            mut move_cooldown,
-        )) = q.q0_mut().get_mut(entity)
+        if let Ok((entity, mut position, mut sprite, wall_hack, bomb_push, mut move_cooldown)) =
+            q.q0_mut().get_mut(entity)
         {
             // visual / sprite flipping
             match direction {
-                Direction::Left => {
-                    sprite.flip_x = true;
-
-                    for c in children.iter() {
-                        if let Ok(mut transform) = query2.get_mut(*c) {
-                            let translation = &mut transform.translation;
-                            translation.x = -(TILE_WIDTH as f32 / 12.0);
-                            translation.y = TILE_HEIGHT as f32 / 8.0;
-                        }
-                    }
-                }
-                Direction::Right => {
-                    sprite.flip_x = false;
-
-                    for c in children.iter() {
-                        if let Ok(mut transform) = query2.get_mut(*c) {
-                            let translation = &mut transform.translation;
-                            translation.x = TILE_WIDTH as f32 / 12.0;
-                            translation.y = TILE_HEIGHT as f32 / 8.0;
-                        }
-                    }
-                }
+                Direction::Left => sprite.flip_x = true,
+                Direction::Right => sprite.flip_x = false,
                 _ => (),
             }
 
@@ -529,7 +534,7 @@ pub fn player_move(
                 }
             }
 
-            let new_position = position.offset(&direction);
+            let new_position = position.offset(&direction, 1);
             let solid = solids.get(&new_position);
 
             let mut moved = false;
@@ -581,7 +586,7 @@ pub fn moving_object_update(
         move_cooldown.0.tick(time.delta());
 
         if move_cooldown.0.just_finished() {
-            let new_position = position.offset(&moving.direction);
+            let new_position = position.offset(&moving.direction, 1);
             if impassables.get(&new_position).is_none() {
                 *position = new_position;
 
@@ -808,7 +813,6 @@ pub fn perishable_tick(
     time: Res<Time>,
     mut commands: Commands,
     textures: Res<Textures>,
-    fonts: Res<Fonts>,
     mut query: Query<(
         Entity,
         &mut Perishable,
@@ -852,31 +856,6 @@ pub fn perishable_tick(
                         ..Default::default()
                     });
                     ec.insert(*position).insert(item);
-                    if let Item::Power(Power::BombPush) = item {
-                        ec.with_children(|parent| {
-                            parent.spawn_bundle(Text2dBundle {
-                                text: Text::with_section(
-                                    '°',
-                                    TextStyle {
-                                        font: fonts.font1.clone(),
-                                        font_size: 10.0,
-                                        color: Color::rgb_u8(12, 12, 12),
-                                        ..Default::default()
-                                    },
-                                    TextAlignment {
-                                        vertical: VerticalAlign::Center,
-                                        horizontal: HorizontalAlign::Center,
-                                    },
-                                ),
-                                transform: Transform::from_xyz(
-                                    TILE_WIDTH as f32 / 12.0 * 3.0,
-                                    -(TILE_HEIGHT as f32 / 8.0),
-                                    1.0,
-                                ),
-                                ..Default::default()
-                            });
-                        });
-                    }
                 }
             }
         }
@@ -909,12 +888,9 @@ pub fn handle_explosion(
         };
 
         spawn_fire(&mut commands, position);
-        for (y_multiplier, x_multiplier) in [(1, 0), (0, 1), (-1, 0), (0, -1)] {
+        for direction in Direction::LIST {
             for i in 1..=range {
-                let position = Position {
-                    y: position.y + y_multiplier * i as isize,
-                    x: position.x + x_multiplier * i as isize,
-                };
+                let position = position.offset(&direction, i);
 
                 if solids.contains(&position) {
                     ev_burn.send(BurnEvent(position));

@@ -9,12 +9,14 @@ pub struct Position {
 }
 
 impl Position {
-    pub fn offset(&self, direction: &Direction) -> Self {
+    pub fn offset(&self, direction: &Direction, distance: usize) -> Self {
+        let distance = distance as isize;
+
         let (y_offset, x_offset) = match direction {
-            Direction::Right => (0, 1),
-            Direction::Down => (1, 0),
-            Direction::Left => (0, -1),
-            Direction::Up => (-1, 0),
+            Direction::Right => (0, distance),
+            Direction::Down => (distance, 0),
+            Direction::Left => (0, -distance),
+            Direction::Up => (-distance, 0),
         };
 
         Position {
