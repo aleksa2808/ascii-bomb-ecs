@@ -66,6 +66,8 @@ pub fn setup(
         wall: materials.add(asset_server.load("sprites/wall.png").into()),
         destructible_wall: materials.add(asset_server.load("sprites/destructible_wall.png").into()),
         burning_wall: materials.add(asset_server.load("sprites/burning_wall.png").into()),
+        // exit
+        exit: materials.add(asset_server.load("sprites/exit.png").into()),
         // items
         bombs_up: materials.add(asset_server.load("sprites/bombs_up.png").into()),
         range_up: materials.add(asset_server.load("sprites/range_up.png").into()),
@@ -335,11 +337,10 @@ pub fn setup(
         );
     }
 
-    for position in destructible_wall_potential_positions
-        .iter()
-        .copied()
-        .choose_multiple(&mut rng, num_of_destructible_walls_to_place)
-    {
+    let destructible_wall_positions = destructible_wall_potential_positions
+        .into_iter()
+        .choose_multiple(&mut rng, num_of_destructible_walls_to_place);
+    for position in &destructible_wall_positions {
         commands
             .spawn_bundle(SpriteBundle {
                 material: textures.destructible_wall.clone(),
@@ -350,7 +351,11 @@ pub fn setup(
             .insert(Wall {})
             .insert(Solid {})
             .insert(Destructible {})
-            .insert(position);
+            .insert(*position);
+    }
+
+    if let Some(position) = destructible_wall_positions.choose(&mut rng) {
+        commands.insert_resource(ExitPosition(*position));
     }
 
     commands.insert_resource(textures);
@@ -551,8 +556,6 @@ pub fn player_move(
             }
 
             if moved {
-                println!("{:?}", position);
-
                 if let Some(mut move_cooldown) = move_cooldown {
                     move_cooldown.0.reset();
                 }
@@ -577,7 +580,7 @@ pub fn moving_object_update(
             &mut Position,
             &mut Transform,
         )>,
-        Query<&Position, Or<(With<Solid>, With<Item>, With<Player>)>>,
+        Query<&Position, Or<(With<Solid>, With<Item>, With<Player>, With<Exit>)>>,
     )>,
 ) {
     let impassables: HashSet<Position> = q.q1().iter().copied().collect();
@@ -602,24 +605,14 @@ pub fn moving_object_update(
 
 pub fn pick_up_item(
     mut commands: Commands,
-    mut query: Query<
-        (
-            Entity,
-            &mut Health,
-            &mut Handle<ColorMaterial>,
-            &Position,
-            &mut BombSatchel,
-            &ImmortalMaterial,
-        ),
-        With<Player>,
-    >,
+    mut query: Query<(Entity, &mut Health, &Position, &mut BombSatchel), With<Player>>,
     query2: Query<(Entity, &Item, &Position)>,
 ) {
     let mut rng = rand::thread_rng();
     for (ie, i, ip) in query2.iter() {
-        if let Some((pe, mut h, mut color, _, mut bomb_satchel, immortal_material)) = query
+        if let Some((pe, mut h, _, mut bomb_satchel)) = query
             .iter_mut()
-            .filter(|(_, _, _, pp, _, _)| **pp == *ip)
+            .filter(|(_, _, pp, _)| **pp == *ip)
             .choose(&mut rng)
         {
             println!("powered up: {:?}", ip);
@@ -629,7 +622,6 @@ pub fn pick_up_item(
                 Item::Upgrade(Upgrade::LivesUp) => h.lives += 1,
                 Item::Power(Power::Immortal) => {
                     commands.entity(pe).insert_bundle(ImmortalBundle::default());
-                    *color = immortal_material.0.clone();
                 }
                 Item::Power(Power::WallHack) => {
                     commands.entity(pe).insert(WallHack {});
@@ -644,13 +636,31 @@ pub fn pick_up_item(
     }
 }
 
+pub fn exit_level(
+    mut commands: Commands,
+    query: Query<(Entity, &Position, &TeamAlignment), (With<Player>, With<HumanControlled>)>,
+    query2: Query<&Position, With<Exit>>,
+    query3: Query<&TeamAlignment, With<Player>>,
+) {
+    if let Ok(exit_position) = query2.single() {
+        for (player_entity, player_position, player_team_alignment) in query.iter() {
+            if *player_position == *exit_position {
+                if !query3.iter().any(|ta| ta.0 != player_team_alignment.0) {
+                    commands.entity(player_entity).despawn_recursive();
+                    println!("Player {:?} exited the level!", player_entity);
+                }
+            }
+        }
+    }
+}
+
 pub fn bomb_drop(
     mut commands: Commands,
     textures: Res<Textures>,
     fonts: Res<Fonts>,
     mut ev_player_action: EventReader<PlayerActionEvent>,
     mut query: Query<(&Position, &mut BombSatchel)>,
-    query2: Query<&Position, With<Solid>>,
+    query2: Query<&Position, Or<(With<Solid>, With<Exit>)>>,
 ) {
     for entity in ev_player_action
         .iter()
@@ -811,6 +821,7 @@ pub fn animate_fuse(
 
 pub fn perishable_tick(
     time: Res<Time>,
+    exit_position: Res<ExitPosition>,
     mut commands: Commands,
     textures: Res<Textures>,
     mut query: Query<(
@@ -838,24 +849,49 @@ pub fn perishable_tick(
             }
 
             if wall.is_some() {
-                // generate power up
-                const POWER_CHANCE: usize = 100;
-                if rand::thread_rng().gen::<usize>() % 100 < POWER_CHANCE {
-                    let item = Item::generate(false);
-                    let mut ec = commands.spawn_bundle(SpriteBundle {
-                        material: match item {
-                            Item::Upgrade(Upgrade::BombsUp) => textures.bombs_up.clone(),
-                            Item::Upgrade(Upgrade::RangeUp) => textures.range_up.clone(),
-                            Item::Upgrade(Upgrade::LivesUp) => textures.lives_up.clone(),
-                            Item::Power(Power::WallHack) => textures.wall_hack.clone(),
-                            Item::Power(Power::BombPush) => textures.bomb_push.clone(),
-                            Item::Power(Power::Immortal) => textures.immortal.clone(),
-                        },
-                        transform: Transform::from_xyz(get_x(position.x), get_y(position.y), 20.0),
-                        sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
-                        ..Default::default()
-                    });
-                    ec.insert(*position).insert(item);
+                if *position == exit_position.0 {
+                    commands
+                        .spawn_bundle(SpriteBundle {
+                            material: textures.exit.clone(),
+                            transform: Transform::from_xyz(
+                                get_x(position.x),
+                                get_y(position.y),
+                                10.0,
+                            ),
+                            sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+                            ..Default::default()
+                        })
+                        .insert(*position)
+                        .insert(Exit::default());
+                } else {
+                    // generate power up
+                    const POWER_CHANCE: usize = 100;
+                    if rand::thread_rng().gen::<usize>() % 100 < POWER_CHANCE {
+                        let item = Item::generate(false);
+                        commands
+                            .spawn_bundle(SpriteBundle {
+                                material: match item {
+                                    Item::Upgrade(Upgrade::BombsUp) => textures.bombs_up.clone(),
+                                    Item::Upgrade(Upgrade::RangeUp) => textures.range_up.clone(),
+                                    Item::Upgrade(Upgrade::LivesUp) => textures.lives_up.clone(),
+                                    Item::Power(Power::WallHack) => textures.wall_hack.clone(),
+                                    Item::Power(Power::BombPush) => textures.bomb_push.clone(),
+                                    Item::Power(Power::Immortal) => textures.immortal.clone(),
+                                },
+                                transform: Transform::from_xyz(
+                                    get_x(position.x),
+                                    get_y(position.y),
+                                    20.0,
+                                ),
+                                sprite: Sprite::new(Vec2::new(
+                                    TILE_WIDTH as f32,
+                                    TILE_HEIGHT as f32,
+                                )),
+                                ..Default::default()
+                            })
+                            .insert(*position)
+                            .insert(item);
+                    }
                 }
             }
         }
@@ -865,18 +901,18 @@ pub fn perishable_tick(
 pub fn handle_explosion(
     mut commands: Commands,
     textures: Res<Textures>,
-    query: Query<&Position, With<Solid>>,
+    query: Query<&Position, Or<(With<Solid>, With<Exit>)>>,
     mut ev_explosion: EventReader<ExplosionEvent>,
     mut ev_burn: EventWriter<BurnEvent>,
 ) {
-    let solids: HashSet<Position> = query.iter().copied().collect();
+    let fireproof_positions: HashSet<Position> = query.iter().copied().collect();
 
     for ExplosionEvent(position, range) in ev_explosion.iter().copied() {
         let spawn_fire = |commands: &mut Commands, position: Position| {
             commands
                 .spawn_bundle(SpriteBundle {
                     material: textures.fire.clone(),
-                    transform: Transform::from_xyz(get_x(position.x), get_y(position.y), 0.0),
+                    transform: Transform::from_xyz(get_x(position.x), get_y(position.y), 10.0),
                     sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
                     ..Default::default()
                 })
@@ -892,7 +928,7 @@ pub fn handle_explosion(
             for i in 1..=range {
                 let position = position.offset(&direction, i);
 
-                if solids.contains(&position) {
+                if fireproof_positions.contains(&position) {
                     ev_burn.send(BurnEvent(position));
                     break;
                 }
@@ -1116,6 +1152,55 @@ pub fn item_burn(
                 .insert(Perishable {
                     timer: Timer::from_seconds(0.5, false),
                 });
+        }
+    }
+}
+
+pub fn exit_burn(
+    time: Res<Time>,
+    textures: Res<Textures>,
+    mut commands: Commands,
+    mut query: Query<(&Position, &mut Exit)>,
+    mut ev_burn: EventReader<BurnEvent>,
+) {
+    for BurnEvent(position) in ev_burn.iter() {
+        if let Ok((exit_position, mut exit)) = query.single_mut() {
+            exit.spawn_cooldown.tick(time.delta());
+            if (exit.spawn_cooldown.finished() || exit.first_use) && *exit_position == *position {
+                println!("exit burned: {:?}", position);
+                exit.spawn_cooldown.reset();
+                if exit.first_use {
+                    exit.first_use = false;
+                }
+
+                // spawn mob
+                let base_material = textures.crook.clone();
+                let immortal_material = textures.immortal_crook.clone();
+                let mut ec = commands.spawn_bundle(SpriteBundle {
+                    material: base_material.clone(),
+                    transform: Transform::from_xyz(
+                        get_x(exit_position.x),
+                        get_y(exit_position.y),
+                        50.0,
+                    ),
+                    sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+                    ..Default::default()
+                });
+                ec.insert(BaseMaterial(base_material))
+                    .insert(ImmortalMaterial(immortal_material))
+                    .insert(Player {})
+                    .insert(MobAI::default())
+                    .insert(MoveCooldown(Timer::from_seconds(0.4, false)))
+                    .insert(Health {
+                        lives: 1,
+                        max_health: 1,
+                        health: 1,
+                    })
+                    .insert(*exit_position)
+                    .insert(MeleeAttacker {})
+                    .insert(TeamAlignment(1))
+                    .insert_bundle(ImmortalBundle::default());
+            }
         }
     }
 }

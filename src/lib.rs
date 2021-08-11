@@ -58,10 +58,12 @@ pub fn run() {
         .add_system(bomb_burn.system().label("burn"))
         .add_system(destructible_wall_burn.system().label("burn"))
         .add_system(item_burn.system().label("burn"))
+        .add_system(exit_burn.system().label("burn"))
         // player specifics
         .add_system(pick_up_item.system())
         .add_system(melee_attack.system().before("damage"))
         .add_system(player_damage.system().label("damage"))
+        .add_system(exit_level.system())
         // animation
         .add_system(animate_fuse.system())
         .add_system(animate_immortality.system())

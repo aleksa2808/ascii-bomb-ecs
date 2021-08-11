@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use crate::components::Position;
+
 pub struct Textures {
     // players + effects
     pub penguin: Handle<ColorMaterial>,
@@ -18,6 +20,8 @@ pub struct Textures {
     pub wall: Handle<ColorMaterial>,
     pub destructible_wall: Handle<ColorMaterial>,
     pub burning_wall: Handle<ColorMaterial>,
+    // exit
+    pub exit: Handle<ColorMaterial>,
     // items
     pub bombs_up: Handle<ColorMaterial>,
     pub range_up: Handle<ColorMaterial>,
@@ -31,3 +35,5 @@ pub struct Textures {
 pub struct Fonts {
     pub font1: Handle<Font>,
 }
+
+pub struct ExitPosition(pub Position);
