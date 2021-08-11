@@ -338,7 +338,7 @@ pub fn setup(
     for position in destructible_wall_potential_positions
         .iter()
         .copied()
-        .choose_multiple(&mut rand::thread_rng(), num_of_destructible_walls_to_place)
+        .choose_multiple(&mut rng, num_of_destructible_walls_to_place)
     {
         commands
             .spawn_bundle(SpriteBundle {
@@ -577,7 +577,7 @@ pub fn moving_object_update(
             &mut Position,
             &mut Transform,
         )>,
-        Query<&Position, Or<(With<Solid>, With<Item>)>>,
+        Query<&Position, Or<(With<Solid>, With<Item>, With<Player>)>>,
     )>,
 ) {
     let impassables: HashSet<Position> = q.q1().iter().copied().collect();
