@@ -38,4 +38,6 @@ pub struct Fonts {
 
 pub struct Level(pub usize);
 
+pub struct GameScore(pub usize);
+
 pub struct ExitPosition(pub Position);

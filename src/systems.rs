@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 
+use bevy::app::AppExit;
 use bevy::prelude::*;
 use bevy::render::camera::Camera;
 use bevy::render::camera::VisibleEntities;
@@ -17,6 +18,7 @@ use crate::types::{Direction, *};
 use crate::utils::*;
 
 pub fn setup(
+    level: Res<Level>,
     mut commands: Commands,
     mut materials: ResMut<Assets<ColorMaterial>>,
     asset_server: Res<AssetServer>,
@@ -96,11 +98,49 @@ pub fn setup(
         projection,
     ));
 
-    let player_spawn_position = Position { y: 1, x: 1 };
+    commands.spawn_bundle(UiCameraBundle::default());
+
+    // score display
+    commands
+        .spawn_bundle(TextBundle {
+            text: Text {
+                sections: vec![
+                    TextSection {
+                        value: "Score: ".to_string(),
+                        style: TextStyle {
+                            font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                            font_size: 40.0,
+                            color: Color::rgb(0.5, 0.5, 1.0),
+                        },
+                    },
+                    TextSection {
+                        value: "".to_string(),
+                        style: TextStyle {
+                            font: asset_server.load("fonts/FiraMono-Medium.ttf"),
+                            font_size: 40.0,
+                            color: Color::rgb(1.0, 0.5, 0.5),
+                        },
+                    },
+                ],
+                ..Default::default()
+            },
+            style: Style {
+                position_type: PositionType::Absolute,
+                position: Rect {
+                    top: Val::Px(5.0),
+                    left: Val::Px(5.0),
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .insert(GameStatsDisplay);
 
     // map generation //
 
     // spawn player
+    let player_spawn_position = Position { y: 1, x: 1 };
     let base_material = textures.penguin.clone();
     let immortal_material = textures.immortal_penguin.clone();
     commands
@@ -130,7 +170,6 @@ pub fn setup(
         })
         .insert(TeamID(0));
 
-    let level = Level(1);
     let enemy_spawn_positions = spawn_enemies(&mut commands, &textures, level.0);
     spawn_map(
         &mut commands,
@@ -139,9 +178,16 @@ pub fn setup(
         &enemy_spawn_positions,
     );
 
-    commands.insert_resource(level);
     commands.insert_resource(textures);
     commands.insert_resource(fonts);
+}
+
+pub fn display_stats(
+    game_score: Res<GameScore>,
+    mut query: Query<&mut Text, With<GameStatsDisplay>>,
+) {
+    let mut text = query.single_mut().unwrap();
+    text.sections[0].value = format!("Score: {}", game_score.0);
 }
 
 pub fn handle_keyboard_input(
@@ -436,7 +482,14 @@ pub fn finish_level(
         Query<&Position, With<Exit>>,
     )>,
     query3: Query<&TeamID, With<Player>>,
-    query4: Query<Entity, (Without<Camera>, Without<HumanControlled>)>,
+    query4: Query<
+        Entity,
+        (
+            Without<Camera>,
+            Without<GameStatsDisplay>,
+            Without<HumanControlled>,
+        ),
+    >,
     query5: Query<&Bomb>,
 ) {
     // if an exit is spawned...
@@ -481,6 +534,17 @@ pub fn finish_level(
                 &enemy_spawn_positions,
             );
         }
+    }
+}
+
+pub fn fail_level(
+    game_score: Res<GameScore>,
+    query: Query<&HumanControlled>,
+    mut exit: EventWriter<AppExit>,
+) {
+    if query.iter().count() == 0 {
+        println!("Game over! Final score: {}", game_score.0);
+        exit.send(AppExit);
     }
 }
 
@@ -860,12 +924,14 @@ pub fn player_burn(
 
 pub fn player_damage(
     mut commands: Commands,
+    mut game_score: ResMut<GameScore>,
     mut query: Query<
         (
             Entity,
             &mut Health,
             &mut Handle<ColorMaterial>,
             &ImmortalMaterial,
+            Option<&PointValue>,
         ),
         (With<Player>, Without<Immortal>),
     >,
@@ -874,20 +940,27 @@ pub fn player_damage(
     let mut damaged_players = HashSet::new();
 
     for DamageEvent(entity) in ev_damage.iter() {
-        if let Ok((pe, mut health, mut color, immortal_material)) = query.get_mut(*entity) {
+        if let Ok((pe, mut health, mut color, immortal_material, point_value)) =
+            query.get_mut(*entity)
+        {
             if damaged_players.contains(&pe) {
                 continue;
             }
             damaged_players.insert(pe);
 
-            println!("damage to player {:?}", pe);
+            println!("player damaged: {:?}", pe);
             health.health -= 1;
 
             let mut gain_immortality = false;
             if health.health == 0 {
                 health.lives -= 1;
                 if health.lives == 0 {
+                    println!("player died: {:?}", pe);
                     commands.entity(pe).despawn_recursive();
+
+                    if let Some(point_value) = point_value {
+                        game_score.0 += point_value.0;
+                    }
                 } else {
                     health.health = health.max_health;
                     gain_immortality = true;

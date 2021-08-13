@@ -76,6 +76,10 @@ pub struct MeleeAttacker;
 
 pub struct TeamID(pub usize);
 
+pub struct PointValue(pub usize);
+
+pub struct GameStatsDisplay;
+
 pub struct Perishable {
     pub timer: Timer,
 }

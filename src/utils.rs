@@ -46,15 +46,22 @@ pub fn spawn_enemies(commands: &mut Commands, textures: &Textures, level: usize)
 
     let mut enemy_spawn_positions = vec![];
     for i in 0..mob_num {
-        let (base_material, immortal_material, wall_hack, health) = if i > 3 {
+        let (base_material, immortal_material, wall_hack, health, point_value) = if i > 3 {
             if i > 5 {
-                (textures.bat.clone(), textures.immortal_bat.clone(), true, 3)
+                (
+                    textures.bat.clone(),
+                    textures.immortal_bat.clone(),
+                    true,
+                    3,
+                    90,
+                )
             } else {
                 (
                     textures.hatter.clone(),
                     textures.immortal_hatter.clone(),
                     false,
                     2,
+                    70,
                 )
             }
         } else {
@@ -63,6 +70,7 @@ pub fn spawn_enemies(commands: &mut Commands, textures: &Textures, level: usize)
                 textures.immortal_crook.clone(),
                 false,
                 1,
+                50,
             )
         };
 
@@ -94,7 +102,8 @@ pub fn spawn_enemies(commands: &mut Commands, textures: &Textures, level: usize)
             })
             .insert(enemy_spawn_position)
             .insert(MeleeAttacker {})
-            .insert(TeamID(1));
+            .insert(TeamID(1))
+            .insert(PointValue(point_value));
 
         if wall_hack {
             ec.insert(WallHack);

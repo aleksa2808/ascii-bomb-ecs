@@ -11,9 +11,7 @@ mod utils;
 use bevy::{input::system::exit_on_esc_system, prelude::*, window::exit_on_window_close_system};
 use wasm_bindgen::prelude::*;
 
-use crate::camera::SimpleOrthoProjection;
-use crate::events::*;
-use crate::systems::*;
+use crate::{camera::SimpleOrthoProjection, constants::*, events::*, resources::*, systems::*};
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, StageLabel)]
 enum Stage {
@@ -31,10 +29,12 @@ enum Label {
 #[wasm_bindgen]
 pub fn run() {
     let mut app = App::build();
+
+    const DISPLAY_SCALE: usize = 2;
     app.insert_resource(WindowDescriptor {
         title: "ascii-bomb-ecs".to_string(),
-        height: 880.0,
-        width: 900.0,
+        height: (MAP_HEIGHT * DISPLAY_SCALE * TILE_HEIGHT) as f32,
+        width: (MAP_WIDTH * DISPLAY_SCALE * TILE_WIDTH) as f32,
         ..Default::default()
     })
     .add_plugins(DefaultPlugins);
@@ -57,6 +57,8 @@ pub fn run() {
         CoreStage::PostUpdate,
         camera_system::<SimpleOrthoProjection>.system(),
     )
+    // display game stats
+    .add_system(display_stats.system())
     // handle input
     .add_system(handle_keyboard_input.system().label(Label::Input))
     .add_system(handle_mouse_input.system().label(Label::Input))
@@ -96,6 +98,9 @@ pub fn run() {
     .add_system(animate_immortality.system())
     // game end check
     .add_system_to_stage(Stage::GameEndCheck, finish_level.system())
+    .add_system_to_stage(Stage::GameEndCheck, fail_level.system())
+    .insert_resource(Level(1))
+    .insert_resource(GameScore(0))
     .add_event::<PlayerActionEvent>()
     .add_event::<ExplosionEvent>()
     .add_event::<BurnEvent>()
