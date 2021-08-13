@@ -148,6 +148,7 @@ pub fn setup(
         &textures,
         &player_spawn_position,
         &enemy_spawn_positions,
+        &level,
     );
 
     commands.insert_resource(textures);
@@ -442,7 +443,7 @@ pub fn finish_level(
     asset_server: Res<AssetServer>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut level: ResMut<Level>,
-    game_score: Res<GameScore>,
+    mut game_score: ResMut<GameScore>,
     mut q: QuerySet<(
         Query<
             (
@@ -467,59 +468,116 @@ pub fn finish_level(
     >,
     query5: Query<&Bomb>,
     mut exit: EventWriter<AppExit>,
+    keyboard_input: Res<Input<KeyCode>>,
 ) {
-    // if an exit is spawned...
-    if let Ok(exit_position) = q.q1().single().map(|p| *p) {
-        // ...check if a human controlled player reached it when all the enemies are dead
-        if let Some((player_entity, mut player_position, mut transform, _, mut bomb_satchel)) =
-            q.q0_mut().iter_mut().find(|(_, pp, _, ptid, _)| {
-                **pp == exit_position && !query3.iter().any(|tid| tid.0 != ptid.0)
-            })
-        {
-            println!("Player {:?} finished the level!", player_entity);
+    let mut level_completed = false;
+    match level.sublevel {
+        SubLevel::Regular(_) => {
+            // if an exit is spawned...
+            if let Ok(exit_position) = q.q1().single().map(|p| *p) {
+                // ...check if a human controlled player reached it when all the enemies are dead
+                if q.q0_mut()
+                    .iter_mut()
+                    .find(|(_, pp, _, ptid, _)| {
+                        **pp == exit_position && !query3.iter().any(|tid| tid.0 != ptid.0)
+                    })
+                    .is_some()
+                {
+                    level_completed = true;
+                }
+            }
+        }
+        SubLevel::BossRoom => {
+            // if a human controlled player killed all the enemies
+            if q.q0_mut()
+                .iter_mut()
+                .any(|(_, _, _, ptid, _)| !query3.iter().any(|tid| tid.0 != ptid.0))
+            {
+                level_completed = true;
+            }
+        }
+    }
 
-            if level.sublevel < 5 {
-                level.sublevel += 1;
-            } else if level.world < 3 {
-                level.world += 1;
-                level.sublevel = 1;
-                *textures = load_textures(&asset_server, &mut materials, level.world);
-            } else {
+    // TODO: remove
+    if keyboard_input.just_pressed(KeyCode::F) {
+        level_completed = true;
+    }
+
+    if level_completed {
+        if let SubLevel::Regular(num) = level.sublevel {
+            println!("Level {}x{} completed!", level.world, num);
+        } else {
+            println!("World {} boss defeated!", level.world);
+        }
+
+        match *level {
+            Level {
+                sublevel: SubLevel::BossRoom,
+                world: 3,
+            } => {
+                game_score.0 += 2000;
                 println!("Game completed! Final score: {}", game_score.0);
                 exit.send(AppExit);
                 return;
             }
-
-            let unexploded_player_bombs =
-                query5.iter().filter(|b| b.parent == player_entity).count();
-
-            for entity in query4.iter() {
-                commands.entity(entity).despawn_recursive();
+            Level {
+                sublevel: SubLevel::BossRoom,
+                world: _,
+            } => {
+                level.world += 1;
+                level.sublevel = SubLevel::Regular(1);
+                *textures = load_textures(&asset_server, &mut materials, level.world);
             }
-
-            // bomb refill
-            bomb_satchel.bombs_available += unexploded_player_bombs;
-
-            // move player to spawn
-            *player_position = Position { y: 1, x: 1 };
-
-            let translation = &mut transform.translation;
-            translation.x = get_x(player_position.x);
-            translation.y = get_y(player_position.y);
-
-            // make temporarily immortal
-            commands
-                .entity(player_entity)
-                .insert_bundle(ImmortalBundle::default());
-
-            let enemy_spawn_positions = spawn_enemies(&mut commands, &textures, &level);
-            spawn_map(
-                &mut commands,
-                &textures,
-                &player_position,
-                &enemy_spawn_positions,
-            );
+            Level {
+                sublevel: SubLevel::Regular(num),
+                world: _,
+            } => {
+                if num < 4 {
+                    level.sublevel = SubLevel::Regular(num + 1);
+                } else {
+                    level.sublevel = SubLevel::BossRoom
+                }
+            }
         }
+
+        let (player_entity, mut player_position, mut transform, _, mut bomb_satchel) =
+            q.q0_mut().single_mut().unwrap();
+
+        let unexploded_player_bombs = query5.iter().filter(|b| b.parent == player_entity).count();
+
+        for entity in query4.iter() {
+            commands.entity(entity).despawn_recursive();
+        }
+
+        // bomb refill
+        bomb_satchel.bombs_available += unexploded_player_bombs;
+
+        // move player to spawn
+        *player_position = match level.sublevel {
+            SubLevel::Regular(_) => Position { y: 1, x: 1 },
+            SubLevel::BossRoom => Position {
+                y: MAP_HEIGHT as isize - 4,
+                x: MAP_WIDTH as isize / 2,
+            },
+        };
+
+        let translation = &mut transform.translation;
+        translation.x = get_x(player_position.x);
+        translation.y = get_y(player_position.y);
+
+        // make temporarily immortal
+        commands
+            .entity(player_entity)
+            .insert_bundle(ImmortalBundle::default());
+
+        let enemy_spawn_positions = spawn_enemies(&mut commands, &textures, &level);
+        spawn_map(
+            &mut commands,
+            &textures,
+            &player_position,
+            &enemy_spawn_positions,
+            &level,
+        );
     }
 }
 

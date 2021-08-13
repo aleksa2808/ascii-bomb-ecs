@@ -6,7 +6,7 @@ use rand::{
     Rng,
 };
 
-use crate::{components::*, constants::*, resources::*, types::Direction};
+use crate::{components::*, constants::*, resources::*, types::Direction, types::*};
 
 pub fn get_x(x: isize) -> f32 {
     TILE_WIDTH as f32 / 2.0 + (x * TILE_WIDTH as isize) as f32
@@ -69,8 +69,12 @@ pub fn load_textures(
 }
 
 pub fn spawn_enemies(commands: &mut Commands, textures: &Textures, level: &Level) -> Vec<Position> {
-    // spawn enemies
-    let mob_num = level.sublevel + level.world;
+    // spawn mobs
+    let mob_num = if let SubLevel::Regular(num) = level.sublevel {
+        num + 1
+    } else {
+        1
+    } + level.world;
 
     // hardcoded for 11x15
     let x = [
@@ -162,6 +166,45 @@ pub fn spawn_enemies(commands: &mut Commands, textures: &Textures, level: &Level
         }
     }
 
+    if let SubLevel::BossRoom = level.sublevel {
+        // spawn boss
+        let boss_spawn_position = Position {
+            y: 3,
+            x: MAP_WIDTH as isize / 2,
+        };
+        enemy_spawn_positions.push(boss_spawn_position);
+        let base_material = textures.penguin.clone();
+        let immortal_material = textures.immortal_penguin.clone();
+        commands
+            .spawn_bundle(SpriteBundle {
+                material: base_material.clone(),
+                transform: Transform::from_xyz(
+                    get_x(boss_spawn_position.x),
+                    get_y(boss_spawn_position.y),
+                    50.0,
+                ),
+                sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+                ..Default::default()
+            })
+            .insert(BaseMaterial(base_material))
+            .insert(ImmortalMaterial(immortal_material))
+            .insert(Player {})
+            .insert(MobAI::default()) // TODO: BossAI
+            .insert(MoveCooldown(Timer::from_seconds(0.4, false)))
+            .insert(Health {
+                lives: 1,
+                max_health: 2,
+                health: 2,
+            })
+            .insert(boss_spawn_position)
+            .insert(BombSatchel {
+                bombs_available: 1 + level.world,
+                bomb_range: 1 + level.world,
+            })
+            .insert(TeamID(1))
+            .insert(PointValue(200));
+    }
+
     enemy_spawn_positions
 }
 
@@ -170,6 +213,7 @@ pub fn spawn_map(
     textures: &Textures,
     player_spawn_position: &Position,
     enemy_spawn_positions: &Vec<Position>,
+    level: &Level,
 ) {
     let mut rng = rand::thread_rng();
 
@@ -277,7 +321,11 @@ pub fn spawn_map(
         }
     }
 
-    let percent_of_passable_positions_to_fill = 50.0;
+    let percent_of_passable_positions_to_fill = if let SubLevel::BossRoom = level.sublevel {
+        0.0
+    } else {
+        50.0
+    };
     let num_of_destructible_walls_to_place = (number_of_passable_positions as f32
         * percent_of_passable_positions_to_fill
         / 100.0) as usize;
@@ -306,7 +354,9 @@ pub fn spawn_map(
             .insert(*position);
     }
 
-    if let Some(position) = destructible_wall_positions.choose(&mut rng) {
-        commands.insert_resource(ExitPosition(*position));
+    if let SubLevel::Regular(_) = level.sublevel {
+        commands.insert_resource(ExitPosition(
+            *destructible_wall_positions.choose(&mut rng).unwrap(),
+        ));
     }
 }

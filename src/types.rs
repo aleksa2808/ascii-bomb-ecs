@@ -19,3 +19,8 @@ pub enum PlayerAction {
     Move(Direction),
     DropBomb,
 }
+
+pub enum SubLevel {
+    Regular(usize),
+    BossRoom,
+}

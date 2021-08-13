@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::components::Position;
+use crate::{components::Position, types::SubLevel};
 
 pub struct Textures {
     // players + effects
@@ -37,7 +37,7 @@ pub struct Fonts {
 }
 
 pub struct Level {
-    pub sublevel: usize,
+    pub sublevel: SubLevel,
     pub world: usize,
 }
 

@@ -11,7 +11,9 @@ mod utils;
 use bevy::{input::system::exit_on_esc_system, prelude::*, window::exit_on_window_close_system};
 use wasm_bindgen::prelude::*;
 
-use crate::{camera::SimpleOrthoProjection, constants::*, events::*, resources::*, systems::*};
+use crate::{
+    camera::SimpleOrthoProjection, constants::*, events::*, resources::*, systems::*, types::*,
+};
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, StageLabel)]
 enum Stage {
@@ -100,7 +102,7 @@ pub fn run() {
     .add_system_to_stage(Stage::GameEndCheck, finish_level.system())
     .add_system_to_stage(Stage::GameEndCheck, fail_level.system())
     .insert_resource(Level {
-        sublevel: 1,
+        sublevel: SubLevel::Regular(1),
         world: 1,
     })
     .insert_resource(GameScore(0))
