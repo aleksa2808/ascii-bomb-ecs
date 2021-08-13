@@ -99,7 +99,10 @@ pub fn run() {
     // game end check
     .add_system_to_stage(Stage::GameEndCheck, finish_level.system())
     .add_system_to_stage(Stage::GameEndCheck, fail_level.system())
-    .insert_resource(Level(1))
+    .insert_resource(Level {
+        sublevel: 1,
+        world: 1,
+    })
     .insert_resource(GameScore(0))
     .add_event::<PlayerActionEvent>()
     .add_event::<ExplosionEvent>()

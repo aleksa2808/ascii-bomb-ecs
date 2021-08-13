@@ -36,7 +36,10 @@ pub struct Fonts {
     pub font1: Handle<Font>,
 }
 
-pub struct Level(pub usize);
+pub struct Level {
+    pub sublevel: usize,
+    pub world: usize,
+}
 
 pub struct GameScore(pub usize);
 

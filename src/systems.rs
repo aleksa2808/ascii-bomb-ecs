@@ -50,35 +50,7 @@ pub fn setup(
     //     });
     // }
 
-    let textures = Textures {
-        // players + effects
-        penguin: materials.add(asset_server.load("sprites/penguin.png").into()),
-        immortal_penguin: materials.add(asset_server.load("sprites/immortal_penguin.png").into()),
-        crook: materials.add(asset_server.load("sprites/crook.png").into()),
-        immortal_crook: materials.add(asset_server.load("sprites/immortal_crook.png").into()),
-        hatter: materials.add(asset_server.load("sprites/hatter.png").into()),
-        immortal_hatter: materials.add(asset_server.load("sprites/immortal_hatter.png").into()),
-        bat: materials.add(asset_server.load("sprites/bat.png").into()),
-        immortal_bat: materials.add(asset_server.load("sprites/immortal_bat.png").into()),
-        // bomb + fire
-        bomb: materials.add(asset_server.load("sprites/bomb.png").into()),
-        fire: materials.add(asset_server.load("sprites/fire.png").into()),
-        // map tiles
-        empty: materials.add(asset_server.load("sprites/empty.png").into()),
-        wall: materials.add(asset_server.load("sprites/wall.png").into()),
-        destructible_wall: materials.add(asset_server.load("sprites/destructible_wall.png").into()),
-        burning_wall: materials.add(asset_server.load("sprites/burning_wall.png").into()),
-        // exit
-        exit: materials.add(asset_server.load("sprites/exit.png").into()),
-        // items
-        bombs_up: materials.add(asset_server.load("sprites/bombs_up.png").into()),
-        range_up: materials.add(asset_server.load("sprites/range_up.png").into()),
-        lives_up: materials.add(asset_server.load("sprites/lives_up.png").into()),
-        wall_hack: materials.add(asset_server.load("sprites/wall_hack.png").into()),
-        bomb_push: materials.add(asset_server.load("sprites/bomb_push.png").into()),
-        immortal: materials.add(asset_server.load("sprites/immortal.png").into()),
-        burning_item: materials.add(asset_server.load("sprites/burning_item.png").into()),
-    };
+    let textures = load_textures(&asset_server, &mut materials, level.world);
 
     let fonts = Fonts {
         font1: asset_server.load("fonts/FiraMono-Medium.ttf"),
@@ -170,7 +142,7 @@ pub fn setup(
         })
         .insert(TeamID(0));
 
-    let enemy_spawn_positions = spawn_enemies(&mut commands, &textures, level.0);
+    let enemy_spawn_positions = spawn_enemies(&mut commands, &textures, &level);
     spawn_map(
         &mut commands,
         &textures,
@@ -466,8 +438,11 @@ pub fn pick_up_item(
 
 pub fn finish_level(
     mut commands: Commands,
-    textures: Res<Textures>,
+    mut textures: ResMut<Textures>,
+    asset_server: Res<AssetServer>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
     mut level: ResMut<Level>,
+    game_score: Res<GameScore>,
     mut q: QuerySet<(
         Query<
             (
@@ -491,6 +466,7 @@ pub fn finish_level(
         ),
     >,
     query5: Query<&Bomb>,
+    mut exit: EventWriter<AppExit>,
 ) {
     // if an exit is spawned...
     if let Ok(exit_position) = q.q1().single().map(|p| *p) {
@@ -501,6 +477,18 @@ pub fn finish_level(
             })
         {
             println!("Player {:?} finished the level!", player_entity);
+
+            if level.sublevel < 5 {
+                level.sublevel += 1;
+            } else if level.world < 3 {
+                level.world += 1;
+                level.sublevel = 1;
+                *textures = load_textures(&asset_server, &mut materials, level.world);
+            } else {
+                println!("Game completed! Final score: {}", game_score.0);
+                exit.send(AppExit);
+                return;
+            }
 
             let unexploded_player_bombs =
                 query5.iter().filter(|b| b.parent == player_entity).count();
@@ -524,9 +512,7 @@ pub fn finish_level(
                 .entity(player_entity)
                 .insert_bundle(ImmortalBundle::default());
 
-            level.0 += 1;
-
-            let enemy_spawn_positions = spawn_enemies(&mut commands, &textures, level.0);
+            let enemy_spawn_positions = spawn_enemies(&mut commands, &textures, &level);
             spawn_map(
                 &mut commands,
                 &textures,
@@ -552,6 +538,7 @@ pub fn bomb_drop(
     mut commands: Commands,
     textures: Res<Textures>,
     fonts: Res<Fonts>,
+    level: Res<Level>,
     mut ev_player_action: EventReader<PlayerActionEvent>,
     mut query: Query<(&Position, &mut BombSatchel)>,
     query2: Query<&Position, Or<(With<Solid>, With<Exit>)>>,
@@ -583,12 +570,18 @@ pub fn bomb_drop(
                     })
                     .insert(*position)
                     .with_children(|parent| {
+                        let fuse_color = if level.world == 2 {
+                            Color::rgb_u8(231, 72, 86)
+                        } else {
+                            Color::rgb_u8(249, 241, 165)
+                        };
+
                         let mut text = Text::with_section(
                             '*',
                             TextStyle {
                                 font: fonts.font1.clone(),
                                 font_size: 10.0,
-                                color: Color::rgb_u8(249, 241, 165),
+                                color: fuse_color,
                                 ..Default::default()
                             },
                             TextAlignment {
@@ -617,6 +610,7 @@ pub fn bomb_drop(
                                 ..Default::default()
                             })
                             .insert(Fuse {})
+                            .insert(fuse_color)
                             .insert(Timer::from_seconds(0.1, true));
                     });
             }
@@ -628,9 +622,9 @@ pub fn animate_fuse(
     time: Res<Time>,
     fonts: Res<Fonts>,
     query: Query<&Perishable, With<Bomb>>,
-    mut query2: Query<(&Parent, &mut Text, &mut Timer, &mut Transform), With<Fuse>>,
+    mut query2: Query<(&Parent, &mut Text, &Color, &mut Timer, &mut Transform), With<Fuse>>,
 ) {
-    for (parent, mut text, mut timer, mut transform) in query2.iter_mut() {
+    for (parent, mut text, fuse_color, mut timer, mut transform) in query2.iter_mut() {
         timer.tick(time.delta());
         let percent_left = timer.percent_left();
         let fuse_char = match percent_left {
@@ -641,8 +635,8 @@ pub fn animate_fuse(
         };
 
         let perishable = query.get(parent.0).unwrap();
-
         let percent_left = perishable.timer.percent_left();
+
         match percent_left {
             _ if (0.66..1.0).contains(&percent_left) => {
                 text.sections = vec![
@@ -651,7 +645,7 @@ pub fn animate_fuse(
                         style: TextStyle {
                             font: fonts.font1.clone(),
                             font_size: 10.0,
-                            color: Color::rgb_u8(249, 241, 165),
+                            color: *fuse_color,
                             ..Default::default()
                         },
                     },
@@ -676,7 +670,7 @@ pub fn animate_fuse(
                         style: TextStyle {
                             font: fonts.font1.clone(),
                             font_size: 10.0,
-                            color: Color::rgb_u8(249, 241, 165),
+                            color: *fuse_color,
                             ..Default::default()
                         },
                     },
@@ -700,7 +694,7 @@ pub fn animate_fuse(
                     style: TextStyle {
                         font: fonts.font1.clone(),
                         font_size: 10.0,
-                        color: Color::rgb_u8(249, 241, 165),
+                        color: *fuse_color,
                         ..Default::default()
                     },
                 }];
