@@ -11,10 +11,10 @@ use crate::camera::*;
 use crate::components::*;
 use crate::constants::*;
 use crate::events::*;
-use crate::helpers::*;
 use crate::item::*;
 use crate::resources::*;
 use crate::types::{Direction, *};
+use crate::utils::*;
 
 pub fn setup(
     mut commands: Commands,
@@ -82,9 +82,6 @@ pub fn setup(
         font1: asset_server.load("fonts/FiraMono-Medium.ttf"),
     };
 
-    const MAP_WIDTH: usize = 15;
-    const MAP_HEIGHT: usize = 11;
-
     // spawn camera
     let projection = SimpleOrthoProjection::new(MAP_WIDTH, MAP_HEIGHT);
     let cam_name = bevy::render::render_graph::base::camera::CAMERA_2D;
@@ -131,233 +128,18 @@ pub fn setup(
             bombs_available: 3,
             bomb_range: 2,
         })
-        .insert(TeamAlignment(0));
+        .insert(TeamID(0));
 
-    // spawn enemies
+    let level = Level(1);
+    let enemy_spawn_positions = spawn_enemies(&mut commands, &textures, level.0);
+    spawn_map(
+        &mut commands,
+        &textures,
+        &player_spawn_position,
+        &enemy_spawn_positions,
+    );
 
-    // TODO: move somewhere else
-    let level = 1;
-
-    let mob_num = level % 5 + 2 + level / 5;
-
-    // hardcoded for 11x15
-    let x = [
-        MAP_WIDTH - 4,
-        MAP_WIDTH - 2,
-        11,
-        5,
-        1,
-        MAP_WIDTH - 6,
-        MAP_WIDTH - 6,
-        7,
-    ];
-    let y = [
-        MAP_HEIGHT - 8,
-        1,
-        MAP_HEIGHT - 2,
-        MAP_HEIGHT - 6,
-        9,
-        5,
-        MAP_HEIGHT - 4,
-        7,
-    ];
-    let mut rng = rand::thread_rng();
-    let bias = rng.gen::<usize>() % 20;
-
-    let mut enemy_spawn_positions = vec![];
-    for i in 0..mob_num {
-        let (base_material, immortal_material, wall_hack, health) = if i > 3 {
-            if i > 5 {
-                (textures.bat.clone(), textures.immortal_bat.clone(), true, 3)
-            } else {
-                (
-                    textures.hatter.clone(),
-                    textures.immortal_hatter.clone(),
-                    false,
-                    2,
-                )
-            }
-        } else {
-            (
-                textures.crook.clone(),
-                textures.immortal_crook.clone(),
-                false,
-                1,
-            )
-        };
-
-        let enemy_spawn_position = Position {
-            x: x[(i as usize + bias) % 6] as isize,
-            y: y[(i as usize + bias) % 6] as isize,
-        };
-        enemy_spawn_positions.push(enemy_spawn_position);
-
-        let mut ec = commands.spawn_bundle(SpriteBundle {
-            material: base_material.clone(),
-            transform: Transform::from_xyz(
-                get_x(enemy_spawn_position.x),
-                get_y(enemy_spawn_position.y),
-                50.0,
-            ),
-            sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
-            ..Default::default()
-        });
-        ec.insert(BaseMaterial(base_material))
-            .insert(ImmortalMaterial(immortal_material))
-            .insert(Player {})
-            .insert(MobAI::default())
-            .insert(MoveCooldown(Timer::from_seconds(0.4, false)))
-            .insert(Health {
-                lives: 1,
-                max_health: health,
-                health,
-            })
-            .insert(enemy_spawn_position)
-            .insert(MeleeAttacker {})
-            .insert(TeamAlignment(1));
-
-        if wall_hack {
-            ec.insert(WallHack);
-        }
-    }
-
-    // place empty/passable tiles
-    for j in 0..MAP_HEIGHT {
-        for i in 0..MAP_WIDTH {
-            commands.spawn_bundle(SpriteBundle {
-                material: textures.empty.clone(),
-                transform: Transform::from_xyz(get_x(i as isize), get_y(j as isize), 0.0),
-                sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
-                ..Default::default()
-            });
-        }
-    }
-
-    // spawn walls
-    let mut stone_wall_positions = HashSet::new();
-    for i in 0..MAP_WIDTH {
-        // top
-        stone_wall_positions.insert(Position {
-            y: 0,
-            x: i as isize,
-        });
-        // bottom
-        stone_wall_positions.insert(Position {
-            y: (MAP_HEIGHT - 1) as isize,
-            x: i as isize,
-        });
-    }
-    for i in 1..MAP_HEIGHT {
-        // left
-        stone_wall_positions.insert(Position {
-            y: i as isize,
-            x: 0,
-        });
-        // right
-        stone_wall_positions.insert(Position {
-            y: i as isize,
-            x: (MAP_WIDTH - 1) as isize,
-        });
-    }
-    // checkered middle
-    for i in (2..MAP_HEIGHT).step_by(2) {
-        for j in (2..MAP_WIDTH).step_by(2) {
-            stone_wall_positions.insert(Position {
-                y: i as isize,
-                x: j as isize,
-            });
-        }
-    }
-
-    for position in stone_wall_positions.iter() {
-        commands
-            .spawn_bundle(SpriteBundle {
-                material: textures.wall.clone(),
-                transform: Transform::from_xyz(get_x(position.x), get_y(position.y), 0.0),
-                sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
-                ..Default::default()
-            })
-            .insert(Wall {})
-            .insert(Solid {})
-            .insert(*position);
-    }
-
-    let mut destructible_wall_potential_positions: HashSet<Position> = (0..MAP_HEIGHT)
-        .map(|y| {
-            (0..MAP_WIDTH).map(move |x| Position {
-                y: y as isize,
-                x: x as isize,
-            })
-        })
-        .flatten()
-        .filter(|p| !stone_wall_positions.contains(p))
-        .collect();
-
-    let number_of_passable_positions = destructible_wall_potential_positions.len();
-
-    // reserve room for the player (cross-shaped)
-    destructible_wall_potential_positions.remove(&player_spawn_position);
-    for position in Direction::LIST
-        .iter()
-        .map(|direction| player_spawn_position.offset(direction, 1))
-    {
-        destructible_wall_potential_positions.remove(&position);
-    }
-
-    // reserve room for the enemies (line-shaped)
-    for enemy_spawn_position in enemy_spawn_positions {
-        destructible_wall_potential_positions.remove(&enemy_spawn_position);
-
-        for direction in [
-            [Direction::Left, Direction::Right],
-            [Direction::Up, Direction::Down],
-        ]
-        .choose(&mut rng)
-        .unwrap()
-        {
-            for j in 1..3 {
-                let position = enemy_spawn_position.offset(&direction, j);
-                if stone_wall_positions.contains(&position) {
-                    break;
-                }
-                destructible_wall_potential_positions.remove(&position);
-            }
-        }
-    }
-
-    let percent_of_passable_positions_to_fill = 50.0;
-    let num_of_destructible_walls_to_place = (number_of_passable_positions as f32
-        * percent_of_passable_positions_to_fill
-        / 100.0) as usize;
-    if destructible_wall_potential_positions.len() < num_of_destructible_walls_to_place {
-        panic!(
-            "Not enough passable positions available for placing destructible walls. Have {}, but need at least {}",
-            destructible_wall_potential_positions.len(),
-            num_of_destructible_walls_to_place
-        );
-    }
-
-    let destructible_wall_positions = destructible_wall_potential_positions
-        .into_iter()
-        .choose_multiple(&mut rng, num_of_destructible_walls_to_place);
-    for position in &destructible_wall_positions {
-        commands
-            .spawn_bundle(SpriteBundle {
-                material: textures.destructible_wall.clone(),
-                transform: Transform::from_xyz(get_x(position.x), get_y(position.y), 0.0),
-                sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
-                ..Default::default()
-            })
-            .insert(Wall {})
-            .insert(Solid {})
-            .insert(Destructible {})
-            .insert(*position);
-    }
-
-    if let Some(position) = destructible_wall_positions.choose(&mut rng) {
-        commands.insert_resource(ExitPosition(*position));
-    }
-
+    commands.insert_resource(level);
     commands.insert_resource(textures);
     commands.insert_resource(fonts);
 }
@@ -636,20 +418,68 @@ pub fn pick_up_item(
     }
 }
 
-pub fn exit_level(
+pub fn finish_level(
     mut commands: Commands,
-    query: Query<(Entity, &Position, &TeamAlignment), (With<Player>, With<HumanControlled>)>,
-    query2: Query<&Position, With<Exit>>,
-    query3: Query<&TeamAlignment, With<Player>>,
+    textures: Res<Textures>,
+    mut level: ResMut<Level>,
+    mut q: QuerySet<(
+        Query<
+            (
+                Entity,
+                &mut Position,
+                &mut Transform,
+                &TeamID,
+                &mut BombSatchel,
+            ),
+            (With<Player>, With<HumanControlled>),
+        >,
+        Query<&Position, With<Exit>>,
+    )>,
+    query3: Query<&TeamID, With<Player>>,
+    query4: Query<Entity, (Without<Camera>, Without<HumanControlled>)>,
+    query5: Query<&Bomb>,
 ) {
-    if let Ok(exit_position) = query2.single() {
-        for (player_entity, player_position, player_team_alignment) in query.iter() {
-            if *player_position == *exit_position {
-                if !query3.iter().any(|ta| ta.0 != player_team_alignment.0) {
-                    commands.entity(player_entity).despawn_recursive();
-                    println!("Player {:?} exited the level!", player_entity);
-                }
+    // if an exit is spawned...
+    if let Ok(exit_position) = q.q1().single().map(|p| *p) {
+        // ...check if a human controlled player reached it when all the enemies are dead
+        if let Some((player_entity, mut player_position, mut transform, _, mut bomb_satchel)) =
+            q.q0_mut().iter_mut().find(|(_, pp, _, ptid, _)| {
+                **pp == exit_position && !query3.iter().any(|tid| tid.0 != ptid.0)
+            })
+        {
+            println!("Player {:?} finished the level!", player_entity);
+
+            let unexploded_player_bombs =
+                query5.iter().filter(|b| b.parent == player_entity).count();
+
+            for entity in query4.iter() {
+                commands.entity(entity).despawn_recursive();
             }
+
+            // bomb refill
+            bomb_satchel.bombs_available += unexploded_player_bombs;
+
+            // move player to spawn
+            *player_position = Position { y: 1, x: 1 };
+
+            let translation = &mut transform.translation;
+            translation.x = get_x(player_position.x);
+            translation.y = get_y(player_position.y);
+
+            // make temporarily immortal
+            commands
+                .entity(player_entity)
+                .insert_bundle(ImmortalBundle::default());
+
+            level.0 += 1;
+
+            let enemy_spawn_positions = spawn_enemies(&mut commands, &textures, level.0);
+            spawn_map(
+                &mut commands,
+                &textures,
+                &player_position,
+                &enemy_spawn_positions,
+            );
         }
     }
 }
@@ -996,14 +826,14 @@ pub fn fire_effect(mut query: Query<&Position, With<Fire>>, mut ev_burn: EventWr
 }
 
 pub fn melee_attack(
-    query: Query<(&Position, &TeamAlignment), With<MeleeAttacker>>,
-    query2: Query<(Entity, &Position, &TeamAlignment), With<Player>>,
+    query: Query<(&Position, &TeamID), With<MeleeAttacker>>,
+    query2: Query<(Entity, &Position, &TeamID), With<Player>>,
     mut ev_damage: EventWriter<DamageEvent>,
 ) {
-    for (attacker_position, attacker_team_alignment) in query.iter() {
+    for (attacker_position, attacker_team_id) in query.iter() {
         for (e, _, _) in query2
             .iter()
-            .filter(|(_, p, ta)| **p == *attacker_position && ta.0 != attacker_team_alignment.0)
+            .filter(|(_, p, tid)| **p == *attacker_position && tid.0 != attacker_team_id.0)
         {
             ev_damage.send(DamageEvent(e));
         }
@@ -1198,7 +1028,7 @@ pub fn exit_burn(
                     })
                     .insert(*exit_position)
                     .insert(MeleeAttacker {})
-                    .insert(TeamAlignment(1))
+                    .insert(TeamID(1))
                     .insert_bundle(ImmortalBundle::default());
             }
         }

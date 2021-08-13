@@ -36,4 +36,6 @@ pub struct Fonts {
     pub font1: Handle<Font>,
 }
 
+pub struct Level(pub usize);
+
 pub struct ExitPosition(pub Position);

@@ -74,7 +74,7 @@ pub struct BombPush;
 
 pub struct MeleeAttacker;
 
-pub struct TeamAlignment(pub usize);
+pub struct TeamID(pub usize);
 
 pub struct Perishable {
     pub timer: Timer,
