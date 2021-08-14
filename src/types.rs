@@ -13,6 +13,15 @@ impl Direction {
         Direction::Up,
         Direction::Down,
     ];
+
+    pub fn opposite(&self) -> Direction {
+        match self {
+            Direction::Right => Direction::Left,
+            Direction::Left => Direction::Right,
+            Direction::Up => Direction::Down,
+            Direction::Down => Direction::Up,
+        }
+    }
 }
 
 pub enum PlayerAction {

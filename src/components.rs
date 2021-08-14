@@ -36,6 +36,9 @@ pub struct MobAI {
     pub direction: Option<Direction>,
 }
 
+pub struct BotAI;
+
+// TODO: make an actual Cooldown type, a Timer will have an initial delay
 pub struct MoveCooldown(pub Timer);
 
 // currently used for bomb movement only, will stop before items
@@ -52,6 +55,7 @@ pub struct Health {
 pub struct BaseMaterial(pub Handle<ColorMaterial>);
 pub struct ImmortalMaterial(pub Handle<ColorMaterial>);
 
+#[derive(Clone, Copy)]
 pub struct Bomb {
     pub parent: Entity,
     pub range: usize,

@@ -59,8 +59,10 @@ pub fn setup(
     // spawn camera
     let projection = SimpleOrthoProjection::new(MAP_WIDTH, MAP_HEIGHT);
     let cam_name = bevy::render::render_graph::base::camera::CAMERA_2D;
-    let mut camera = Camera::default();
-    camera.name = Some(cam_name.to_string());
+    let camera = Camera {
+        name: Some(cam_name.to_string()),
+        ..Default::default()
+    };
 
     commands.spawn_bundle((
         Transform::from_translation(Vec3::new(0.0, 0.0, projection.far - 0.1)),
@@ -161,6 +163,12 @@ pub fn display_stats(
 ) {
     let mut text = query.single_mut().unwrap();
     text.sections[0].value = format!("Score: {}", game_score.0);
+}
+
+pub fn move_cooldown_tick(time: Res<Time>, mut query: Query<&mut MoveCooldown>) {
+    for mut move_cooldown in query.iter_mut() {
+        move_cooldown.0.tick(time.delta());
+    }
 }
 
 pub fn handle_keyboard_input(
@@ -271,7 +279,7 @@ pub fn mob_ai(
             let passable_dir = potential_directions
                 .iter()
                 .find(|direction| {
-                    let result = solids.get(&position.offset(&direction, 1));
+                    let result = solids.get(&position.offset(direction, 1));
                     result.is_none() || (wall_hack.is_some() && matches!(result, Some(true)))
                 })
                 .copied();
@@ -284,8 +292,55 @@ pub fn mob_ai(
     }
 }
 
+pub fn bot_ai(
+    query: Query<
+        (Entity, &Position, &MoveCooldown, Option<&WallHack>),
+        (With<Player>, With<BotAI>),
+    >,
+    query2: Query<&Position, With<Fire>>,
+    query3: Query<(&Position, &Bomb)>,
+    query4: Query<(&Position, Option<&Destructible>), With<Solid>>,
+    query5: Query<&Position, Or<(With<Solid>, With<Exit>)>>,
+    mut ev_player_action: EventWriter<PlayerActionEvent>,
+) {
+    // TODO: this is wasted work for situations where there aren't any bots
+    let mut rng = rand::thread_rng();
+    let fires: HashSet<Position> = query2.iter().copied().collect();
+    let bomb_positions_ranges: Vec<(Position, usize)> =
+        query3.iter().map(|(p, b)| (*p, b.range)).collect();
+    let fireproofs: HashSet<Position> = query5.iter().copied().collect();
+
+    for (entity, position, move_cooldown, wall_hack) in query.iter() {
+        // run to safety
+        if move_cooldown.0.finished() {
+            let impassables: HashSet<Position> = if wall_hack.is_none() {
+                query4.iter().map(|(p, _)| *p).collect()
+            } else {
+                query4
+                    .iter()
+                    .filter_map(|(p, d)| if d.is_some() { None } else { Some(*p) })
+                    .collect()
+            };
+
+            if let Some(safe_dir) = get_directions_to_closest_safe_positions(
+                *position,
+                &fires,
+                &bomb_positions_ranges,
+                &fireproofs,
+                &impassables,
+            )
+            .iter()
+            .choose(&mut rng)
+            {
+                ev_player_action.send(PlayerActionEvent(entity, PlayerAction::Move(*safe_dir)));
+            }
+        }
+
+        // TODO: more actions
+    }
+}
+
 pub fn player_move(
-    time: Res<Time>,
     mut commands: Commands,
     mut ev_player_action: EventReader<PlayerActionEvent>,
     mut q: QuerySet<(
@@ -334,7 +389,6 @@ pub fn player_move(
             }
 
             if let Some(move_cooldown) = move_cooldown.as_mut() {
-                move_cooldown.0.tick(time.delta());
                 if !move_cooldown.0.finished() {
                     continue;
                 }
@@ -352,7 +406,7 @@ pub fn player_move(
                     commands
                         .entity(*e)
                         .insert(Moving { direction })
-                        .insert(MoveCooldown(Timer::from_seconds(0.01, true)));
+                        .insert(MoveCooldown(Timer::from_seconds(0.01, false)));
                 }
             }
 
@@ -371,7 +425,6 @@ pub fn player_move(
 }
 
 pub fn moving_object_update(
-    time: Res<Time>,
     mut commands: Commands,
     mut q: QuerySet<(
         Query<(
@@ -387,9 +440,7 @@ pub fn moving_object_update(
     let impassables: HashSet<Position> = q.q1().iter().copied().collect();
 
     for (entity, moving, mut move_cooldown, mut position, mut transform) in q.q0_mut().iter_mut() {
-        move_cooldown.0.tick(time.delta());
-
-        if move_cooldown.0.just_finished() {
+        if move_cooldown.0.finished() {
             let new_position = position.offset(&moving.direction, 1);
             if impassables.get(&new_position).is_none() {
                 *position = new_position;
@@ -397,8 +448,11 @@ pub fn moving_object_update(
                 let translation = &mut transform.translation;
                 translation.x = get_x(position.x);
                 translation.y = get_y(position.y);
+
+                move_cooldown.0.reset();
             } else {
                 commands.entity(entity).remove::<Moving>();
+                commands.entity(entity).remove::<MoveCooldown>();
             }
         }
     }
@@ -476,13 +530,9 @@ pub fn finish_level(
             // if an exit is spawned...
             if let Ok(exit_position) = q.q1().single().map(|p| *p) {
                 // ...check if a human controlled player reached it when all the enemies are dead
-                if q.q0_mut()
-                    .iter_mut()
-                    .find(|(_, pp, _, ptid, _)| {
-                        **pp == exit_position && !query3.iter().any(|tid| tid.0 != ptid.0)
-                    })
-                    .is_some()
-                {
+                if q.q0_mut().iter_mut().any(|(_, pp, _, ptid, _)| {
+                    *pp == exit_position && !query3.iter().any(|tid| tid.0 != ptid.0)
+                }) {
                     level_completed = true;
                 }
             }
@@ -640,7 +690,6 @@ pub fn bomb_drop(
                                 font: fonts.font1.clone(),
                                 font_size: 10.0,
                                 color: fuse_color,
-                                ..Default::default()
                             },
                             TextAlignment {
                                 vertical: VerticalAlign::Center,
@@ -653,7 +702,6 @@ pub fn bomb_drop(
                                 font: fonts.font1.clone(),
                                 font_size: 10.0,
                                 color: Color::BLACK,
-                                ..Default::default()
                             },
                         });
 
@@ -704,7 +752,6 @@ pub fn animate_fuse(
                             font: fonts.font1.clone(),
                             font_size: 10.0,
                             color: *fuse_color,
-                            ..Default::default()
                         },
                     },
                     TextSection {
@@ -713,7 +760,6 @@ pub fn animate_fuse(
                             font: fonts.font1.clone(),
                             font_size: 10.0,
                             color: Color::BLACK,
-                            ..Default::default()
                         },
                     },
                 ];
@@ -729,7 +775,6 @@ pub fn animate_fuse(
                             font: fonts.font1.clone(),
                             font_size: 10.0,
                             color: *fuse_color,
-                            ..Default::default()
                         },
                     },
                     TextSection {
@@ -738,7 +783,6 @@ pub fn animate_fuse(
                             font: fonts.font1.clone(),
                             font_size: 10.0,
                             color: Color::BLACK,
-                            ..Default::default()
                         },
                     },
                 ];
@@ -753,7 +797,6 @@ pub fn animate_fuse(
                         font: fonts.font1.clone(),
                         font_size: 10.0,
                         color: *fuse_color,
-                        ..Default::default()
                     },
                 }];
                 let translation = &mut transform.translation;
@@ -1118,9 +1161,13 @@ pub fn exit_burn(
     mut query: Query<(&Position, &mut Exit)>,
     mut ev_burn: EventReader<BurnEvent>,
 ) {
+    // TODO: move into a separate system
+    if let Ok((_, mut exit)) = query.single_mut() {
+        exit.spawn_cooldown.tick(time.delta());
+    }
+
     for BurnEvent(position) in ev_burn.iter() {
         if let Ok((exit_position, mut exit)) = query.single_mut() {
-            exit.spawn_cooldown.tick(time.delta());
             if (exit.spawn_cooldown.finished() || exit.first_use) && *exit_position == *position {
                 println!("exit burned: {:?}", position);
                 exit.spawn_cooldown.reset();

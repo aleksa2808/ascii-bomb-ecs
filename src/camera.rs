@@ -55,8 +55,6 @@ impl SimpleOrthoProjection {
         let map_pixel_height = (TILE_WIDTH * width) as f32;
         let map_pixel_width = (TILE_HEIGHT * height) as f32;
 
-        println!("h: {}, w: {}", map_pixel_height, map_pixel_width);
-
         let perfect_aspect_ratio = map_pixel_height / map_pixel_width;
 
         SimpleOrthoProjection {

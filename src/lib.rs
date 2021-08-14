@@ -61,19 +61,21 @@ pub fn run() {
     )
     // display game stats
     .add_system(display_stats.system())
+    // time effect update
+    .add_system(move_cooldown_tick.system().before(Label::Input))
+    .add_system(perishable_tick.system().before(Label::Explosion))
+    .add_system(immortality_tick.system())
     // handle input
     .add_system(handle_keyboard_input.system().label(Label::Input))
     .add_system(handle_mouse_input.system().label(Label::Input))
     // handle AI
     .add_system(mob_ai.system().label(Label::Input))
-    // handle movement + extra actions
+    .add_system(bot_ai.system().label(Label::Input))
+    // handle movement
     .add_system(player_move.system().after(Label::Input))
     .add_system(moving_object_update.system())
-    .add_system(bomb_drop.system().after(Label::Input))
-    // time effect update
-    .add_system(perishable_tick.system().before(Label::Explosion))
-    .add_system(immortality_tick.system())
     // handle bomb logic
+    .add_system(bomb_drop.system().after(Label::Input))
     .add_system(handle_explosion.system().label(Label::Explosion))
     .add_system(
         fire_effect
