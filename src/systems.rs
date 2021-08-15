@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::iter::Iterator;
 use std::time::Duration;
 
 use bevy::app::AppExit;
@@ -294,45 +295,92 @@ pub fn mob_ai(
 
 pub fn bot_ai(
     query: Query<
-        (Entity, &Position, &MoveCooldown, Option<&WallHack>),
+        (
+            Entity,
+            &Position,
+            &MoveCooldown,
+            Option<&WallHack>,
+            &BombSatchel,
+            &TeamID,
+        ),
         (With<Player>, With<BotAI>),
     >,
     query2: Query<&Position, With<Fire>>,
     query3: Query<(&Position, &Bomb)>,
     query4: Query<(&Position, Option<&Destructible>), With<Solid>>,
     query5: Query<&Position, Or<(With<Solid>, With<Exit>)>>,
+    query6: Query<(&Position, &TeamID), With<Player>>,
+    query7: Query<&Position, With<Wall>>,
+    query8: Query<&Position, Or<(With<Wall>, With<Bomb>, With<Exit>, With<BurningItem>)>>,
     mut ev_player_action: EventWriter<PlayerActionEvent>,
 ) {
     // TODO: this is wasted work for situations where there aren't any bots
     let mut rng = rand::thread_rng();
-    let fires: HashSet<Position> = query2.iter().copied().collect();
-    let bomb_positions_ranges: Vec<(Position, usize)> =
+    let fire_positions: HashSet<Position> = query2.iter().copied().collect();
+    let bomb_positions_ranges: HashMap<Position, usize> =
         query3.iter().map(|(p, b)| (*p, b.range)).collect();
-    let fireproofs: HashSet<Position> = query5.iter().copied().collect();
+    let fireproof_positions: HashSet<Position> = query5.iter().copied().collect();
+    let wall_positions: HashSet<Position> = query7.iter().copied().collect();
+    let invalid_bomb_spawn_positions: HashSet<Position> = query8.iter().copied().collect();
 
-    for (entity, position, move_cooldown, wall_hack) in query.iter() {
-        // run to safety
+    for (entity, position, move_cooldown, wall_hack, bomb_satchel, team_id) in query.iter() {
+        let impassable_positions: HashSet<Position> = if wall_hack.is_none() {
+            query4.iter().map(|(p, _)| *p).collect()
+        } else {
+            query4
+                .iter()
+                .filter_map(|(p, d)| if d.is_some() { None } else { Some(*p) })
+                .collect()
+        };
+
         if move_cooldown.0.finished() {
-            let impassables: HashSet<Position> = if wall_hack.is_none() {
-                query4.iter().map(|(p, _)| *p).collect()
-            } else {
-                query4
-                    .iter()
-                    .filter_map(|(p, d)| if d.is_some() { None } else { Some(*p) })
-                    .collect()
-            };
-
             if let Some(safe_dir) = get_directions_to_closest_safe_positions(
                 *position,
-                &fires,
+                &fire_positions,
                 &bomb_positions_ranges,
-                &fireproofs,
-                &impassables,
+                &fireproof_positions,
+                &impassable_positions,
+                &wall_positions,
             )
             .iter()
             .choose(&mut rng)
             {
                 ev_player_action.send(PlayerActionEvent(entity, PlayerAction::Move(*safe_dir)));
+                continue;
+            }
+        }
+
+        // drop a bomb if possible, if it can hit an enemy and if an escape route would exist
+        let enemy_positions: Vec<Position> = query6
+            .iter()
+            .filter(|(_, tid)| tid.0 != team_id.0)
+            .map(|(p, _)| *p)
+            .collect();
+        if bomb_satchel.bombs_available > 0
+            && !invalid_bomb_spawn_positions.contains(position)
+            && bomb_can_hit_a_player(
+                *position,
+                bomb_satchel.bomb_range,
+                &enemy_positions,
+                &fireproof_positions,
+                &wall_positions,
+            )
+        {
+            let mut bomb_positions_ranges = bomb_positions_ranges.clone();
+            bomb_positions_ranges.insert(*position, bomb_satchel.bomb_range);
+
+            if !get_directions_to_closest_safe_positions(
+                *position,
+                &fire_positions,
+                &bomb_positions_ranges,
+                &fireproof_positions,
+                &impassable_positions,
+                &wall_positions,
+            )
+            .is_empty()
+            {
+                ev_player_action.send(PlayerActionEvent(entity, PlayerAction::DropBomb));
+                continue;
             }
         }
 
@@ -437,12 +485,12 @@ pub fn moving_object_update(
         Query<&Position, Or<(With<Solid>, With<Item>, With<Player>, With<Exit>)>>,
     )>,
 ) {
-    let impassables: HashSet<Position> = q.q1().iter().copied().collect();
+    let impassable_positions: HashSet<Position> = q.q1().iter().copied().collect();
 
     for (entity, moving, mut move_cooldown, mut position, mut transform) in q.q0_mut().iter_mut() {
         if move_cooldown.0.finished() {
             let new_position = position.offset(&moving.direction, 1);
-            if impassables.get(&new_position).is_none() {
+            if impassable_positions.get(&new_position).is_none() {
                 *position = new_position;
 
                 let translation = &mut transform.translation;
@@ -649,7 +697,7 @@ pub fn bomb_drop(
     level: Res<Level>,
     mut ev_player_action: EventReader<PlayerActionEvent>,
     mut query: Query<(&Position, &mut BombSatchel)>,
-    query2: Query<&Position, Or<(With<Solid>, With<Exit>)>>,
+    query2: Query<&Position, Or<(With<Solid>, With<Exit>, With<BurningItem>)>>,
 ) {
     for entity in ev_player_action
         .iter()
@@ -1147,6 +1195,7 @@ pub fn item_burn(
                     ..Default::default()
                 })
                 .insert(*position)
+                .insert(BurningItem)
                 .insert(Perishable {
                     timer: Timer::from_seconds(0.5, false),
                 });

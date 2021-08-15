@@ -46,3 +46,5 @@ impl Item {
         }
     }
 }
+
+pub struct BurningItem;

@@ -361,13 +361,18 @@ pub fn spawn_map(
     }
 }
 
-pub fn is_position_safe(
+pub fn position_is_safe(
     position: Position,
-    fires: &HashSet<Position>,
-    bomb_positions_ranges: &[(Position, usize)],
-    fireproofs: &HashSet<Position>,
+    fire_positions: &HashSet<Position>,
+    bomb_positions_ranges: &HashMap<Position, usize>,
+    fireproof_positions: &HashSet<Position>,
+    wall_positions: &HashSet<Position>,
 ) -> bool {
-    if fires.contains(&position) {
+    if wall_positions.contains(&position) {
+        return true;
+    }
+
+    if fire_positions.contains(&position) {
         return false;
     }
 
@@ -381,28 +386,36 @@ pub fn is_position_safe(
                 && f32::sqrt(
                     f32::powi((p.y - position.y) as f32, 2)
                         + f32::powi((p.x - position.x) as f32, 2),
-                ) <= *r as f32
+                ) <= **r as f32
         })
-        .map(|(p, _)| p);
+        .map(|(p, _)| *p);
 
     // if the position is protected from the closest bomb in each direction, than it's protected from all the others as well
     let mut closest_dangerous_bombs: HashMap<Direction, usize> = HashMap::new();
     for bomb_position in dangerous_bomb_positions {
-        if position == *bomb_position {
+        if position == bomb_position {
             // there's a bomb right on the position
             return false;
         }
 
         let (distance_to_bomb, direction) = if position.x != bomb_position.x {
-            if position.x < bomb_position.x {
-                ((bomb_position.x - position.x) as usize, Direction::Right)
-            } else {
-                ((position.x - bomb_position.x) as usize, Direction::Left)
-            }
-        } else if position.y < bomb_position.y {
-            ((bomb_position.y - position.y) as usize, Direction::Down)
+            (
+                (position.x - bomb_position.x).abs() as usize,
+                if position.x < bomb_position.x {
+                    Direction::Right
+                } else {
+                    Direction::Left
+                },
+            )
         } else {
-            ((position.y - bomb_position.y) as usize, Direction::Up)
+            (
+                (position.y - bomb_position.y).abs() as usize,
+                if position.y < bomb_position.y {
+                    Direction::Down
+                } else {
+                    Direction::Up
+                },
+            )
         };
         if let Some(min) = closest_dangerous_bombs.get_mut(&direction) {
             if distance_to_bomb < *min {
@@ -416,7 +429,7 @@ pub fn is_position_safe(
     for (direction, distance) in closest_dangerous_bombs {
         let mut safe = false;
         for i in 1..distance {
-            if fireproofs.contains(&position.offset(&direction, i)) {
+            if fireproof_positions.contains(&position.offset(&direction, i)) {
                 safe = true;
                 break;
             }
@@ -430,18 +443,19 @@ pub fn is_position_safe(
 }
 
 pub fn get_directions_to_closest_safe_positions(
-    position: Position,
-    fires: &HashSet<Position>,
-    bomb_positions_ranges: &[(Position, usize)],
-    fireproofs: &HashSet<Position>,
-    impassables: &HashSet<Position>,
+    starting_position: Position,
+    fire_positions: &HashSet<Position>,
+    bomb_positions_ranges: &HashMap<Position, usize>,
+    fireproof_positions: &HashSet<Position>,
+    impassable_positions: &HashSet<Position>,
+    wall_positions: &HashSet<Position>,
 ) -> HashSet<Direction> {
     // BFS lookup
     let mut result: Option<(HashSet<Direction>, usize)> = None;
 
     let mut visited = HashSet::new();
     let mut queue = VecDeque::new();
-    queue.push_front((position, vec![]));
+    queue.push_front((starting_position, vec![]));
     while let Some((current_position, current_path)) = queue.pop_back() {
         if let Some((_, result_path_len)) = result {
             if current_path.len() > result_path_len {
@@ -454,7 +468,13 @@ pub fn get_directions_to_closest_safe_positions(
         }
         visited.insert(current_position);
 
-        if is_position_safe(current_position, fires, bomb_positions_ranges, fireproofs) {
+        if position_is_safe(
+            current_position,
+            fire_positions,
+            bomb_positions_ranges,
+            fireproof_positions,
+            wall_positions,
+        ) {
             let (result_set, _) = result.get_or_insert((HashSet::new(), current_path.len()));
             if let Some(direction) = current_path.first().copied() {
                 result_set.insert(direction);
@@ -468,7 +488,7 @@ pub fn get_directions_to_closest_safe_positions(
             }
 
             let adjacent_position = current_position.offset(&direction, 1);
-            if !impassables.contains(&adjacent_position) {
+            if !impassable_positions.contains(&adjacent_position) {
                 let mut extended_path = current_path.clone();
                 extended_path.push(direction);
                 queue.push_front((adjacent_position, extended_path));
@@ -483,6 +503,61 @@ pub fn get_directions_to_closest_safe_positions(
     }
 }
 
+pub fn bomb_can_hit_a_player(
+    bomb_position: Position,
+    bomb_range: usize,
+    player_positions: &[Position],
+    fireproof_positions: &HashSet<Position>,
+    wall_positions: &HashSet<Position>,
+) -> bool {
+    for player_position in player_positions {
+        if wall_positions.contains(player_position) {
+            // a player standing on a wall cannot be damaged by fire
+            continue;
+        }
+
+        if (player_position.y == bomb_position.y
+            && (player_position.x - bomb_position.x).abs() as usize <= bomb_range)
+            || (player_position.x == bomb_position.x
+                && (player_position.y - bomb_position.y).abs() as usize <= bomb_range)
+        {
+            if *player_position == bomb_position {
+                return true;
+            }
+            let (distance_to_player, direction) = if player_position.x != bomb_position.x {
+                (
+                    (player_position.x - bomb_position.x).abs() as usize,
+                    if player_position.x < bomb_position.x {
+                        Direction::Right
+                    } else {
+                        Direction::Left
+                    },
+                )
+            } else {
+                (
+                    (player_position.y - bomb_position.y).abs() as usize,
+                    if player_position.y < bomb_position.y {
+                        Direction::Down
+                    } else {
+                        Direction::Up
+                    },
+                )
+            };
+
+            // check if there's anything between the bomb and the player that would stop the fire
+            // note: players standing on fireproof objects can still be burned
+            if !(1..distance_to_player)
+                .map(|i| bomb_position.offset(&direction, i))
+                .any(|p| fireproof_positions.contains(&p))
+            {
+                return true;
+            }
+        }
+    }
+
+    false
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -494,15 +569,17 @@ mod tests {
     // .....
     #[test]
     fn test_is_position_safe_no_danger() {
-        let fires = HashSet::new();
-        let bomb_positions_ranges = vec![];
-        let fireproofs = HashSet::new();
+        let fire_positions = HashSet::new();
+        let bomb_positions_ranges = HashMap::new();
+        let fireproof_positions = HashSet::new();
+        let wall_positions = HashSet::new();
 
-        assert!(is_position_safe(
+        assert!(position_is_safe(
             Position { y: 2, x: 2 },
-            &fires,
+            &fire_positions,
             &bomb_positions_ranges,
-            &fireproofs,
+            &fireproof_positions,
+            &wall_positions,
         ));
     }
 
@@ -513,20 +590,22 @@ mod tests {
     // .....
     #[test]
     fn test_is_position_safe_blocked_bomb() {
-        let fires = HashSet::new();
-        let bomb_positions_ranges = vec![(Position { y: 7, x: 2 }, 2)];
-        let fireproofs = vec![
-            bomb_positions_ranges.first().unwrap().0,
-            Position { y: 6, x: 2 },
-        ]
-        .into_iter()
-        .collect();
+        let fire_positions = HashSet::new();
+        let bomb_positions_ranges: HashMap<Position, usize> =
+            vec![(Position { y: 7, x: 2 }, 2)].into_iter().collect();
+        let fireproof_positions = bomb_positions_ranges
+            .iter()
+            .map(|(p, _)| *p)
+            .chain([Position { y: 6, x: 2 }])
+            .collect();
+        let wall_positions = HashSet::new();
 
-        assert!(is_position_safe(
+        assert!(position_is_safe(
             Position { y: 1, x: 2 },
-            &fires,
+            &fire_positions,
             &bomb_positions_ranges,
-            &fireproofs,
+            &fireproof_positions,
+            &wall_positions,
         ));
     }
 
@@ -537,17 +616,18 @@ mod tests {
     // .....
     #[test]
     fn test_is_position_safe_out_of_range_bomb() {
-        let fires = HashSet::new();
-        let bomb_positions_ranges = vec![(Position { y: 3, x: 2 }, 1)];
-        let fireproofs = vec![bomb_positions_ranges.first().unwrap().0]
-            .into_iter()
-            .collect();
+        let fire_positions = HashSet::new();
+        let bomb_positions_ranges: HashMap<Position, usize> =
+            vec![(Position { y: 3, x: 2 }, 1)].into_iter().collect();
+        let fireproof_positions = bomb_positions_ranges.iter().map(|(p, _)| *p).collect();
+        let wall_positions = HashSet::new();
 
-        assert!(is_position_safe(
+        assert!(position_is_safe(
             Position { y: 1, x: 2 },
-            &fires,
+            &fire_positions,
             &bomb_positions_ranges,
-            &fireproofs,
+            &fireproof_positions,
+            &wall_positions,
         ));
     }
 
@@ -558,17 +638,18 @@ mod tests {
     // .....
     #[test]
     fn test_is_position_safe_in_danger() {
-        let fires = HashSet::new();
-        let bomb_positions_ranges = vec![(Position { y: 3, x: 2 }, 2)];
-        let fireproofs = vec![bomb_positions_ranges.first().unwrap().0]
-            .into_iter()
-            .collect();
+        let fire_positions = HashSet::new();
+        let bomb_positions_ranges: HashMap<Position, usize> =
+            vec![(Position { y: 3, x: 2 }, 2)].into_iter().collect();
+        let fireproof_positions = bomb_positions_ranges.iter().map(|(p, _)| *p).collect();
+        let wall_positions = HashSet::new();
 
-        assert!(!is_position_safe(
+        assert!(!position_is_safe(
             Position { y: 1, x: 2 },
-            &fires,
+            &fire_positions,
             &bomb_positions_ranges,
-            &fireproofs,
+            &fireproof_positions,
+            &wall_positions,
         ));
     }
 
@@ -578,21 +659,22 @@ mod tests {
     // .....
     #[test]
     fn test_is_position_safe_in_danger_blocked_path() {
-        let fires = HashSet::new();
-        let bomb_positions_ranges = vec![(Position { y: 2, x: 2 }, 1)];
-        let fireproofs = vec![
-            bomb_positions_ranges.first().unwrap().0,
-            Position { y: 1, x: 1 },
-            Position { y: 1, x: 3 },
-        ]
-        .into_iter()
-        .collect();
+        let fire_positions = HashSet::new();
+        let bomb_positions_ranges: HashMap<Position, usize> =
+            vec![(Position { y: 2, x: 2 }, 1)].into_iter().collect();
+        let fireproof_positions = bomb_positions_ranges
+            .iter()
+            .map(|(p, _)| *p)
+            .chain([Position { y: 1, x: 1 }, Position { y: 1, x: 3 }])
+            .collect();
+        let wall_positions = HashSet::new();
 
-        assert!(!is_position_safe(
+        assert!(!position_is_safe(
             Position { y: 1, x: 2 },
-            &fires,
+            &fire_positions,
             &bomb_positions_ranges,
-            &fireproofs,
+            &fireproof_positions,
+            &wall_positions,
         ));
     }
 
@@ -603,21 +685,29 @@ mod tests {
     // ......
     #[test]
     fn test_is_position_safe_in_danger_custom() {
-        let fires = HashSet::new();
-        let bomb_positions_ranges =
-            vec![(Position { y: 2, x: 1 }, 2), (Position { y: 3, x: 3 }, 2)];
-        let mut fireproofs: HashSet<Position> =
-            bomb_positions_ranges.iter().map(|(p, _)| *p).collect();
-        fireproofs.insert(Position { y: 1, x: 2 });
-        fireproofs.insert(Position { y: 3, x: 2 });
-        fireproofs.insert(Position { y: 1, x: 4 });
-        fireproofs.insert(Position { y: 3, x: 4 });
+        let fire_positions = HashSet::new();
+        let bomb_positions_ranges: HashMap<Position, usize> =
+            vec![(Position { y: 2, x: 1 }, 2), (Position { y: 3, x: 3 }, 2)]
+                .into_iter()
+                .collect();
+        let fireproof_positions = bomb_positions_ranges
+            .iter()
+            .map(|(p, _)| *p)
+            .chain([
+                Position { y: 1, x: 2 },
+                Position { y: 3, x: 2 },
+                Position { y: 1, x: 4 },
+                Position { y: 3, x: 4 },
+            ])
+            .collect();
+        let wall_positions = HashSet::new();
 
-        assert!(!is_position_safe(
+        assert!(!position_is_safe(
             Position { y: 2, x: 2 },
-            &fires,
+            &fire_positions,
             &bomb_positions_ranges,
-            &fireproofs,
+            &fireproof_positions,
+            &wall_positions,
         ));
     }
 
@@ -628,17 +718,19 @@ mod tests {
     // .....
     #[test]
     fn test_get_directions_to_closest_safe_positions_no_danger() {
-        let fires = HashSet::new();
-        let bomb_positions_ranges = vec![];
-        let fireproofs = HashSet::new();
-        let impassables = HashSet::new();
+        let fire_positions = HashSet::new();
+        let bomb_positions_ranges = HashMap::new();
+        let fireproof_positions = HashSet::new();
+        let impassable_positions = HashSet::new();
+        let wall_positions = HashSet::new();
 
         let dirs = get_directions_to_closest_safe_positions(
             Position { y: 2, x: 2 },
-            &fires,
+            &fire_positions,
             &bomb_positions_ranges,
-            &fireproofs,
-            &impassables,
+            &fireproof_positions,
+            &impassable_positions,
+            &wall_positions,
         );
 
         assert!(dirs.is_empty());
@@ -651,24 +743,24 @@ mod tests {
     // .....
     #[test]
     fn test_get_directions_to_closest_safe_positions_blocked_bomb() {
-        let fires = HashSet::new();
-        let bomb_positions_ranges = vec![(Position { y: 7, x: 2 }, 2)];
-        let fireproofs = vec![
-            bomb_positions_ranges.first().unwrap().0,
-            Position { y: 6, x: 2 },
-        ]
-        .into_iter()
-        .collect();
-        let impassables = vec![bomb_positions_ranges.first().unwrap().0]
-            .into_iter()
+        let fire_positions = HashSet::new();
+        let bomb_positions_ranges: HashMap<Position, usize> =
+            vec![(Position { y: 7, x: 2 }, 2)].into_iter().collect();
+        let fireproof_positions = bomb_positions_ranges
+            .iter()
+            .map(|(p, _)| *p)
+            .chain([Position { y: 6, x: 2 }])
             .collect();
+        let impassable_positions = bomb_positions_ranges.iter().map(|(p, _)| *p).collect();
+        let wall_positions = HashSet::new();
 
         let dirs = get_directions_to_closest_safe_positions(
             Position { y: 1, x: 2 },
-            &fires,
+            &fire_positions,
             &bomb_positions_ranges,
-            &fireproofs,
-            &impassables,
+            &fireproof_positions,
+            &impassable_positions,
+            &wall_positions,
         );
 
         assert!(dirs.is_empty());
@@ -681,21 +773,20 @@ mod tests {
     // .....
     #[test]
     fn test_get_directions_to_closest_safe_positions_out_of_range_bomb() {
-        let fires = HashSet::new();
-        let bomb_positions_ranges = vec![(Position { y: 3, x: 2 }, 1)];
-        let fireproofs = vec![bomb_positions_ranges.first().unwrap().0]
-            .into_iter()
-            .collect();
-        let impassables = vec![bomb_positions_ranges.first().unwrap().0]
-            .into_iter()
-            .collect();
+        let fire_positions = HashSet::new();
+        let bomb_positions_ranges: HashMap<Position, usize> =
+            vec![(Position { y: 3, x: 2 }, 1)].into_iter().collect();
+        let fireproof_positions = bomb_positions_ranges.iter().map(|(p, _)| *p).collect();
+        let impassable_positions = bomb_positions_ranges.iter().map(|(p, _)| *p).collect();
+        let wall_positions = HashSet::new();
 
         let dirs = get_directions_to_closest_safe_positions(
             Position { y: 1, x: 2 },
-            &fires,
+            &fire_positions,
             &bomb_positions_ranges,
-            &fireproofs,
-            &impassables,
+            &fireproof_positions,
+            &impassable_positions,
+            &wall_positions,
         );
 
         assert!(dirs.is_empty());
@@ -708,21 +799,20 @@ mod tests {
     // .....
     #[test]
     fn test_get_directions_to_closest_safe_positions_in_danger() {
-        let fires = HashSet::new();
-        let bomb_positions_ranges = vec![(Position { y: 3, x: 2 }, 2)];
-        let fireproofs = vec![bomb_positions_ranges.first().unwrap().0]
-            .into_iter()
-            .collect();
-        let impassables = vec![bomb_positions_ranges.first().unwrap().0]
-            .into_iter()
-            .collect();
+        let fire_positions = HashSet::new();
+        let bomb_positions_ranges: HashMap<Position, usize> =
+            vec![(Position { y: 3, x: 2 }, 2)].into_iter().collect();
+        let fireproof_positions = bomb_positions_ranges.iter().map(|(p, _)| *p).collect();
+        let impassable_positions = bomb_positions_ranges.iter().map(|(p, _)| *p).collect();
+        let wall_positions = HashSet::new();
 
         let dirs = get_directions_to_closest_safe_positions(
             Position { y: 1, x: 2 },
-            &fires,
+            &fire_positions,
             &bomb_positions_ranges,
-            &fireproofs,
-            &impassables,
+            &fireproof_positions,
+            &impassable_positions,
+            &wall_positions,
         );
 
         assert_eq!(dirs.len(), 3);
@@ -737,29 +827,28 @@ mod tests {
     // .....
     #[test]
     fn test_get_directions_to_closest_safe_positions_in_danger_blocked_path() {
-        let fires = HashSet::new();
-        let bomb_positions_ranges = vec![(Position { y: 2, x: 2 }, 1)];
-        let fireproofs = vec![
-            bomb_positions_ranges.first().unwrap().0,
-            Position { y: 1, x: 1 },
-            Position { y: 1, x: 3 },
-        ]
-        .into_iter()
-        .collect();
-        let impassables = vec![
-            bomb_positions_ranges.first().unwrap().0,
-            Position { y: 1, x: 1 },
-            Position { y: 1, x: 3 },
-        ]
-        .into_iter()
-        .collect();
+        let fire_positions = HashSet::new();
+        let bomb_positions_ranges: HashMap<Position, usize> =
+            vec![(Position { y: 2, x: 2 }, 1)].into_iter().collect();
+        let fireproof_positions = bomb_positions_ranges
+            .iter()
+            .map(|(p, _)| *p)
+            .chain([Position { y: 1, x: 1 }, Position { y: 1, x: 3 }])
+            .collect();
+        let impassable_positions = bomb_positions_ranges
+            .iter()
+            .map(|(p, _)| *p)
+            .chain([Position { y: 1, x: 1 }, Position { y: 1, x: 3 }])
+            .collect();
+        let wall_positions = HashSet::new();
 
         let dirs = get_directions_to_closest_safe_positions(
             Position { y: 1, x: 2 },
-            &fires,
+            &fire_positions,
             &bomb_positions_ranges,
-            &fireproofs,
-            &impassables,
+            &fireproof_positions,
+            &impassable_positions,
+            &wall_positions,
         );
 
         assert_eq!(dirs.len(), 1);
@@ -773,28 +862,40 @@ mod tests {
     // ......
     #[test]
     fn test_get_directions_to_closest_safe_positions_in_danger_custom() {
-        let fires = HashSet::new();
-        let bomb_positions_ranges =
-            vec![(Position { y: 2, x: 1 }, 2), (Position { y: 3, x: 3 }, 2)];
-        let mut fireproofs: HashSet<Position> =
-            bomb_positions_ranges.iter().map(|(p, _)| *p).collect();
-        fireproofs.insert(Position { y: 1, x: 2 });
-        fireproofs.insert(Position { y: 3, x: 2 });
-        fireproofs.insert(Position { y: 1, x: 4 });
-        fireproofs.insert(Position { y: 3, x: 4 });
-        let mut impassables: HashSet<Position> =
-            bomb_positions_ranges.iter().map(|(p, _)| *p).collect();
-        impassables.insert(Position { y: 1, x: 2 });
-        impassables.insert(Position { y: 3, x: 2 });
-        impassables.insert(Position { y: 1, x: 4 });
-        impassables.insert(Position { y: 3, x: 4 });
+        let fire_positions = HashSet::new();
+        let bomb_positions_ranges: HashMap<Position, usize> =
+            vec![(Position { y: 2, x: 1 }, 2), (Position { y: 3, x: 3 }, 2)]
+                .into_iter()
+                .collect();
+        let fireproof_positions = bomb_positions_ranges
+            .iter()
+            .map(|(p, _)| *p)
+            .chain([
+                Position { y: 1, x: 2 },
+                Position { y: 3, x: 2 },
+                Position { y: 1, x: 4 },
+                Position { y: 3, x: 4 },
+            ])
+            .collect();
+        let impassable_positions = bomb_positions_ranges
+            .iter()
+            .map(|(p, _)| *p)
+            .chain([
+                Position { y: 1, x: 2 },
+                Position { y: 3, x: 2 },
+                Position { y: 1, x: 4 },
+                Position { y: 3, x: 4 },
+            ])
+            .collect();
+        let wall_positions = HashSet::new();
 
         let dirs = get_directions_to_closest_safe_positions(
             Position { y: 2, x: 2 },
-            &fires,
+            &fire_positions,
             &bomb_positions_ranges,
-            &fireproofs,
-            &impassables,
+            &fireproof_positions,
+            &impassable_positions,
+            &wall_positions,
         );
 
         assert_eq!(dirs.len(), 1);
@@ -808,31 +909,36 @@ mod tests {
     // .....
     #[test]
     fn test_get_directions_to_closest_safe_positions_in_danger_no_exit() {
-        let fires = HashSet::new();
-        let bomb_positions_ranges = vec![(Position { y: 3, x: 2 }, 1)];
-        let fireproofs = vec![
-            bomb_positions_ranges.first().unwrap().0,
-            Position { y: 1, x: 2 },
-            Position { y: 2, x: 1 },
-            Position { y: 2, x: 3 },
-        ]
-        .into_iter()
-        .collect();
-        let impassables = vec![
-            bomb_positions_ranges.first().unwrap().0,
-            Position { y: 1, x: 2 },
-            Position { y: 2, x: 1 },
-            Position { y: 2, x: 3 },
-        ]
-        .into_iter()
-        .collect();
+        let fire_positions = HashSet::new();
+        let bomb_positions_ranges: HashMap<Position, usize> =
+            vec![(Position { y: 3, x: 2 }, 1)].into_iter().collect();
+        let fireproof_positions = bomb_positions_ranges
+            .iter()
+            .map(|(p, _)| *p)
+            .chain([
+                Position { y: 1, x: 2 },
+                Position { y: 2, x: 1 },
+                Position { y: 2, x: 3 },
+            ])
+            .collect();
+        let impassable_positions = bomb_positions_ranges
+            .iter()
+            .map(|(p, _)| *p)
+            .chain([
+                Position { y: 1, x: 2 },
+                Position { y: 2, x: 1 },
+                Position { y: 2, x: 3 },
+            ])
+            .collect();
+        let wall_positions = HashSet::new();
 
         let dirs = get_directions_to_closest_safe_positions(
             Position { y: 2, x: 2 },
-            &fires,
+            &fire_positions,
             &bomb_positions_ranges,
-            &fireproofs,
-            &impassables,
+            &fireproof_positions,
+            &impassable_positions,
+            &wall_positions,
         );
 
         assert!(dirs.is_empty());
