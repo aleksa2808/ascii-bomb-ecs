@@ -361,47 +361,33 @@ pub fn spawn_map(
     }
 }
 
-pub fn position_is_safe(
-    position: Position,
-    fire_positions: &HashSet<Position>,
+fn bomb_explosions_can_reach_position(
     bomb_positions_ranges: &HashMap<Position, usize>,
+    target_position: Position,
     fireproof_positions: &HashSet<Position>,
-    wall_positions: &HashSet<Position>,
 ) -> bool {
-    if wall_positions.contains(&position) {
-        return true;
-    }
-
-    if fire_positions.contains(&position) {
-        return false;
-    }
-
-    // TODO: port over additional safety checks
-
-    // avoiding bombs
     let dangerous_bomb_positions = bomb_positions_ranges
         .iter()
-        .filter(|(p, r)| {
-            (p.y == position.y || p.x == position.x)
-                && f32::sqrt(
-                    f32::powi((p.y - position.y) as f32, 2)
-                        + f32::powi((p.x - position.x) as f32, 2),
-                ) <= **r as f32
+        .filter(|(bomb_position, bomb_range)| {
+            (target_position.y == bomb_position.y
+                && (target_position.x - bomb_position.x).abs() as usize <= **bomb_range)
+                || (target_position.x == bomb_position.x
+                    && (target_position.y - bomb_position.y).abs() as usize <= **bomb_range)
         })
         .map(|(p, _)| *p);
 
     // if the position is protected from the closest bomb in each direction, than it's protected from all the others as well
     let mut closest_dangerous_bombs: HashMap<Direction, usize> = HashMap::new();
     for bomb_position in dangerous_bomb_positions {
-        if position == bomb_position {
+        if target_position == bomb_position {
             // there's a bomb right on the position
-            return false;
+            return true;
         }
 
-        let (distance_to_bomb, direction) = if position.x != bomb_position.x {
+        let (distance_to_bomb, direction) = if target_position.x != bomb_position.x {
             (
-                (position.x - bomb_position.x).abs() as usize,
-                if position.x < bomb_position.x {
+                (target_position.x - bomb_position.x).abs() as usize,
+                if target_position.x < bomb_position.x {
                     Direction::Right
                 } else {
                     Direction::Left
@@ -409,14 +395,15 @@ pub fn position_is_safe(
             )
         } else {
             (
-                (position.y - bomb_position.y).abs() as usize,
-                if position.y < bomb_position.y {
+                (target_position.y - bomb_position.y).abs() as usize,
+                if target_position.y < bomb_position.y {
                     Direction::Down
                 } else {
                     Direction::Up
                 },
             )
         };
+
         if let Some(min) = closest_dangerous_bombs.get_mut(&direction) {
             if distance_to_bomb < *min {
                 *min = distance_to_bomb;
@@ -426,20 +413,34 @@ pub fn position_is_safe(
         }
     }
 
-    for (direction, distance) in closest_dangerous_bombs {
-        let mut safe = false;
-        for i in 1..distance {
-            if fireproof_positions.contains(&position.offset(&direction, i)) {
-                safe = true;
-                break;
-            }
-        }
-        if !safe {
-            return false;
-        }
+    closest_dangerous_bombs.iter().any(|(direction, distance)| {
+        !(1..*distance)
+            .map(|i| target_position.offset(direction, i))
+            .any(|p| fireproof_positions.contains(&p))
+    })
+}
+
+pub fn position_is_safe(
+    position: Position,
+    fire_positions: &HashSet<Position>,
+    bomb_positions_ranges: &HashMap<Position, usize>,
+    fireproof_positions: &HashSet<Position>,
+    wall_positions: &HashSet<Position>,
+) -> bool {
+    // TODO: port over additional safety checks
+
+    // standing on a wall protects from fire
+    if wall_positions.contains(&position) {
+        return true;
     }
 
-    true
+    // not standing in fire
+    if fire_positions.contains(&position) {
+        return false;
+    }
+
+    // not in range of bombs
+    !bomb_explosions_can_reach_position(bomb_positions_ranges, position, fireproof_positions)
 }
 
 pub fn get_directions_to_closest_safe_positions(
@@ -510,52 +511,17 @@ pub fn bomb_can_hit_a_player(
     fireproof_positions: &HashSet<Position>,
     wall_positions: &HashSet<Position>,
 ) -> bool {
-    for player_position in player_positions {
-        if wall_positions.contains(player_position) {
-            // a player standing on a wall cannot be damaged by fire
-            continue;
-        }
+    // questionable price for code reusability
+    let bomb_positions_ranges = HashMap::from([(bomb_position, bomb_range)]);
 
-        if (player_position.y == bomb_position.y
-            && (player_position.x - bomb_position.x).abs() as usize <= bomb_range)
-            || (player_position.x == bomb_position.x
-                && (player_position.y - bomb_position.y).abs() as usize <= bomb_range)
-        {
-            if *player_position == bomb_position {
-                return true;
-            }
-            let (distance_to_player, direction) = if player_position.x != bomb_position.x {
-                (
-                    (player_position.x - bomb_position.x).abs() as usize,
-                    if player_position.x < bomb_position.x {
-                        Direction::Right
-                    } else {
-                        Direction::Left
-                    },
-                )
-            } else {
-                (
-                    (player_position.y - bomb_position.y).abs() as usize,
-                    if player_position.y < bomb_position.y {
-                        Direction::Down
-                    } else {
-                        Direction::Up
-                    },
-                )
-            };
-
-            // check if there's anything between the bomb and the player that would stop the fire
-            // note: players standing on fireproof objects can still be burned
-            if !(1..distance_to_player)
-                .map(|i| bomb_position.offset(&direction, i))
-                .any(|p| fireproof_positions.contains(&p))
-            {
-                return true;
-            }
-        }
-    }
-
-    false
+    player_positions.iter().any(|player_position| {
+        !wall_positions.contains(player_position)
+            && bomb_explosions_can_reach_position(
+                &bomb_positions_ranges,
+                *player_position,
+                fireproof_positions,
+            )
+    })
 }
 
 #[cfg(test)]
@@ -584,6 +550,27 @@ mod tests {
     }
 
     // .....
+    // .....
+    // ..p..
+    // .....
+    // .....
+    #[test]
+    fn test_is_position_safe_on_top_of_bomb() {
+        let fire_positions = HashSet::new();
+        let bomb_positions_ranges = HashMap::from([(Position { y: 2, x: 2 }, 1)]);
+        let fireproof_positions = bomb_positions_ranges.iter().map(|(p, _)| *p).collect();
+        let wall_positions = HashSet::new();
+
+        assert!(!position_is_safe(
+            Position { y: 2, x: 2 },
+            &fire_positions,
+            &bomb_positions_ranges,
+            &fireproof_positions,
+            &wall_positions,
+        ));
+    }
+
+    // .....
     // ..P..
     // ..f..
     // ..B..
@@ -591,8 +578,7 @@ mod tests {
     #[test]
     fn test_is_position_safe_blocked_bomb() {
         let fire_positions = HashSet::new();
-        let bomb_positions_ranges: HashMap<Position, usize> =
-            vec![(Position { y: 7, x: 2 }, 2)].into_iter().collect();
+        let bomb_positions_ranges = HashMap::from([(Position { y: 7, x: 2 }, 2)]);
         let fireproof_positions = bomb_positions_ranges
             .iter()
             .map(|(p, _)| *p)
@@ -617,8 +603,7 @@ mod tests {
     #[test]
     fn test_is_position_safe_out_of_range_bomb() {
         let fire_positions = HashSet::new();
-        let bomb_positions_ranges: HashMap<Position, usize> =
-            vec![(Position { y: 3, x: 2 }, 1)].into_iter().collect();
+        let bomb_positions_ranges = HashMap::from([(Position { y: 3, x: 2 }, 1)]);
         let fireproof_positions = bomb_positions_ranges.iter().map(|(p, _)| *p).collect();
         let wall_positions = HashSet::new();
 
@@ -639,8 +624,7 @@ mod tests {
     #[test]
     fn test_is_position_safe_in_danger() {
         let fire_positions = HashSet::new();
-        let bomb_positions_ranges: HashMap<Position, usize> =
-            vec![(Position { y: 3, x: 2 }, 2)].into_iter().collect();
+        let bomb_positions_ranges = HashMap::from([(Position { y: 3, x: 2 }, 2)]);
         let fireproof_positions = bomb_positions_ranges.iter().map(|(p, _)| *p).collect();
         let wall_positions = HashSet::new();
 
@@ -660,8 +644,7 @@ mod tests {
     #[test]
     fn test_is_position_safe_in_danger_blocked_path() {
         let fire_positions = HashSet::new();
-        let bomb_positions_ranges: HashMap<Position, usize> =
-            vec![(Position { y: 2, x: 2 }, 1)].into_iter().collect();
+        let bomb_positions_ranges = HashMap::from([(Position { y: 2, x: 2 }, 1)]);
         let fireproof_positions = bomb_positions_ranges
             .iter()
             .map(|(p, _)| *p)
@@ -686,10 +669,8 @@ mod tests {
     #[test]
     fn test_is_position_safe_in_danger_custom() {
         let fire_positions = HashSet::new();
-        let bomb_positions_ranges: HashMap<Position, usize> =
-            vec![(Position { y: 2, x: 1 }, 2), (Position { y: 3, x: 3 }, 2)]
-                .into_iter()
-                .collect();
+        let bomb_positions_ranges =
+            HashMap::from([(Position { y: 2, x: 1 }, 2), (Position { y: 3, x: 3 }, 2)]);
         let fireproof_positions = bomb_positions_ranges
             .iter()
             .map(|(p, _)| *p)
@@ -744,8 +725,7 @@ mod tests {
     #[test]
     fn test_get_directions_to_closest_safe_positions_blocked_bomb() {
         let fire_positions = HashSet::new();
-        let bomb_positions_ranges: HashMap<Position, usize> =
-            vec![(Position { y: 7, x: 2 }, 2)].into_iter().collect();
+        let bomb_positions_ranges = HashMap::from([(Position { y: 7, x: 2 }, 2)]);
         let fireproof_positions = bomb_positions_ranges
             .iter()
             .map(|(p, _)| *p)
@@ -774,8 +754,7 @@ mod tests {
     #[test]
     fn test_get_directions_to_closest_safe_positions_out_of_range_bomb() {
         let fire_positions = HashSet::new();
-        let bomb_positions_ranges: HashMap<Position, usize> =
-            vec![(Position { y: 3, x: 2 }, 1)].into_iter().collect();
+        let bomb_positions_ranges = HashMap::from([(Position { y: 3, x: 2 }, 1)]);
         let fireproof_positions = bomb_positions_ranges.iter().map(|(p, _)| *p).collect();
         let impassable_positions = bomb_positions_ranges.iter().map(|(p, _)| *p).collect();
         let wall_positions = HashSet::new();
@@ -800,8 +779,7 @@ mod tests {
     #[test]
     fn test_get_directions_to_closest_safe_positions_in_danger() {
         let fire_positions = HashSet::new();
-        let bomb_positions_ranges: HashMap<Position, usize> =
-            vec![(Position { y: 3, x: 2 }, 2)].into_iter().collect();
+        let bomb_positions_ranges = HashMap::from([(Position { y: 3, x: 2 }, 2)]);
         let fireproof_positions = bomb_positions_ranges.iter().map(|(p, _)| *p).collect();
         let impassable_positions = bomb_positions_ranges.iter().map(|(p, _)| *p).collect();
         let wall_positions = HashSet::new();
@@ -828,8 +806,7 @@ mod tests {
     #[test]
     fn test_get_directions_to_closest_safe_positions_in_danger_blocked_path() {
         let fire_positions = HashSet::new();
-        let bomb_positions_ranges: HashMap<Position, usize> =
-            vec![(Position { y: 2, x: 2 }, 1)].into_iter().collect();
+        let bomb_positions_ranges = HashMap::from([(Position { y: 2, x: 2 }, 1)]);
         let fireproof_positions = bomb_positions_ranges
             .iter()
             .map(|(p, _)| *p)
@@ -863,10 +840,8 @@ mod tests {
     #[test]
     fn test_get_directions_to_closest_safe_positions_in_danger_custom() {
         let fire_positions = HashSet::new();
-        let bomb_positions_ranges: HashMap<Position, usize> =
-            vec![(Position { y: 2, x: 1 }, 2), (Position { y: 3, x: 3 }, 2)]
-                .into_iter()
-                .collect();
+        let bomb_positions_ranges =
+            HashMap::from([(Position { y: 2, x: 1 }, 2), (Position { y: 3, x: 3 }, 2)]);
         let fireproof_positions = bomb_positions_ranges
             .iter()
             .map(|(p, _)| *p)
@@ -910,8 +885,7 @@ mod tests {
     #[test]
     fn test_get_directions_to_closest_safe_positions_in_danger_no_exit() {
         let fire_positions = HashSet::new();
-        let bomb_positions_ranges: HashMap<Position, usize> =
-            vec![(Position { y: 3, x: 2 }, 1)].into_iter().collect();
+        let bomb_positions_ranges = HashMap::from([(Position { y: 3, x: 2 }, 1)]);
         let fireproof_positions = bomb_positions_ranges
             .iter()
             .map(|(p, _)| *p)
@@ -942,5 +916,69 @@ mod tests {
         );
 
         assert!(dirs.is_empty());
+    }
+
+    // .....
+    // ..P..
+    // ..f..
+    // ..B..
+    // .....
+    #[test]
+    fn test_bomb_can_hit_a_player_blocked_bomb() {
+        let bomb_positions_ranges = HashMap::from([(Position { y: 7, x: 2 }, 2)]);
+        let fireproof_positions = bomb_positions_ranges
+            .iter()
+            .map(|(p, _)| *p)
+            .chain([Position { y: 6, x: 2 }])
+            .collect();
+        let wall_positions = HashSet::new();
+
+        assert!(!bomb_can_hit_a_player(
+            Position { y: 7, x: 2 },
+            2,
+            &[Position { y: 1, x: 2 }],
+            &fireproof_positions,
+            &wall_positions,
+        ));
+    }
+
+    // .....
+    // .....
+    // ..p..
+    // .....
+    // .....
+    #[test]
+    fn test_bomb_can_hit_a_player_on_top_of_bomb() {
+        let bomb_position = Position { y: 2, x: 2 };
+        let fireproof_positions = HashSet::from([bomb_position]);
+        let wall_positions = HashSet::new();
+
+        assert!(bomb_can_hit_a_player(
+            bomb_position,
+            2,
+            &[Position { y: 2, x: 2 }],
+            &fireproof_positions,
+            &wall_positions,
+        ));
+    }
+
+    // .....
+    // ..P..
+    // .....
+    // ..B..
+    // .....
+    #[test]
+    fn test_bomb_can_hit_a_player_in_danger() {
+        let bomb_position = Position { y: 3, x: 2 };
+        let fireproof_positions = HashSet::from([bomb_position]);
+        let wall_positions = HashSet::new();
+
+        assert!(bomb_can_hit_a_player(
+            bomb_position,
+            2,
+            &[Position { y: 1, x: 2 }],
+            &fireproof_positions,
+            &wall_positions,
+        ));
     }
 }
