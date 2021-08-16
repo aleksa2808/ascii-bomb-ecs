@@ -190,7 +190,7 @@ pub fn spawn_enemies(commands: &mut Commands, textures: &Textures, level: &Level
             .insert(ImmortalMaterial(immortal_material))
             .insert(Player {})
             .insert(BotAI)
-            .insert(MoveCooldown(Timer::from_seconds(0.4, false)))
+            .insert(MoveCooldown(Timer::from_seconds(0.3, false)))
             .insert(Health {
                 lives: 1,
                 max_health: 2,
@@ -443,15 +443,15 @@ pub fn position_is_safe(
     !bomb_explosions_can_reach_position(bomb_positions_ranges, position, fireproof_positions)
 }
 
-pub fn get_directions_to_closest_safe_positions(
+pub fn get_directions_to_closest_positions_with_criteria<F1, F2>(
     starting_position: Position,
-    fire_positions: &HashSet<Position>,
-    bomb_positions_ranges: &HashMap<Position, usize>,
-    fireproof_positions: &HashSet<Position>,
-    impassable_positions: &HashSet<Position>,
-    wall_positions: &HashSet<Position>,
-) -> HashSet<Direction> {
-    // BFS lookup
+    target_position_criteria: F1,
+    path_position_criteria: F2,
+) -> HashSet<Direction>
+where
+    F1: Fn(Position) -> bool,
+    F2: Fn(Position) -> bool,
+{
     let mut result: Option<(HashSet<Direction>, usize)> = None;
 
     let mut visited = HashSet::new();
@@ -469,13 +469,7 @@ pub fn get_directions_to_closest_safe_positions(
         }
         visited.insert(current_position);
 
-        if position_is_safe(
-            current_position,
-            fire_positions,
-            bomb_positions_ranges,
-            fireproof_positions,
-            wall_positions,
-        ) {
+        if target_position_criteria(current_position) {
             let (result_set, _) = result.get_or_insert((HashSet::new(), current_path.len()));
             if let Some(direction) = current_path.first().copied() {
                 result_set.insert(direction);
@@ -489,7 +483,7 @@ pub fn get_directions_to_closest_safe_positions(
             }
 
             let adjacent_position = current_position.offset(&direction, 1);
-            if !impassable_positions.contains(&adjacent_position) {
+            if path_position_criteria(adjacent_position) {
                 let mut extended_path = current_path.clone();
                 extended_path.push(direction);
                 queue.push_front((adjacent_position, extended_path));
@@ -502,6 +496,32 @@ pub fn get_directions_to_closest_safe_positions(
     } else {
         HashSet::new()
     }
+}
+
+pub fn get_directions_to_closest_safe_positions(
+    starting_position: Position,
+    fire_positions: &HashSet<Position>,
+    bomb_positions_ranges: &HashMap<Position, usize>,
+    fireproof_positions: &HashSet<Position>,
+    impassable_positions: &HashSet<Position>,
+    wall_positions: &HashSet<Position>,
+) -> HashSet<Direction> {
+    get_directions_to_closest_positions_with_criteria(
+        starting_position,
+        |position| {
+            position_is_safe(
+                position,
+                fire_positions,
+                bomb_positions_ranges,
+                fireproof_positions,
+                wall_positions,
+            )
+        },
+        |position| !impassable_positions.contains(&position),
+    )
+    .into_iter()
+    .filter(|direction| !fire_positions.contains(&starting_position.offset(direction, 1)))
+    .collect()
 }
 
 pub fn bomb_can_hit_a_player(

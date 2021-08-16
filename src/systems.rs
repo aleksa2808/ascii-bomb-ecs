@@ -132,6 +132,7 @@ pub fn setup(
         .insert(BaseMaterial(base_material))
         .insert(ImmortalMaterial(immortal_material))
         .insert(Player {})
+        .insert(Protagonist)
         .insert(HumanControlled(0))
         .insert(Health {
             lives: 1,
@@ -334,7 +335,7 @@ pub fn bot_ai(
         };
 
         if move_cooldown.0.finished() {
-            if let Some(safe_dir) = get_directions_to_closest_safe_positions(
+            if let Some(safe_direction) = get_directions_to_closest_safe_positions(
                 *position,
                 &fire_positions,
                 &bomb_positions_ranges,
@@ -345,7 +346,10 @@ pub fn bot_ai(
             .iter()
             .choose(&mut rng)
             {
-                ev_player_action.send(PlayerActionEvent(entity, PlayerAction::Move(*safe_dir)));
+                ev_player_action.send(PlayerActionEvent(
+                    entity,
+                    PlayerAction::Move(*safe_direction),
+                ));
                 continue;
             }
         }
@@ -358,6 +362,7 @@ pub fn bot_ai(
             .collect();
         if bomb_satchel.bombs_available > 0
             && !invalid_bomb_spawn_positions.contains(position)
+            && !fire_positions.contains(position)
             && bomb_can_hit_a_player(
                 *position,
                 bomb_satchel.bomb_range,
@@ -380,6 +385,33 @@ pub fn bot_ai(
             .is_empty()
             {
                 ev_player_action.send(PlayerActionEvent(entity, PlayerAction::DropBomb));
+                continue;
+            }
+        }
+
+        if move_cooldown.0.finished() {
+            if let Some(safe_direction_to_enemy) =
+                get_directions_to_closest_positions_with_criteria(
+                    *position,
+                    |position| enemy_positions.contains(&position),
+                    |position| {
+                        !impassable_positions.contains(&position)
+                            && position_is_safe(
+                                position,
+                                &fire_positions,
+                                &bomb_positions_ranges,
+                                &fireproof_positions,
+                                &wall_positions,
+                            )
+                    },
+                )
+                .iter()
+                .choose(&mut rng)
+            {
+                ev_player_action.send(PlayerActionEvent(
+                    entity,
+                    PlayerAction::Move(*safe_direction_to_enemy),
+                ));
                 continue;
             }
         }
@@ -555,7 +587,7 @@ pub fn finish_level(
                 &TeamID,
                 &mut BombSatchel,
             ),
-            (With<Player>, With<HumanControlled>),
+            (With<Player>, With<Protagonist>),
         >,
         Query<&Position, With<Exit>>,
     )>,
@@ -565,7 +597,7 @@ pub fn finish_level(
         (
             Without<Camera>,
             Without<GameStatsDisplay>,
-            Without<HumanControlled>,
+            Without<Protagonist>,
         ),
     >,
     query5: Query<&Bomb>,
@@ -577,7 +609,7 @@ pub fn finish_level(
         SubLevel::Regular(_) => {
             // if an exit is spawned...
             if let Ok(exit_position) = q.q1().single().map(|p| *p) {
-                // ...check if a human controlled player reached it when all the enemies are dead
+                // ...check if a protagonist reached it when all the enemies are dead
                 if q.q0_mut().iter_mut().any(|(_, pp, _, ptid, _)| {
                     *pp == exit_position && !query3.iter().any(|tid| tid.0 != ptid.0)
                 }) {
@@ -586,7 +618,7 @@ pub fn finish_level(
             }
         }
         SubLevel::BossRoom => {
-            // if a human controlled player killed all the enemies
+            // if a protagonist killed all the enemies
             if q.q0_mut()
                 .iter_mut()
                 .any(|(_, _, _, ptid, _)| !query3.iter().any(|tid| tid.0 != ptid.0))
@@ -681,7 +713,7 @@ pub fn finish_level(
 
 pub fn fail_level(
     game_score: Res<GameScore>,
-    query: Query<&HumanControlled>,
+    query: Query<&Protagonist>,
     mut exit: EventWriter<AppExit>,
 ) {
     if query.iter().count() == 0 {

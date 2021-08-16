@@ -28,6 +28,8 @@ impl Position {
 
 pub struct Player;
 
+pub struct Protagonist;
+
 // usize represents the controller/player number
 pub struct HumanControlled(pub usize);
 
