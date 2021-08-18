@@ -1,29 +1,198 @@
-use std::collections::{HashMap, HashSet};
-use std::iter::Iterator;
-use std::time::Duration;
+use std::{
+    collections::{HashMap, HashSet},
+    iter::Iterator,
+    time::Duration,
+};
 
-use bevy::app::AppExit;
-use bevy::prelude::*;
-use bevy::render::camera::Camera;
-use bevy::render::camera::VisibleEntities;
-use rand::prelude::*;
-use rand::Rng;
+use bevy::{
+    app::AppExit,
+    prelude::*,
+    render::camera::{Camera, VisibleEntities},
+};
+use rand::{prelude::*, Rng};
 
-use crate::camera::*;
-use crate::components::*;
-use crate::constants::*;
-use crate::events::*;
-use crate::item::*;
-use crate::resources::*;
-use crate::types::{Direction, *};
-use crate::utils::*;
+use crate::{
+    camera::*,
+    components::*,
+    constants::*,
+    events::*,
+    item::*,
+    resources::*,
+    types::{Direction, *},
+    utils::*,
+    AppState,
+};
 
-pub fn setup(
-    level: Res<Level>,
+pub fn load_textures(
     mut commands: Commands,
     mut materials: ResMut<Assets<ColorMaterial>>,
     asset_server: Res<AssetServer>,
 ) {
+    let map_textures = (1..=3)
+        .map(|world| MapTextures {
+            empty: materials.add(
+                asset_server
+                    .load(format!("sprites/world/{}/empty.png", world).as_str())
+                    .into(),
+            ),
+            wall: materials.add(
+                asset_server
+                    .load(format!("sprites/world/{}/wall.png", world).as_str())
+                    .into(),
+            ),
+            destructible_wall: materials.add(
+                asset_server
+                    .load(format!("sprites/world/{}/destructible_wall.png", world).as_str())
+                    .into(),
+            ),
+            burning_wall: materials.add(
+                asset_server
+                    .load(format!("sprites/world/{}/burning_wall.png", world).as_str())
+                    .into(),
+            ),
+        })
+        .collect();
+
+    commands.insert_resource(Textures {
+        // players + effects
+        penguin: materials.add(asset_server.load("sprites/penguin.png").into()),
+        immortal_penguin: materials.add(asset_server.load("sprites/immortal_penguin.png").into()),
+        crook: materials.add(asset_server.load("sprites/crook.png").into()),
+        immortal_crook: materials.add(asset_server.load("sprites/immortal_crook.png").into()),
+        hatter: materials.add(asset_server.load("sprites/hatter.png").into()),
+        immortal_hatter: materials.add(asset_server.load("sprites/immortal_hatter.png").into()),
+        bat: materials.add(asset_server.load("sprites/bat.png").into()),
+        immortal_bat: materials.add(asset_server.load("sprites/immortal_bat.png").into()),
+        // bomb + fire
+        bomb: materials.add(asset_server.load("sprites/bomb.png").into()),
+        fire: materials.add(asset_server.load("sprites/fire.png").into()),
+        // map textures
+        map_textures,
+        map_textures_index: 0, // defaults to world 1
+        // exit
+        exit: materials.add(asset_server.load("sprites/exit.png").into()),
+        // items
+        bombs_up: materials.add(asset_server.load("sprites/bombs_up.png").into()),
+        range_up: materials.add(asset_server.load("sprites/range_up.png").into()),
+        lives_up: materials.add(asset_server.load("sprites/lives_up.png").into()),
+        wall_hack: materials.add(asset_server.load("sprites/wall_hack.png").into()),
+        bomb_push: materials.add(asset_server.load("sprites/bomb_push.png").into()),
+        immortal: materials.add(asset_server.load("sprites/immortal.png").into()),
+        burning_item: materials.add(asset_server.load("sprites/burning_item.png").into()),
+    });
+}
+
+pub fn setup_menu(
+    fonts: Res<Fonts>,
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    button_materials: Res<ButtonMaterials>,
+) {
+    commands.spawn_bundle(UiCameraBundle::default());
+    commands.spawn_bundle(TextBundle {
+        text: Text {
+            sections: vec![
+                TextSection {
+                    value: "Bomberman".to_string(),
+                    style: TextStyle {
+                        font: fonts.bold.clone(),
+                        font_size: 40.0,
+                        color: Color::WHITE,
+                    },
+                },
+                TextSection {
+                    value: "".to_string(),
+                    style: TextStyle {
+                        font: fonts.mono.clone(),
+                        font_size: 40.0,
+                        color: Color::rgb(1.0, 0.5, 0.5),
+                    },
+                },
+            ],
+            ..Default::default()
+        },
+        style: Style {
+            position_type: PositionType::Absolute,
+            position: Rect {
+                top: Val::Px(5.0),
+                left: Val::Px(5.0),
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+        ..Default::default()
+    });
+
+    commands
+        .spawn_bundle(ButtonBundle {
+            style: Style {
+                size: Size::new(Val::Px(150.0), Val::Px(65.0)),
+                // center button
+                margin: Rect::all(Val::Auto),
+                // horizontally center child text
+                justify_content: JustifyContent::Center,
+                // vertically center child text
+                align_items: AlignItems::Center,
+                ..Default::default()
+            },
+            material: button_materials.normal.clone(),
+            ..Default::default()
+        })
+        .with_children(|parent| {
+            parent.spawn_bundle(TextBundle {
+                text: Text::with_section(
+                    "Play",
+                    TextStyle {
+                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                        font_size: 40.0,
+                        color: Color::rgb(0.9, 0.9, 0.9),
+                    },
+                    Default::default(),
+                ),
+                ..Default::default()
+            });
+        })
+        .id();
+}
+
+pub fn menu(
+    mut state: ResMut<State<AppState>>,
+    button_materials: Res<ButtonMaterials>,
+    mut interaction_query: Query<
+        (&Interaction, &mut Handle<ColorMaterial>),
+        (Changed<Interaction>, With<Button>),
+    >,
+    mut mouse_button_input: ResMut<Input<MouseButton>>,
+) {
+    for (interaction, mut material) in interaction_query.iter_mut() {
+        match *interaction {
+            Interaction::Clicked => {
+                *material = button_materials.pressed.clone();
+                state.push(AppState::InGame).unwrap();
+
+                // hack to prevent just_pressed being true in the in-game system as well
+                mouse_button_input.reset(MouseButton::Left);
+            }
+            Interaction::Hovered => {
+                *material = button_materials.hovered.clone();
+            }
+            Interaction::None => {
+                *material = button_materials.normal.clone();
+            }
+        }
+    }
+}
+
+pub fn enter_game_on_enter(
+    keyboard_input: Res<Input<KeyCode>>,
+    mut state: ResMut<State<AppState>>,
+) {
+    if keyboard_input.just_pressed(KeyCode::Return) {
+        state.push(AppState::InGame).unwrap();
+    }
+}
+
+pub fn setup_game(mut textures: ResMut<Textures>, fonts: Res<Fonts>, mut commands: Commands) {
     // let colors = vec![
     //     (12, 12, 12),
     //     (0, 55, 218),
@@ -51,11 +220,12 @@ pub fn setup(
     //     });
     // }
 
-    let textures = load_textures(&asset_server, &mut materials, level.world);
-
-    let fonts = Fonts {
-        font1: asset_server.load("fonts/FiraMono-Medium.ttf"),
+    let level = Level {
+        sublevel: SubLevel::Regular(1),
+        world: 1,
     };
+
+    textures.set_map_textures(level.world);
 
     // spawn camera
     let projection = SimpleOrthoProjection::new(MAP_WIDTH, MAP_HEIGHT);
@@ -83,7 +253,7 @@ pub fn setup(
                     TextSection {
                         value: "Score: ".to_string(),
                         style: TextStyle {
-                            font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                            font: fonts.bold.clone(),
                             font_size: 40.0,
                             color: Color::rgb(0.5, 0.5, 1.0),
                         },
@@ -91,7 +261,7 @@ pub fn setup(
                     TextSection {
                         value: "".to_string(),
                         style: TextStyle {
-                            font: asset_server.load("fonts/FiraMono-Medium.ttf"),
+                            font: fonts.mono.clone(),
                             font_size: 40.0,
                             color: Color::rgb(1.0, 0.5, 0.5),
                         },
@@ -155,8 +325,8 @@ pub fn setup(
         &level,
     );
 
-    commands.insert_resource(textures);
-    commands.insert_resource(fonts);
+    commands.insert_resource(GameScore(0));
+    commands.insert_resource(level);
 }
 
 pub fn display_stats(
@@ -574,8 +744,6 @@ pub fn pick_up_item(
 pub fn finish_level(
     mut commands: Commands,
     mut textures: ResMut<Textures>,
-    asset_server: Res<AssetServer>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
     mut level: ResMut<Level>,
     mut game_score: ResMut<GameScore>,
     mut q: QuerySet<(
@@ -601,7 +769,7 @@ pub fn finish_level(
         ),
     >,
     query5: Query<&Bomb>,
-    mut exit: EventWriter<AppExit>,
+    mut state: ResMut<State<AppState>>,
     keyboard_input: Res<Input<KeyCode>>,
 ) {
     let mut level_completed = false;
@@ -647,7 +815,7 @@ pub fn finish_level(
             } => {
                 game_score.0 += 2000;
                 println!("Game completed! Final score: {}", game_score.0);
-                exit.send(AppExit);
+                state.pop().unwrap();
                 return;
             }
             Level {
@@ -656,7 +824,7 @@ pub fn finish_level(
             } => {
                 level.world += 1;
                 level.sublevel = SubLevel::Regular(1);
-                *textures = load_textures(&asset_server, &mut materials, level.world);
+                textures.set_map_textures(level.world);
             }
             Level {
                 sublevel: SubLevel::Regular(num),
@@ -714,11 +882,11 @@ pub fn finish_level(
 pub fn fail_level(
     game_score: Res<GameScore>,
     query: Query<&Protagonist>,
-    mut exit: EventWriter<AppExit>,
+    mut state: ResMut<State<AppState>>,
 ) {
     if query.iter().count() == 0 {
         println!("Game over! Final score: {}", game_score.0);
-        exit.send(AppExit);
+        state.pop().unwrap();
     }
 }
 
@@ -767,7 +935,7 @@ pub fn bomb_drop(
                         let mut text = Text::with_section(
                             '*',
                             TextStyle {
-                                font: fonts.font1.clone(),
+                                font: fonts.mono.clone(),
                                 font_size: 10.0,
                                 color: fuse_color,
                             },
@@ -779,7 +947,7 @@ pub fn bomb_drop(
                         text.sections.push(TextSection {
                             value: "┐\n │".into(),
                             style: TextStyle {
-                                font: fonts.font1.clone(),
+                                font: fonts.mono.clone(),
                                 font_size: 10.0,
                                 color: Color::BLACK,
                             },
@@ -829,7 +997,7 @@ pub fn animate_fuse(
                     TextSection {
                         value: fuse_char.into(),
                         style: TextStyle {
-                            font: fonts.font1.clone(),
+                            font: fonts.mono.clone(),
                             font_size: 10.0,
                             color: *fuse_color,
                         },
@@ -837,7 +1005,7 @@ pub fn animate_fuse(
                     TextSection {
                         value: "┐\n │".into(),
                         style: TextStyle {
-                            font: fonts.font1.clone(),
+                            font: fonts.mono.clone(),
                             font_size: 10.0,
                             color: Color::BLACK,
                         },
@@ -852,7 +1020,7 @@ pub fn animate_fuse(
                     TextSection {
                         value: fuse_char.into(),
                         style: TextStyle {
-                            font: fonts.font1.clone(),
+                            font: fonts.mono.clone(),
                             font_size: 10.0,
                             color: *fuse_color,
                         },
@@ -860,7 +1028,7 @@ pub fn animate_fuse(
                     TextSection {
                         value: "\n│".into(),
                         style: TextStyle {
-                            font: fonts.font1.clone(),
+                            font: fonts.mono.clone(),
                             font_size: 10.0,
                             color: Color::BLACK,
                         },
@@ -874,7 +1042,7 @@ pub fn animate_fuse(
                 text.sections = vec![TextSection {
                     value: fuse_char.into(),
                     style: TextStyle {
-                        font: fonts.font1.clone(),
+                        font: fonts.mono.clone(),
                         font_size: 10.0,
                         color: *fuse_color,
                     },
@@ -909,6 +1077,7 @@ pub fn perishable_tick(
         if perishable.timer.just_finished() {
             commands.entity(entity).despawn_recursive();
 
+            // TODO: move into separate system
             if let Some(bomb) = bomb {
                 if let Ok(mut bomb_satchel) = query2.get_mut(bomb.parent) {
                     bomb_satchel.bombs_available += 1;
@@ -917,6 +1086,7 @@ pub fn perishable_tick(
                 ev_explosion.send(ExplosionEvent(*position, bomb.range));
             }
 
+            // TODO: move into separate system
             if wall.is_some() {
                 if *position == exit_position.0 {
                     commands
@@ -1190,7 +1360,7 @@ pub fn destructible_wall_burn(
                 commands.entity(e).insert(Perishable {
                     timer: Timer::from_seconds(0.5, false),
                 });
-                *c = textures.burning_wall.clone();
+                *c = textures.get_map_textures().burning_wall.clone();
             }
         }
     }
@@ -1285,5 +1455,27 @@ pub fn exit_burn(
                     .insert_bundle(ImmortalBundle::default());
             }
         }
+    }
+}
+
+pub fn pop_state_on_esc(
+    mut keyboard_input: ResMut<Input<KeyCode>>,
+    mut state: ResMut<State<AppState>>,
+) {
+    if keyboard_input.just_pressed(KeyCode::Escape) {
+        state.pop().unwrap();
+        keyboard_input.reset(KeyCode::Escape);
+    }
+}
+
+pub fn exit_on_esc(keyboard_input: Res<Input<KeyCode>>, mut exit: EventWriter<AppExit>) {
+    if keyboard_input.just_pressed(KeyCode::Escape) {
+        exit.send(AppExit);
+    }
+}
+
+pub fn teardown(mut commands: Commands, query: Query<Entity>) {
+    for entity in query.iter() {
+        commands.entity(entity).despawn_recursive();
     }
 }

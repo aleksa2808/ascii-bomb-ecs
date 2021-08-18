@@ -16,58 +16,6 @@ pub fn get_y(y: isize) -> f32 {
     -(TILE_HEIGHT as f32 / 2.0 + (y * TILE_HEIGHT as isize) as f32)
 }
 
-pub fn load_textures(
-    asset_server: &AssetServer,
-    materials: &mut Assets<ColorMaterial>,
-    world: usize,
-) -> Textures {
-    Textures {
-        // players + effects
-        penguin: materials.add(asset_server.load("sprites/penguin.png").into()),
-        immortal_penguin: materials.add(asset_server.load("sprites/immortal_penguin.png").into()),
-        crook: materials.add(asset_server.load("sprites/crook.png").into()),
-        immortal_crook: materials.add(asset_server.load("sprites/immortal_crook.png").into()),
-        hatter: materials.add(asset_server.load("sprites/hatter.png").into()),
-        immortal_hatter: materials.add(asset_server.load("sprites/immortal_hatter.png").into()),
-        bat: materials.add(asset_server.load("sprites/bat.png").into()),
-        immortal_bat: materials.add(asset_server.load("sprites/immortal_bat.png").into()),
-        // bomb + fire
-        bomb: materials.add(asset_server.load("sprites/bomb.png").into()),
-        fire: materials.add(asset_server.load("sprites/fire.png").into()),
-        // map tiles
-        empty: materials.add(
-            asset_server
-                .load(format!("sprites/world{}/empty.png", world).as_str())
-                .into(),
-        ),
-        wall: materials.add(
-            asset_server
-                .load(format!("sprites/world{}/wall.png", world).as_str())
-                .into(),
-        ),
-        destructible_wall: materials.add(
-            asset_server
-                .load(format!("sprites/world{}/destructible_wall.png", world).as_str())
-                .into(),
-        ),
-        burning_wall: materials.add(
-            asset_server
-                .load(format!("sprites/world{}/burning_wall.png", world).as_str())
-                .into(),
-        ),
-        // exit
-        exit: materials.add(asset_server.load("sprites/exit.png").into()),
-        // items
-        bombs_up: materials.add(asset_server.load("sprites/bombs_up.png").into()),
-        range_up: materials.add(asset_server.load("sprites/range_up.png").into()),
-        lives_up: materials.add(asset_server.load("sprites/lives_up.png").into()),
-        wall_hack: materials.add(asset_server.load("sprites/wall_hack.png").into()),
-        bomb_push: materials.add(asset_server.load("sprites/bomb_push.png").into()),
-        immortal: materials.add(asset_server.load("sprites/immortal.png").into()),
-        burning_item: materials.add(asset_server.load("sprites/burning_item.png").into()),
-    }
-}
-
 pub fn spawn_enemies(commands: &mut Commands, textures: &Textures, level: &Level) -> Vec<Position> {
     // spawn mobs
     let mob_num = if let SubLevel::Regular(num) = level.sublevel {
@@ -221,7 +169,7 @@ pub fn spawn_map(
     for j in 0..MAP_HEIGHT {
         for i in 0..MAP_WIDTH {
             commands.spawn_bundle(SpriteBundle {
-                material: textures.empty.clone(),
+                material: textures.get_map_textures().empty.clone(),
                 transform: Transform::from_xyz(get_x(i as isize), get_y(j as isize), 0.0),
                 sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
                 ..Default::default()
@@ -268,7 +216,7 @@ pub fn spawn_map(
     for position in stone_wall_positions.iter() {
         commands
             .spawn_bundle(SpriteBundle {
-                material: textures.wall.clone(),
+                material: textures.get_map_textures().wall.clone(),
                 transform: Transform::from_xyz(get_x(position.x), get_y(position.y), 0.0),
                 sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
                 ..Default::default()
@@ -343,7 +291,7 @@ pub fn spawn_map(
     for position in &destructible_wall_positions {
         commands
             .spawn_bundle(SpriteBundle {
-                material: textures.destructible_wall.clone(),
+                material: textures.get_map_textures().destructible_wall.clone(),
                 transform: Transform::from_xyz(get_x(position.x), get_y(position.y), 0.0),
                 sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
                 ..Default::default()
