@@ -39,10 +39,6 @@ pub fn run() {
     })
     .add_plugins(DefaultPlugins);
 
-    // when building for Web, use WebGL2 rendering
-    #[cfg(target_arch = "wasm32")]
-    app.add_plugin(bevy_webgl2::WebGL2Plugin);
-
     use bevy::render::camera::camera_system;
 
     app.add_state(AppState::MainMenu)
