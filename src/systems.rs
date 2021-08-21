@@ -326,19 +326,26 @@ pub fn setup_game(mut textures: ResMut<Textures>, fonts: Res<Fonts>, mut command
     );
 
     commands.insert_resource(GameScore(0));
+    commands.insert_resource(GameTimer(Timer::from_seconds(180.0, false)));
     commands.insert_resource(level);
 }
 
 pub fn display_stats(
     game_score: Res<GameScore>,
+    game_timer: Res<GameTimer>,
     mut query: Query<&mut Text, With<GameStatsDisplay>>,
     query2: Query<&Health, With<Protagonist>>,
 ) {
     let mut text = query.single_mut().unwrap();
+    let remaining_seconds = (game_timer.0.duration() - game_timer.0.elapsed())
+        .as_secs_f32()
+        .ceil() as usize;
     text.sections[0].value = format!(
-        "Lives: {} - Score: {}",
+        "Lives: {} - Score: {} - Time left: {}:{:02}",
         query2.single().unwrap().lives,
-        game_score.0
+        game_score.0,
+        remaining_seconds / 60,
+        remaining_seconds % 60,
     );
 }
 
@@ -346,6 +353,10 @@ pub fn move_cooldown_tick(time: Res<Time>, mut query: Query<&mut MoveCooldown>) 
     for mut move_cooldown in query.iter_mut() {
         move_cooldown.0.tick(time.delta());
     }
+}
+
+pub fn game_timer_tick(time: Res<Time>, mut game_timer: ResMut<GameTimer>) {
+    game_timer.0.tick(time.delta());
 }
 
 pub fn handle_keyboard_input(
@@ -751,6 +762,7 @@ pub fn finish_level(
     mut textures: ResMut<Textures>,
     mut level: ResMut<Level>,
     mut game_score: ResMut<GameScore>,
+    mut game_timer: ResMut<GameTimer>,
     mut q: QuerySet<(
         QueryState<
             (
@@ -882,17 +894,20 @@ pub fn finish_level(
             &enemy_spawn_positions,
             &level,
         );
+
+        game_timer.0.reset();
     }
 }
 
 pub fn fail_level(
     game_score: Res<GameScore>,
+    game_timer: Res<GameTimer>,
     query: Query<&Protagonist>,
     mut state: ResMut<State<AppState>>,
 ) {
-    if query.iter().count() == 0 {
+    if game_timer.0.finished() || query.iter().count() == 0 {
         println!("Game over! Final score: {}", game_score.0);
-        state.pop().unwrap();
+        state.overwrite_pop().unwrap();
     }
 }
 

@@ -88,4 +88,6 @@ pub struct Level {
 
 pub struct GameScore(pub usize);
 
+pub struct GameTimer(pub Timer);
+
 pub struct ExitPosition(pub Position);

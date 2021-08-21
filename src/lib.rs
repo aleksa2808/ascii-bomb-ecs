@@ -70,30 +70,29 @@ pub fn run() {
         .add_system_set(
             SystemSet::on_update(AppState::InGame)
                 .with_system(pop_state_on_esc.system())
-                // display game stats
-                .with_system(display_stats.system())
                 // time effect update
-                .with_system(
-                    move_cooldown_tick
-                        .system()
-                        .label(Label::TimeUpdate)
-                        .before(Label::Input),
-                )
+                .with_system(move_cooldown_tick.system().label(Label::TimeUpdate))
                 .with_system(
                     perishable_tick
                         .system()
                         .label(Label::TimeUpdate)
                         .before(Label::Explosion),
                 )
+                .with_system(game_timer_tick.system().label(Label::TimeUpdate))
                 .with_system(immortality_tick.system().label(Label::TimeUpdate))
                 // handle input
                 .with_system(handle_keyboard_input.system().label(Label::Input))
                 .with_system(handle_mouse_input.system().label(Label::Input))
                 // handle AI
                 .with_system(mob_ai.system().label(Label::Input))
-                .with_system(bot_ai.system().label(Label::Input))
+                .with_system(bot_ai.system().label(Label::Input).after(Label::TimeUpdate))
                 // handle movement
-                .with_system(player_move.system().after(Label::Input))
+                .with_system(
+                    player_move
+                        .system()
+                        .after(Label::Input)
+                        .after(Label::TimeUpdate),
+                )
                 .with_system(moving_object_update.system())
                 // handle bomb logic
                 .with_system(bomb_drop.system().after(Label::Input))
@@ -121,6 +120,13 @@ pub fn run() {
                 // animation
                 .with_system(animate_fuse.system().after(Label::TimeUpdate))
                 .with_system(animate_immortality.system().after(Label::TimeUpdate))
+                // display game stats
+                .with_system(
+                    display_stats
+                        .system()
+                        .after(Label::TimeUpdate)
+                        .after(Label::Damage),
+                )
                 // game end check
                 .with_system(fail_level.exclusive_system().at_end())
                 .with_system(finish_level.exclusive_system().at_end()),
