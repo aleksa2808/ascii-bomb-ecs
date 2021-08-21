@@ -305,9 +305,9 @@ pub fn setup_game(mut textures: ResMut<Textures>, fonts: Res<Fonts>, mut command
         .insert(Protagonist)
         .insert(HumanControlled(0))
         .insert(Health {
-            lives: 1,
-            max_health: 2,
-            health: 2,
+            lives: 2,
+            max_health: 1,
+            health: 1,
         })
         .insert(player_spawn_position)
         .insert(BombSatchel {
@@ -332,9 +332,14 @@ pub fn setup_game(mut textures: ResMut<Textures>, fonts: Res<Fonts>, mut command
 pub fn display_stats(
     game_score: Res<GameScore>,
     mut query: Query<&mut Text, With<GameStatsDisplay>>,
+    query2: Query<&Health, With<Protagonist>>,
 ) {
     let mut text = query.single_mut().unwrap();
-    text.sections[0].value = format!("Score: {}", game_score.0);
+    text.sections[0].value = format!(
+        "Lives: {} - Score: {}",
+        query2.single().unwrap().lives,
+        game_score.0
+    );
 }
 
 pub fn move_cooldown_tick(time: Res<Time>, mut query: Query<&mut MoveCooldown>) {
@@ -594,7 +599,7 @@ pub fn player_move(
     mut commands: Commands,
     mut ev_player_action: EventReader<PlayerActionEvent>,
     mut q: QuerySet<(
-        Query<
+        QueryState<
             (
                 Entity,
                 &mut Position,
@@ -605,7 +610,7 @@ pub fn player_move(
             ),
             With<Player>,
         >,
-        Query<(
+        QueryState<(
             Entity,
             &Solid,
             &Position,
@@ -629,7 +634,7 @@ pub fn player_move(
         }
     }) {
         if let Ok((entity, mut position, mut sprite, wall_hack, bomb_push, mut move_cooldown)) =
-            q.q0_mut().get_mut(entity)
+            q.q0().get_mut(entity)
         {
             // visual / sprite flipping
             match direction {
@@ -677,19 +682,19 @@ pub fn player_move(
 pub fn moving_object_update(
     mut commands: Commands,
     mut q: QuerySet<(
-        Query<(
+        QueryState<(
             Entity,
             &Moving,
             &mut MoveCooldown,
             &mut Position,
             &mut Transform,
         )>,
-        Query<&Position, Or<(With<Solid>, With<Item>, With<Player>, With<Exit>)>>,
+        QueryState<&Position, Or<(With<Solid>, With<Item>, With<Player>, With<Exit>)>>,
     )>,
 ) {
     let impassable_positions: HashSet<Position> = q.q1().iter().copied().collect();
 
-    for (entity, moving, mut move_cooldown, mut position, mut transform) in q.q0_mut().iter_mut() {
+    for (entity, moving, mut move_cooldown, mut position, mut transform) in q.q0().iter_mut() {
         if move_cooldown.0.finished() {
             let new_position = position.offset(&moving.direction, 1);
             if impassable_positions.get(&new_position).is_none() {
@@ -747,7 +752,7 @@ pub fn finish_level(
     mut level: ResMut<Level>,
     mut game_score: ResMut<GameScore>,
     mut q: QuerySet<(
-        Query<
+        QueryState<
             (
                 Entity,
                 &mut Position,
@@ -757,7 +762,7 @@ pub fn finish_level(
             ),
             (With<Player>, With<Protagonist>),
         >,
-        Query<&Position, With<Exit>>,
+        QueryState<&Position, With<Exit>>,
     )>,
     query3: Query<&TeamID, With<Player>>,
     query4: Query<
@@ -778,7 +783,7 @@ pub fn finish_level(
             // if an exit is spawned...
             if let Ok(exit_position) = q.q1().single().map(|p| *p) {
                 // ...check if a protagonist reached it when all the enemies are dead
-                if q.q0_mut().iter_mut().any(|(_, pp, _, ptid, _)| {
+                if q.q0().iter_mut().any(|(_, pp, _, ptid, _)| {
                     *pp == exit_position && !query3.iter().any(|tid| tid.0 != ptid.0)
                 }) {
                     level_completed = true;
@@ -787,7 +792,7 @@ pub fn finish_level(
         }
         SubLevel::BossRoom => {
             // if a protagonist killed all the enemies
-            if q.q0_mut()
+            if q.q0()
                 .iter_mut()
                 .any(|(_, _, _, ptid, _)| !query3.iter().any(|tid| tid.0 != ptid.0))
             {
@@ -838,8 +843,9 @@ pub fn finish_level(
             }
         }
 
+        let mut tmp = q.q0();
         let (player_entity, mut player_position, mut transform, _, mut bomb_satchel) =
-            q.q0_mut().single_mut().unwrap();
+            tmp.single_mut().unwrap();
 
         let unexploded_player_bombs = query5.iter().filter(|b| b.parent == player_entity).count();
 
@@ -1181,24 +1187,13 @@ pub fn handle_explosion(
 pub fn immortality_tick(
     time: Res<Time>,
     mut commands: Commands,
-    mut query: Query<(
-        Entity,
-        &mut Immortal,
-        &mut Timer,
-        &mut Handle<ColorMaterial>,
-        &BaseMaterial,
-    )>,
+    mut query: Query<(Entity, &mut Immortal)>,
 ) {
-    for (entity, mut immortal, mut timer, mut color, base_material) in query.iter_mut() {
+    for (entity, mut immortal) in query.iter_mut() {
         immortal.timer.tick(time.delta());
 
         if immortal.timer.just_finished() {
             commands.entity(entity).remove_bundle::<ImmortalBundle>();
-
-            // hackish way to end the animation
-            timer.set_duration(Duration::ZERO);
-            timer.reset();
-            *color = base_material.0.clone();
         }
     }
 }
@@ -1207,6 +1202,7 @@ pub fn animate_immortality(
     time: Res<Time>,
     mut query: Query<
         (
+            &Immortal,
             &mut Timer,
             &mut Handle<ColorMaterial>,
             &BaseMaterial,
@@ -1215,16 +1211,20 @@ pub fn animate_immortality(
         With<Immortal>,
     >,
 ) {
-    for (mut timer, mut color, base_material, immortal_material) in query.iter_mut() {
-        timer.tick(time.delta());
-        let percent_left = timer.percent_left();
-        match percent_left {
-            _ if (0.5..=1.0).contains(&percent_left) => {
-                *color = immortal_material.0.clone();
-            }
-            // hackish way to end the animation contnd.
-            _ => *color = base_material.0.clone(),
-        };
+    for (immortal, mut timer, mut color, base_material, immortal_material) in query.iter_mut() {
+        if !immortal.timer.finished() {
+            timer.tick(time.delta());
+            let percent_left = timer.percent_left();
+            match percent_left {
+                _ if (0.5..=1.0).contains(&percent_left) => {
+                    *color = immortal_material.0.clone();
+                }
+                // hackish way to end the animation contnd.
+                _ => *color = base_material.0.clone(),
+            };
+        } else {
+            *color = base_material.0.clone();
+        }
     }
 }
 

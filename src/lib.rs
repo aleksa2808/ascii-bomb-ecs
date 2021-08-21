@@ -9,7 +9,6 @@ mod types;
 mod utils;
 
 use bevy::{prelude::*, window::exit_on_window_close_system};
-use wasm_bindgen::prelude::*;
 
 use crate::{camera::SimpleOrthoProjection, constants::*, events::*, resources::*, systems::*};
 
@@ -21,16 +20,15 @@ pub enum AppState {
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemLabel)]
 enum Label {
+    TimeUpdate,
     Input,
     Explosion,
     Burn,
     Damage,
-    Spawner,
 }
 
-#[wasm_bindgen]
 pub fn run() {
-    let mut app = App::build();
+    let mut app = App::new();
 
     const DISPLAY_SCALE: usize = 2;
     app.insert_resource(WindowDescriptor {
@@ -79,14 +77,19 @@ pub fn run() {
                 // display game stats
                 .with_system(display_stats.system())
                 // time effect update
-                .with_system(move_cooldown_tick.system().before(Label::Input))
+                .with_system(
+                    move_cooldown_tick
+                        .system()
+                        .label(Label::TimeUpdate)
+                        .before(Label::Input),
+                )
                 .with_system(
                     perishable_tick
                         .system()
-                        .before(Label::Explosion)
-                        .label(Label::Spawner),
+                        .label(Label::TimeUpdate)
+                        .before(Label::Explosion),
                 )
-                .with_system(immortality_tick.system())
+                .with_system(immortality_tick.system().label(Label::TimeUpdate))
                 // handle input
                 .with_system(handle_keyboard_input.system().label(Label::Input))
                 .with_system(handle_mouse_input.system().label(Label::Input))
@@ -97,13 +100,8 @@ pub fn run() {
                 .with_system(player_move.system().after(Label::Input))
                 .with_system(moving_object_update.system())
                 // handle bomb logic
-                .with_system(bomb_drop.system().after(Label::Input).label(Label::Spawner))
-                .with_system(
-                    handle_explosion
-                        .system()
-                        .label(Label::Explosion)
-                        .label(Label::Spawner),
-                )
+                .with_system(bomb_drop.system().after(Label::Input))
+                .with_system(handle_explosion.system().label(Label::Explosion))
                 .with_system(
                     fire_effect
                         .system()
@@ -118,22 +116,18 @@ pub fn run() {
                 )
                 .with_system(bomb_burn.system().label(Label::Burn))
                 .with_system(destructible_wall_burn.system().label(Label::Burn))
-                .with_system(item_burn.system().label(Label::Burn).label(Label::Spawner))
-                .with_system(exit_burn.system().label(Label::Burn).label(Label::Spawner))
+                .with_system(item_burn.system().label(Label::Burn))
+                .with_system(exit_burn.system().label(Label::Burn))
                 // player specifics
                 .with_system(pick_up_item.system())
                 .with_system(melee_attack.system().before(Label::Damage))
                 .with_system(player_damage.system().label(Label::Damage))
                 // animation
-                .with_system(animate_fuse.system())
-                .with_system(animate_immortality.system())
+                .with_system(animate_fuse.system().after(Label::TimeUpdate))
+                .with_system(animate_immortality.system().after(Label::TimeUpdate))
                 // game end check
-                // TODO: probably buggy right now since at the end of a level/game you need to remove all the entities
-                // and what if someone registered an entity to be spawned in the same frame, will that entity spawn in
-                // the next level / main menu?
-                // previously this was in a separate stage, but that doesn't seem to play nice with states
-                .with_system(finish_level.system().after(Label::Spawner))
-                .with_system(fail_level.system().after(Label::Spawner)),
+                .with_system(fail_level.exclusive_system().at_end())
+                .with_system(finish_level.exclusive_system().at_end()),
         );
 
     app.run();
