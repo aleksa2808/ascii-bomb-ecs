@@ -184,11 +184,12 @@ pub fn menu(
 }
 
 pub fn enter_game_on_enter(
-    keyboard_input: Res<Input<KeyCode>>,
+    mut keyboard_input: ResMut<Input<KeyCode>>,
     mut state: ResMut<State<AppState>>,
 ) {
     if keyboard_input.just_pressed(KeyCode::Return) {
         state.push(AppState::InGame).unwrap();
+        keyboard_input.reset(KeyCode::Return);
     }
 }
 
@@ -335,6 +336,7 @@ pub fn display_stats(
     game_timer: Res<GameTimer>,
     mut query: Query<&mut Text, With<GameStatsDisplay>>,
     query2: Query<&Health, With<Protagonist>>,
+    state: Res<State<AppState>>,
 ) {
     let mut text = query.single_mut().unwrap();
     let remaining_seconds = (game_timer.0.duration() - game_timer.0.elapsed())
@@ -347,6 +349,9 @@ pub fn display_stats(
         remaining_seconds / 60,
         remaining_seconds % 60,
     );
+    if let AppState::Paused = state.current() {
+        text.sections[0].value += " - PAUSED";
+    }
 }
 
 pub fn move_cooldown_tick(time: Res<Time>, mut query: Query<&mut MoveCooldown>) {
@@ -360,9 +365,10 @@ pub fn game_timer_tick(time: Res<Time>, mut game_timer: ResMut<GameTimer>) {
 }
 
 pub fn handle_keyboard_input(
-    keyboard_input: Res<Input<KeyCode>>,
+    mut keyboard_input: ResMut<Input<KeyCode>>,
     query: Query<(Entity, &HumanControlled), With<Player>>,
     mut ev_player_action: EventWriter<PlayerActionEvent>,
+    mut state: ResMut<State<AppState>>,
 ) {
     for (entity, _) in query.iter().filter(|(_, hc)| hc.0 == 0) {
         for (key_code, direction) in [
@@ -378,6 +384,16 @@ pub fn handle_keyboard_input(
 
         if keyboard_input.just_pressed(KeyCode::Space) {
             ev_player_action.send(PlayerActionEvent(entity, PlayerAction::DropBomb));
+        }
+
+        if keyboard_input.just_pressed(KeyCode::Return) {
+            state.push(AppState::Paused).unwrap();
+            keyboard_input.reset(KeyCode::Return);
+        }
+
+        if keyboard_input.just_pressed(KeyCode::Escape) {
+            state.overwrite_pop().unwrap();
+            keyboard_input.reset(KeyCode::Escape);
         }
     }
 }
@@ -1473,13 +1489,13 @@ pub fn exit_burn(
     }
 }
 
-pub fn pop_state_on_esc(
+pub fn pop_state_on_enter(
     mut keyboard_input: ResMut<Input<KeyCode>>,
     mut state: ResMut<State<AppState>>,
 ) {
-    if keyboard_input.just_pressed(KeyCode::Escape) {
+    if keyboard_input.just_pressed(KeyCode::Return) {
         state.pop().unwrap();
-        keyboard_input.reset(KeyCode::Escape);
+        keyboard_input.reset(KeyCode::Return);
     }
 }
 

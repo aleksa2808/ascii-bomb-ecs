@@ -16,6 +16,7 @@ use crate::{camera::SimpleOrthoProjection, constants::*, events::*, resources::*
 pub enum AppState {
     MainMenu,
     InGame,
+    Paused,
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemLabel)]
@@ -65,11 +66,15 @@ pub fn run() {
                 .with_system(menu.system())
                 .with_system(exit_on_esc.system()),
         )
+        .add_system_set(
+            SystemSet::on_update(AppState::Paused)
+                .with_system(display_stats.system())
+                .with_system(pop_state_on_enter.system()),
+        )
         .add_system_set(SystemSet::on_enter(AppState::InGame).with_system(setup_game.system()))
         .add_system_set(SystemSet::on_exit(AppState::InGame).with_system(teardown.system()))
         .add_system_set(
             SystemSet::on_update(AppState::InGame)
-                .with_system(pop_state_on_esc.system())
                 // time effect update
                 .with_system(move_cooldown_tick.system().label(Label::TimeUpdate))
                 .with_system(
