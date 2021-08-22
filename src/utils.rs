@@ -101,7 +101,7 @@ pub fn spawn_story_mode_enemies(
         });
         ec.insert(BaseMaterial(base_material))
             .insert(ImmortalMaterial(immortal_material))
-            .insert(Player {})
+            .insert(Player)
             .insert(MobAI::default())
             .insert(MoveCooldown(Timer::from_seconds(0.4, false)))
             .insert(Health {
@@ -110,7 +110,7 @@ pub fn spawn_story_mode_enemies(
                 health,
             })
             .insert(mob_spawn_position)
-            .insert(MeleeAttacker {})
+            .insert(MeleeAttacker)
             .insert(TeamID(1))
             .insert(PointValue(point_value));
 
@@ -142,7 +142,7 @@ pub fn spawn_story_mode_enemies(
             })
             .insert(BaseMaterial(base_material))
             .insert(ImmortalMaterial(immortal_material))
-            .insert(Player {})
+            .insert(Player)
             .insert(BotAI)
             .insert(MoveCooldown(Timer::from_seconds(0.3, false)))
             .insert(Health {
@@ -160,6 +160,86 @@ pub fn spawn_story_mode_enemies(
     }
 
     (mob_spawn_positions, bot_spawn_positions)
+}
+
+pub fn spawn_battle_mode_players(commands: &mut Commands, textures: &Textures) -> Vec<Position> {
+    let mut player_spawn_positions = vec![];
+
+    // spawn player
+    let player_spawn_position = Position { y: 1, x: 1 };
+    let base_material = textures.penguin.clone();
+    let immortal_material = textures.immortal_penguin.clone();
+    commands
+        .spawn_bundle(SpriteBundle {
+            material: base_material.clone(),
+            transform: Transform::from_xyz(
+                get_x(player_spawn_position.x),
+                get_y(player_spawn_position.y),
+                50.0,
+            ),
+            sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+            ..Default::default()
+        })
+        .insert(BaseMaterial(base_material))
+        .insert(ImmortalMaterial(immortal_material))
+        .insert(Player)
+        .insert(HumanControlled(0))
+        .insert(Health {
+            lives: 1,
+            max_health: 1,
+            health: 1,
+        })
+        .insert(player_spawn_position)
+        .insert(BombSatchel {
+            bombs_available: 3,
+            bomb_range: 2,
+        })
+        .insert(TeamID(0));
+    player_spawn_positions.push(player_spawn_position);
+
+    // spawn bots
+    for (i, (y, x)) in [
+        (MAP_HEIGHT as isize - 2, MAP_WIDTH as isize - 2),
+        (1, MAP_WIDTH as isize - 2),
+        (MAP_HEIGHT as isize - 2, 1),
+    ]
+    .iter()
+    .enumerate()
+    {
+        let bot_spawn_position = Position { y: *y, x: *x };
+        let base_material = textures.penguin.clone();
+        let immortal_material = textures.immortal_penguin.clone();
+        commands
+            .spawn_bundle(SpriteBundle {
+                material: base_material.clone(),
+                transform: Transform::from_xyz(
+                    get_x(bot_spawn_position.x),
+                    get_y(bot_spawn_position.y),
+                    50.0,
+                ),
+                sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+                ..Default::default()
+            })
+            .insert(BaseMaterial(base_material))
+            .insert(ImmortalMaterial(immortal_material))
+            .insert(Player)
+            .insert(BotAI)
+            .insert(MoveCooldown(Timer::from_seconds(0.3, false)))
+            .insert(Health {
+                lives: 1,
+                max_health: 1,
+                health: 1,
+            })
+            .insert(bot_spawn_position)
+            .insert(BombSatchel {
+                bombs_available: 3,
+                bomb_range: 2,
+            })
+            .insert(TeamID(i + 1)); // the main player already reserved 1 TID
+        player_spawn_positions.push(bot_spawn_position);
+    }
+
+    player_spawn_positions
 }
 
 pub fn spawn_map(
@@ -228,8 +308,8 @@ pub fn spawn_map(
                 sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
                 ..Default::default()
             })
-            .insert(Wall {})
-            .insert(Solid {})
+            .insert(Wall)
+            .insert(Solid)
             .insert(*position);
     }
 
@@ -300,9 +380,9 @@ pub fn spawn_map(
                 sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
                 ..Default::default()
             })
-            .insert(Wall {})
-            .insert(Solid {})
-            .insert(Destructible {})
+            .insert(Wall)
+            .insert(Solid)
+            .insert(Destructible)
             .insert(*position);
     }
 

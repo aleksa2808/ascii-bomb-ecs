@@ -261,7 +261,7 @@ pub fn setup_story_mode(mut textures: ResMut<Textures>, fonts: Res<Fonts>, mut c
         })
         .insert(BaseMaterial(base_material))
         .insert(ImmortalMaterial(immortal_material))
-        .insert(Player {})
+        .insert(Player)
         .insert(Protagonist)
         .insert(HumanControlled(0))
         .insert(Health {
@@ -352,94 +352,23 @@ pub fn setup_battle_mode(
         .insert(GameStatsDisplay);
 
     // map generation //
-
-    // spawn player
-    let player_spawn_position = Position { y: 1, x: 1 };
-    let base_material = textures.penguin.clone();
-    let immortal_material = textures.immortal_penguin.clone();
-    commands
-        .spawn_bundle(SpriteBundle {
-            material: base_material.clone(),
-            transform: Transform::from_xyz(
-                get_x(player_spawn_position.x),
-                get_y(player_spawn_position.y),
-                50.0,
-            ),
-            sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
-            ..Default::default()
-        })
-        .insert(BaseMaterial(base_material))
-        .insert(ImmortalMaterial(immortal_material))
-        .insert(Player {})
-        .insert(Protagonist)
-        .insert(HumanControlled(0))
-        .insert(Health {
-            lives: 1,
-            max_health: 1,
-            health: 1,
-        })
-        .insert(player_spawn_position)
-        .insert(BombSatchel {
-            bombs_available: 3,
-            bomb_range: 2,
-        })
-        .insert(TeamID(0));
-
-    // spawn bots
-    let mut bot_spawn_positions = vec![];
-    for (i, (y, x)) in [
-        (MAP_HEIGHT as isize - 2, MAP_WIDTH as isize - 2),
-        (1, MAP_WIDTH as isize - 2),
-        (MAP_HEIGHT as isize - 2, 1),
-    ]
-    .iter()
-    .enumerate()
-    {
-        let bot_spawn_position = Position { y: *y, x: *x };
-        let base_material = textures.penguin.clone();
-        let immortal_material = textures.immortal_penguin.clone();
-        commands
-            .spawn_bundle(SpriteBundle {
-                material: base_material.clone(),
-                transform: Transform::from_xyz(
-                    get_x(bot_spawn_position.x),
-                    get_y(bot_spawn_position.y),
-                    50.0,
-                ),
-                sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
-                ..Default::default()
-            })
-            .insert(BaseMaterial(base_material))
-            .insert(ImmortalMaterial(immortal_material))
-            .insert(Player {})
-            .insert(Protagonist)
-            .insert(BotAI)
-            .insert(MoveCooldown(Timer::from_seconds(0.3, false)))
-            .insert(Health {
-                lives: 1,
-                max_health: 1,
-                health: 1,
-            })
-            .insert(bot_spawn_position)
-            .insert(BombSatchel {
-                bombs_available: 3,
-                bomb_range: 2,
-            })
-            .insert(TeamID(i + 1)); // the main player already reserved 1 ID
-        bot_spawn_positions.push(bot_spawn_position);
-    }
-
-    let mut penguin_spawn_positions = vec![player_spawn_position];
-    penguin_spawn_positions.append(&mut bot_spawn_positions);
+    let player_spawn_positions = spawn_battle_mode_players(&mut commands, &textures);
     spawn_map(
         &mut commands,
         &textures,
-        &penguin_spawn_positions,
+        &player_spawn_positions,
         &[],
         50.0,
         false,
     );
 
+    commands.insert_resource(Leaderboard {
+        scores: (0..=player_spawn_positions.len())
+            .into_iter()
+            .map(|e| (e, 0))
+            .collect(),
+        winning_score: 3,
+    });
     commands.insert_resource(GameTimer(Timer::from_seconds(120.0, false)));
     commands.insert_resource(world_id);
 }
@@ -880,10 +809,10 @@ pub fn pick_up_item(
                     commands.entity(pe).insert_bundle(ImmortalBundle::default());
                 }
                 Item::Power(Power::WallHack) => {
-                    commands.entity(pe).insert(WallHack {});
+                    commands.entity(pe).insert(WallHack);
                 }
                 Item::Power(Power::BombPush) => {
-                    commands.entity(pe).insert(BombPush {});
+                    commands.entity(pe).insert(BombPush);
                 }
             };
 
@@ -1037,18 +966,59 @@ pub fn finish_level(
 }
 
 pub fn fail_level(
-    game_score: Option<Res<GameScore>>,
+    game_score: Res<GameScore>,
     game_timer: Res<GameTimer>,
     query: Query<&Protagonist>,
     mut state: ResMut<State<AppState>>,
 ) {
     if game_timer.0.finished() || query.iter().count() == 0 {
-        let mut exit_message = String::from("Game over!");
-        if let Some(game_score) = game_score {
-            exit_message += format!(" Final score: {}", game_score.0).as_str();
-        }
-        println!("{}", exit_message);
+        println!("Game over! Final score: {}", game_score.0);
         state.overwrite_pop().unwrap();
+    }
+}
+
+pub fn finish_round(
+    mut commands: Commands,
+    textures: Res<Textures>,
+    mut game_timer: ResMut<GameTimer>,
+    mut leaderboard: ResMut<Leaderboard>,
+    query: Query<&TeamID, With<Player>>,
+    query2: Query<Entity, (Without<Camera>, Without<GameStatsDisplay>)>,
+    mut state: ResMut<State<AppState>>,
+) {
+    let mut round_over = false;
+    if game_timer.0.finished() || query.iter().count() == 0 {
+        println!("Round over with no winners!");
+        round_over = true;
+    } else if let Ok(team_id) = query.single() {
+        println!("Player {:?} won the round!", team_id.0);
+
+        *leaderboard.scores.get_mut(&team_id.0).unwrap() += 1;
+        if leaderboard.scores[&team_id.0] >= leaderboard.winning_score {
+            println!("Tournament complete! Winner: {:?}", team_id.0);
+            state.overwrite_pop().unwrap();
+            return;
+        }
+        round_over = true;
+    }
+
+    if round_over {
+        for entity in query2.iter() {
+            commands.entity(entity).despawn_recursive();
+        }
+
+        // spawn players & map again
+        let player_spawn_positions = spawn_battle_mode_players(&mut commands, &textures);
+        spawn_map(
+            &mut commands,
+            &textures,
+            &player_spawn_positions,
+            &[],
+            50.0,
+            false,
+        );
+
+        game_timer.0.reset();
     }
 }
 
@@ -1082,7 +1052,7 @@ pub fn bomb_drop(
                         parent: entity,
                         range: bomb_satchel.bomb_range,
                     })
-                    .insert(Solid {})
+                    .insert(Solid)
                     .insert(Perishable {
                         timer: Timer::from_seconds(2.0, false),
                     })
@@ -1125,7 +1095,7 @@ pub fn bomb_drop(
                                 ),
                                 ..Default::default()
                             })
-                            .insert(Fuse {})
+                            .insert(Fuse)
                             .insert(fuse_color)
                             .insert(Timer::from_seconds(0.1, true));
                     });
@@ -1317,7 +1287,7 @@ pub fn handle_explosion(
                     sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
                     ..Default::default()
                 })
-                .insert(Fire {})
+                .insert(Fire)
                 .insert(position)
                 .insert(Perishable {
                     timer: Timer::from_seconds(0.5, false),
@@ -1599,7 +1569,7 @@ pub fn exit_burn(
                 });
                 ec.insert(BaseMaterial(base_material))
                     .insert(ImmortalMaterial(immortal_material))
-                    .insert(Player {})
+                    .insert(Player)
                     .insert(MobAI::default())
                     .insert(MoveCooldown(Timer::from_seconds(0.4, false)))
                     .insert(Health {
@@ -1608,7 +1578,7 @@ pub fn exit_burn(
                         health: 1,
                     })
                     .insert(*exit_position)
-                    .insert(MeleeAttacker {})
+                    .insert(MeleeAttacker)
                     .insert(TeamID(1))
                     .insert_bundle(ImmortalBundle::default());
             }
@@ -1636,8 +1606,16 @@ pub fn teardown(mut commands: Commands, query: Query<Entity>) {
     for entity in query.iter() {
         commands.entity(entity).despawn_recursive();
     }
-    commands.remove_resource::<GameScore>();
+
+    // common
     commands.remove_resource::<GameTimer>();
     commands.remove_resource::<Level>();
     commands.remove_resource::<WorldID>();
+
+    // story mode
+    commands.remove_resource::<GameScore>();
+    commands.remove_resource::<ExitPosition>();
+
+    // battle mode
+    commands.remove_resource::<Leaderboard>();
 }

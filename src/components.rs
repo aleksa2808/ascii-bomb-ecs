@@ -72,7 +72,7 @@ pub struct Bomb {
     pub range: usize,
 }
 
-pub struct Fuse {}
+pub struct Fuse;
 
 pub struct BombSatchel {
     pub bombs_available: usize,

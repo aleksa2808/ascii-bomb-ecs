@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use bevy::prelude::*;
 
 use crate::components::Position;
@@ -134,6 +136,7 @@ impl FromWorld for Fonts {
     }
 }
 
+// menu
 pub struct ButtonMaterials {
     pub normal: Handle<ColorMaterial>,
     pub hovered: Handle<ColorMaterial>,
@@ -151,18 +154,25 @@ impl FromWorld for ButtonMaterials {
     }
 }
 
+// pretty similar to the ECS WorldId type, maybe rename?
+#[derive(Clone, Copy)]
+pub struct WorldID(pub usize);
+
+pub struct GameTimer(pub Timer);
+
+// story mode
 #[derive(Clone, Copy)]
 pub enum Level {
     Regular(usize),
     BossRoom,
 }
 
-// pretty similar to the ECS WorldId type, maybe rename?
-#[derive(Clone, Copy)]
-pub struct WorldID(pub usize);
-
 pub struct GameScore(pub usize);
 
-pub struct GameTimer(pub Timer);
-
 pub struct ExitPosition(pub Position);
+
+// battle mode
+pub struct Leaderboard {
+    pub scores: HashMap<usize, usize>,
+    pub winning_score: usize,
+}
