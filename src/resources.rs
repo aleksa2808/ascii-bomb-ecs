@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::{components::Position, types::SubLevel};
+use crate::components::Position;
 
 #[derive(Default)]
 pub struct MapTextures {
@@ -81,10 +81,15 @@ impl FromWorld for ButtonMaterials {
     }
 }
 
-pub struct Level {
-    pub sublevel: SubLevel,
-    pub world: usize,
+#[derive(Clone, Copy)]
+pub enum Level {
+    Regular(usize),
+    BossRoom,
 }
+
+// pretty similar to the ECS WorldId type, maybe rename?
+#[derive(Clone, Copy)]
+pub struct WorldID(pub usize);
 
 pub struct GameScore(pub usize);
 

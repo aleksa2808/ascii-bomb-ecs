@@ -2,6 +2,15 @@ use bevy::prelude::*;
 
 use crate::types::Direction;
 
+// menu components
+
+pub enum ButtonAction {
+    StartStoryMode,
+    StartBattleMode,
+}
+
+// game components
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Position {
     pub y: isize,

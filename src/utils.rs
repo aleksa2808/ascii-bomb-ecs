@@ -6,7 +6,7 @@ use rand::{
     Rng,
 };
 
-use crate::{components::*, constants::*, resources::*, types::Direction, types::*};
+use crate::{components::*, constants::*, resources::*, types::Direction};
 
 pub fn get_x(x: isize) -> f32 {
     TILE_WIDTH as f32 / 2.0 + (x * TILE_WIDTH as isize) as f32
@@ -16,13 +16,18 @@ pub fn get_y(y: isize) -> f32 {
     -(TILE_HEIGHT as f32 / 2.0 + (y * TILE_HEIGHT as isize) as f32)
 }
 
-pub fn spawn_enemies(commands: &mut Commands, textures: &Textures, level: &Level) -> Vec<Position> {
+pub fn spawn_story_mode_enemies(
+    commands: &mut Commands,
+    textures: &Textures,
+    level: Level,
+    world_id: WorldID,
+) -> (Vec<Position>, Vec<Position>) {
     // spawn mobs
-    let mob_num = if let SubLevel::Regular(num) = level.sublevel {
+    let mob_number = if let Level::Regular(num) = level {
         num + 1
     } else {
         1
-    } + level.world;
+    } + world_id.0;
 
     // hardcoded for 11x15
     let x = [
@@ -48,8 +53,8 @@ pub fn spawn_enemies(commands: &mut Commands, textures: &Textures, level: &Level
     let mut rng = rand::thread_rng();
     let bias = rng.gen::<usize>() % 20;
 
-    let mut enemy_spawn_positions = vec![];
-    for i in 0..mob_num {
+    let mut mob_spawn_positions = vec![];
+    for i in 0..mob_number {
         let (base_material, immortal_material, wall_hack, health, point_value) = if i > 3 {
             if i > 5 {
                 (
@@ -78,17 +83,17 @@ pub fn spawn_enemies(commands: &mut Commands, textures: &Textures, level: &Level
             )
         };
 
-        let enemy_spawn_position = Position {
+        let mob_spawn_position = Position {
             x: x[(i as usize + bias) % 6] as isize,
             y: y[(i as usize + bias) % 6] as isize,
         };
-        enemy_spawn_positions.push(enemy_spawn_position);
+        mob_spawn_positions.push(mob_spawn_position);
 
         let mut ec = commands.spawn_bundle(SpriteBundle {
             material: base_material.clone(),
             transform: Transform::from_xyz(
-                get_x(enemy_spawn_position.x),
-                get_y(enemy_spawn_position.y),
+                get_x(mob_spawn_position.x),
+                get_y(mob_spawn_position.y),
                 50.0,
             ),
             sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
@@ -104,7 +109,7 @@ pub fn spawn_enemies(commands: &mut Commands, textures: &Textures, level: &Level
                 max_health: health,
                 health,
             })
-            .insert(enemy_spawn_position)
+            .insert(mob_spawn_position)
             .insert(MeleeAttacker {})
             .insert(TeamID(1))
             .insert(PointValue(point_value));
@@ -114,13 +119,14 @@ pub fn spawn_enemies(commands: &mut Commands, textures: &Textures, level: &Level
         }
     }
 
-    if let SubLevel::BossRoom = level.sublevel {
+    let mut bot_spawn_positions = vec![];
+    if let Level::BossRoom = level {
         // spawn boss
         let boss_spawn_position = Position {
             y: 3,
             x: MAP_WIDTH as isize / 2,
         };
-        enemy_spawn_positions.push(boss_spawn_position);
+        bot_spawn_positions.push(boss_spawn_position);
         let base_material = textures.penguin.clone();
         let immortal_material = textures.immortal_penguin.clone();
         commands
@@ -146,22 +152,23 @@ pub fn spawn_enemies(commands: &mut Commands, textures: &Textures, level: &Level
             })
             .insert(boss_spawn_position)
             .insert(BombSatchel {
-                bombs_available: 1 + level.world,
-                bomb_range: 1 + level.world,
+                bombs_available: 1 + world_id.0,
+                bomb_range: 1 + world_id.0,
             })
             .insert(TeamID(1))
             .insert(PointValue(200));
     }
 
-    enemy_spawn_positions
+    (mob_spawn_positions, bot_spawn_positions)
 }
 
 pub fn spawn_map(
     commands: &mut Commands,
     textures: &Textures,
-    player_spawn_position: &Position,
-    enemy_spawn_positions: &[Position],
-    level: &Level,
+    penguin_spawn_positions: &[Position],
+    mob_spawn_positions: &[Position],
+    percent_of_passable_positions_to_fill: f32,
+    spawn_exit: bool,
 ) {
     let mut rng = rand::thread_rng();
 
@@ -239,18 +246,20 @@ pub fn spawn_map(
 
     let number_of_passable_positions = destructible_wall_potential_positions.len();
 
-    // reserve room for the player (cross-shaped)
-    destructible_wall_potential_positions.remove(player_spawn_position);
-    for position in Direction::LIST
-        .iter()
-        .map(|direction| player_spawn_position.offset(direction, 1))
-    {
-        destructible_wall_potential_positions.remove(&position);
+    // reserve room for the penguins (cross-shaped)
+    for penguin_spawn_position in penguin_spawn_positions {
+        destructible_wall_potential_positions.remove(penguin_spawn_position);
+        for position in Direction::LIST
+            .iter()
+            .map(|direction| penguin_spawn_position.offset(direction, 1))
+        {
+            destructible_wall_potential_positions.remove(&position);
+        }
     }
 
-    // reserve room for the enemies (line-shaped)
-    for enemy_spawn_position in enemy_spawn_positions {
-        destructible_wall_potential_positions.remove(enemy_spawn_position);
+    // reserve room for the mobs (line-shaped)
+    for mob_spawn_position in mob_spawn_positions {
+        destructible_wall_potential_positions.remove(mob_spawn_position);
 
         for direction in [
             [Direction::Left, Direction::Right],
@@ -260,7 +269,7 @@ pub fn spawn_map(
         .unwrap()
         {
             for j in 1..3 {
-                let position = enemy_spawn_position.offset(direction, j);
+                let position = mob_spawn_position.offset(direction, j);
                 if stone_wall_positions.contains(&position) {
                     break;
                 }
@@ -269,11 +278,6 @@ pub fn spawn_map(
         }
     }
 
-    let percent_of_passable_positions_to_fill = if let SubLevel::BossRoom = level.sublevel {
-        0.0
-    } else {
-        50.0
-    };
     let num_of_destructible_walls_to_place = (number_of_passable_positions as f32
         * percent_of_passable_positions_to_fill
         / 100.0) as usize;
@@ -302,7 +306,7 @@ pub fn spawn_map(
             .insert(*position);
     }
 
-    if let SubLevel::Regular(_) = level.sublevel {
+    if spawn_exit {
         commands.insert_resource(ExitPosition(
             *destructible_wall_positions.choose(&mut rng).unwrap(),
         ));

@@ -89,28 +89,25 @@ pub fn setup_menu(
     button_materials: Res<ButtonMaterials>,
 ) {
     commands.spawn_bundle(UiCameraBundle::default());
+
+    let title_text = r#"
+ ____   ____  __  __ ____  ______ _____  __  __          _   _ 
+|  _ \ / __ \|  \/  |  _ \|  ____|  __ \|  \/  |   /\   | \ | |
+| |_) | |  | | \  / | |_) | |__  | |__) | \  / |  /  \  |  \| |
+|  _ <| |  | | |\/| |  _ <|  __| |  _  /| |\/| | / /\ \ | . ` |
+| |_) | |__| | |  | | |_) | |____| | \ \| |  | |/ ____ \| |\  |
+|____/ \____/|_|  |_|____/|______|_|  \_\_|  |_/_/    \_\_| \_|
+"#;
     commands.spawn_bundle(TextBundle {
-        text: Text {
-            sections: vec![
-                TextSection {
-                    value: "Bomberman".to_string(),
-                    style: TextStyle {
-                        font: fonts.bold.clone(),
-                        font_size: 40.0,
-                        color: Color::WHITE,
-                    },
-                },
-                TextSection {
-                    value: "".to_string(),
-                    style: TextStyle {
-                        font: fonts.mono.clone(),
-                        font_size: 40.0,
-                        color: Color::rgb(1.0, 0.5, 0.5),
-                    },
-                },
-            ],
-            ..Default::default()
-        },
+        text: Text::with_section(
+            title_text.to_string(),
+            TextStyle {
+                font: fonts.mono.clone(),
+                font_size: 20.0,
+                color: Color::WHITE,
+            },
+            TextAlignment::default(),
+        ),
         style: Style {
             position_type: PositionType::Absolute,
             position: Rect {
@@ -141,7 +138,7 @@ pub fn setup_menu(
         .with_children(|parent| {
             parent.spawn_bundle(TextBundle {
                 text: Text::with_section(
-                    "Play",
+                    "Story mode",
                     TextStyle {
                         font: asset_server.load("fonts/FiraSans-Bold.ttf"),
                         font_size: 40.0,
@@ -152,23 +149,58 @@ pub fn setup_menu(
                 ..Default::default()
             });
         })
-        .id();
+        .insert(ButtonAction::StartStoryMode);
+
+    commands
+        .spawn_bundle(ButtonBundle {
+            style: Style {
+                size: Size::new(Val::Px(150.0), Val::Px(65.0)),
+                // center button
+                margin: Rect::all(Val::Auto),
+                // horizontally center child text
+                justify_content: JustifyContent::Center,
+                // vertically center child text
+                align_items: AlignItems::Center,
+                ..Default::default()
+            },
+            material: button_materials.normal.clone(),
+            ..Default::default()
+        })
+        .with_children(|parent| {
+            parent.spawn_bundle(TextBundle {
+                text: Text::with_section(
+                    "Battle mode",
+                    TextStyle {
+                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                        font_size: 40.0,
+                        color: Color::rgb(0.9, 0.9, 0.9),
+                    },
+                    Default::default(),
+                ),
+                ..Default::default()
+            });
+        })
+        .insert(ButtonAction::StartBattleMode);
 }
 
 pub fn menu(
     mut state: ResMut<State<AppState>>,
     button_materials: Res<ButtonMaterials>,
     mut interaction_query: Query<
-        (&Interaction, &mut Handle<ColorMaterial>),
+        (&Interaction, &mut Handle<ColorMaterial>, &ButtonAction),
         (Changed<Interaction>, With<Button>),
     >,
     mut mouse_button_input: ResMut<Input<MouseButton>>,
 ) {
-    for (interaction, mut material) in interaction_query.iter_mut() {
+    for (interaction, mut material, button_action) in interaction_query.iter_mut() {
         match *interaction {
             Interaction::Clicked => {
                 *material = button_materials.pressed.clone();
-                state.push(AppState::InGame).unwrap();
+
+                match button_action {
+                    ButtonAction::StartStoryMode => state.push(AppState::StoryMode).unwrap(),
+                    ButtonAction::StartBattleMode => state.push(AppState::BattleMode).unwrap(),
+                }
 
                 // hack to prevent just_pressed being true in the in-game system as well
                 mouse_button_input.reset(MouseButton::Left);
@@ -188,12 +220,12 @@ pub fn enter_game_on_enter(
     mut state: ResMut<State<AppState>>,
 ) {
     if keyboard_input.just_pressed(KeyCode::Return) {
-        state.push(AppState::InGame).unwrap();
+        state.push(AppState::StoryMode).unwrap();
         keyboard_input.reset(KeyCode::Return);
     }
 }
 
-pub fn setup_game(mut textures: ResMut<Textures>, fonts: Res<Fonts>, mut commands: Commands) {
+pub fn setup_story_mode(mut textures: ResMut<Textures>, fonts: Res<Fonts>, mut commands: Commands) {
     // let colors = vec![
     //     (12, 12, 12),
     //     (0, 55, 218),
@@ -221,12 +253,10 @@ pub fn setup_game(mut textures: ResMut<Textures>, fonts: Res<Fonts>, mut command
     //     });
     // }
 
-    let level = Level {
-        sublevel: SubLevel::Regular(1),
-        world: 1,
-    };
+    let world_id = WorldID(1);
+    let level = Level::Regular(1);
 
-    textures.set_map_textures(level.world);
+    textures.set_map_textures(world_id.0);
 
     // spawn camera
     let projection = SimpleOrthoProjection::new(MAP_WIDTH, MAP_HEIGHT);
@@ -249,27 +279,15 @@ pub fn setup_game(mut textures: ResMut<Textures>, fonts: Res<Fonts>, mut command
     // score display
     commands
         .spawn_bundle(TextBundle {
-            text: Text {
-                sections: vec![
-                    TextSection {
-                        value: "Score: ".to_string(),
-                        style: TextStyle {
-                            font: fonts.bold.clone(),
-                            font_size: 40.0,
-                            color: Color::rgb(0.5, 0.5, 1.0),
-                        },
-                    },
-                    TextSection {
-                        value: "".to_string(),
-                        style: TextStyle {
-                            font: fonts.mono.clone(),
-                            font_size: 40.0,
-                            color: Color::rgb(1.0, 0.5, 0.5),
-                        },
-                    },
-                ],
-                ..Default::default()
-            },
+            text: Text::with_section(
+                "Score: ".to_string(),
+                TextStyle {
+                    font: fonts.bold.clone(),
+                    font_size: 40.0,
+                    color: Color::rgb(0.5, 0.5, 1.0),
+                },
+                TextAlignment::default(),
+            ),
             style: Style {
                 position_type: PositionType::Absolute,
                 position: Rect {
@@ -317,22 +335,176 @@ pub fn setup_game(mut textures: ResMut<Textures>, fonts: Res<Fonts>, mut command
         })
         .insert(TeamID(0));
 
-    let enemy_spawn_positions = spawn_enemies(&mut commands, &textures, &level);
+    let (mob_spawn_positions, mut bot_spawn_positions) =
+        spawn_story_mode_enemies(&mut commands, &textures, level, world_id);
+
+    let mut penguin_spawn_positions = vec![player_spawn_position];
+    penguin_spawn_positions.append(&mut bot_spawn_positions);
     spawn_map(
         &mut commands,
         &textures,
-        &player_spawn_position,
-        &enemy_spawn_positions,
-        &level,
+        &penguin_spawn_positions,
+        &mob_spawn_positions,
+        if let Level::BossRoom = level {
+            0.0
+        } else {
+            50.0
+        },
+        matches!(level, Level::Regular(_)),
     );
 
     commands.insert_resource(GameScore(0));
     commands.insert_resource(GameTimer(Timer::from_seconds(180.0, false)));
     commands.insert_resource(level);
+    commands.insert_resource(world_id);
+}
+
+pub fn setup_battle_mode(
+    mut textures: ResMut<Textures>,
+    fonts: Res<Fonts>,
+    mut commands: Commands,
+) {
+    let world_id = WorldID(rand::thread_rng().gen_range(1..=3));
+    textures.set_map_textures(world_id.0);
+
+    // spawn camera
+    let projection = SimpleOrthoProjection::new(MAP_WIDTH, MAP_HEIGHT);
+    let cam_name = bevy::render::render_graph::base::camera::CAMERA_2D;
+    let camera = Camera {
+        name: Some(cam_name.to_string()),
+        ..Default::default()
+    };
+
+    commands.spawn_bundle((
+        Transform::from_translation(Vec3::new(0.0, 0.0, projection.far - 0.1)),
+        GlobalTransform::default(),
+        VisibleEntities::default(),
+        camera,
+        projection,
+    ));
+
+    commands.spawn_bundle(UiCameraBundle::default());
+
+    // score display
+    commands
+        .spawn_bundle(TextBundle {
+            text: Text::with_section(
+                "Score: ".to_string(),
+                TextStyle {
+                    font: fonts.bold.clone(),
+                    font_size: 40.0,
+                    color: Color::rgb(0.5, 0.5, 1.0),
+                },
+                TextAlignment::default(),
+            ),
+            style: Style {
+                position_type: PositionType::Absolute,
+                position: Rect {
+                    top: Val::Px(5.0),
+                    left: Val::Px(5.0),
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .insert(GameStatsDisplay);
+
+    // map generation //
+
+    // spawn player
+    let player_spawn_position = Position { y: 1, x: 1 };
+    let base_material = textures.penguin.clone();
+    let immortal_material = textures.immortal_penguin.clone();
+    commands
+        .spawn_bundle(SpriteBundle {
+            material: base_material.clone(),
+            transform: Transform::from_xyz(
+                get_x(player_spawn_position.x),
+                get_y(player_spawn_position.y),
+                50.0,
+            ),
+            sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+            ..Default::default()
+        })
+        .insert(BaseMaterial(base_material))
+        .insert(ImmortalMaterial(immortal_material))
+        .insert(Player {})
+        .insert(Protagonist)
+        .insert(HumanControlled(0))
+        .insert(Health {
+            lives: 1,
+            max_health: 1,
+            health: 1,
+        })
+        .insert(player_spawn_position)
+        .insert(BombSatchel {
+            bombs_available: 3,
+            bomb_range: 2,
+        })
+        .insert(TeamID(0));
+
+    // spawn bots
+    let mut bot_spawn_positions = vec![];
+    for (i, (y, x)) in [
+        (MAP_HEIGHT as isize - 2, MAP_WIDTH as isize - 2),
+        (1, MAP_WIDTH as isize - 2),
+        (MAP_HEIGHT as isize - 2, 1),
+    ]
+    .iter()
+    .enumerate()
+    {
+        let bot_spawn_position = Position { y: *y, x: *x };
+        let base_material = textures.penguin.clone();
+        let immortal_material = textures.immortal_penguin.clone();
+        commands
+            .spawn_bundle(SpriteBundle {
+                material: base_material.clone(),
+                transform: Transform::from_xyz(
+                    get_x(bot_spawn_position.x),
+                    get_y(bot_spawn_position.y),
+                    50.0,
+                ),
+                sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+                ..Default::default()
+            })
+            .insert(BaseMaterial(base_material))
+            .insert(ImmortalMaterial(immortal_material))
+            .insert(Player {})
+            .insert(Protagonist)
+            .insert(BotAI)
+            .insert(MoveCooldown(Timer::from_seconds(0.3, false)))
+            .insert(Health {
+                lives: 1,
+                max_health: 1,
+                health: 1,
+            })
+            .insert(bot_spawn_position)
+            .insert(BombSatchel {
+                bombs_available: 3,
+                bomb_range: 2,
+            })
+            .insert(TeamID(i + 1)); // the main player already reserved 1 ID
+        bot_spawn_positions.push(bot_spawn_position);
+    }
+
+    let mut penguin_spawn_positions = vec![player_spawn_position];
+    penguin_spawn_positions.append(&mut bot_spawn_positions);
+    spawn_map(
+        &mut commands,
+        &textures,
+        &penguin_spawn_positions,
+        &[],
+        50.0,
+        false,
+    );
+
+    commands.insert_resource(GameTimer(Timer::from_seconds(120.0, false)));
+    commands.insert_resource(world_id);
 }
 
 pub fn display_stats(
-    game_score: Res<GameScore>,
+    game_score: Option<Res<GameScore>>,
     game_timer: Res<GameTimer>,
     mut query: Query<&mut Text, With<GameStatsDisplay>>,
     query2: Query<&Health, With<Protagonist>>,
@@ -343,12 +515,18 @@ pub fn display_stats(
         .as_secs_f32()
         .ceil() as usize;
     text.sections[0].value = format!(
-        "Lives: {} - Score: {} - Time left: {}:{:02}",
-        query2.single().unwrap().lives,
-        game_score.0,
+        "Time left: {}:{:02}",
         remaining_seconds / 60,
         remaining_seconds % 60,
     );
+    if matches!(state.current(), AppState::StoryMode)
+        || state.inactives().contains(&AppState::StoryMode)
+    {
+        text.sections[0].value += format!(" - Lives: {}", query2.single().unwrap().lives).as_str();
+    }
+    if let Some(game_score) = game_score {
+        text.sections[0].value += format!(" - Score: {}", game_score.0).as_str();
+    }
     if let AppState::Paused = state.current() {
         text.sections[0].value += " - PAUSED";
     }
@@ -385,16 +563,16 @@ pub fn handle_keyboard_input(
         if keyboard_input.just_pressed(KeyCode::Space) {
             ev_player_action.send(PlayerActionEvent(entity, PlayerAction::DropBomb));
         }
+    }
 
-        if keyboard_input.just_pressed(KeyCode::Return) {
-            state.push(AppState::Paused).unwrap();
-            keyboard_input.reset(KeyCode::Return);
-        }
+    if keyboard_input.just_pressed(KeyCode::Return) {
+        state.push(AppState::Paused).unwrap();
+        keyboard_input.reset(KeyCode::Return);
+    }
 
-        if keyboard_input.just_pressed(KeyCode::Escape) {
-            state.overwrite_pop().unwrap();
-            keyboard_input.reset(KeyCode::Escape);
-        }
+    if keyboard_input.just_pressed(KeyCode::Escape) {
+        state.overwrite_pop().unwrap();
+        keyboard_input.reset(KeyCode::Escape);
     }
 }
 
@@ -777,6 +955,7 @@ pub fn finish_level(
     mut commands: Commands,
     mut textures: ResMut<Textures>,
     mut level: ResMut<Level>,
+    mut world_id: ResMut<WorldID>,
     mut game_score: ResMut<GameScore>,
     mut game_timer: ResMut<GameTimer>,
     mut q: QuerySet<(
@@ -806,8 +985,8 @@ pub fn finish_level(
     keyboard_input: Res<Input<KeyCode>>,
 ) {
     let mut level_completed = false;
-    match level.sublevel {
-        SubLevel::Regular(_) => {
+    match *level {
+        Level::Regular(_) => {
             // if an exit is spawned...
             if let Ok(exit_position) = q.q1().single().map(|p| *p) {
                 // ...check if a protagonist reached it when all the enemies are dead
@@ -818,7 +997,7 @@ pub fn finish_level(
                 }
             }
         }
-        SubLevel::BossRoom => {
+        Level::BossRoom => {
             // if a protagonist killed all the enemies
             if q.q0()
                 .iter_mut()
@@ -835,38 +1014,29 @@ pub fn finish_level(
     }
 
     if level_completed {
-        if let SubLevel::Regular(num) = level.sublevel {
-            println!("Level {}x{} completed!", level.world, num);
+        if let Level::Regular(num) = *level {
+            println!("Level {}x{} completed!", world_id.0, num);
         } else {
-            println!("World {} boss defeated!", level.world);
+            println!("World {} boss defeated!", world_id.0);
         }
 
-        match *level {
-            Level {
-                sublevel: SubLevel::BossRoom,
-                world: 3,
-            } => {
+        match (*level, world_id.0) {
+            (Level::BossRoom, 3) => {
                 game_score.0 += 2000;
                 println!("Game completed! Final score: {}", game_score.0);
                 state.pop().unwrap();
                 return;
             }
-            Level {
-                sublevel: SubLevel::BossRoom,
-                world: _,
-            } => {
-                level.world += 1;
-                level.sublevel = SubLevel::Regular(1);
-                textures.set_map_textures(level.world);
+            (Level::BossRoom, _) => {
+                world_id.0 += 1;
+                *level = Level::Regular(1);
+                textures.set_map_textures(world_id.0);
             }
-            Level {
-                sublevel: SubLevel::Regular(num),
-                world: _,
-            } => {
+            (Level::Regular(num), _) => {
                 if num < 4 {
-                    level.sublevel = SubLevel::Regular(num + 1);
+                    *level = Level::Regular(num + 1);
                 } else {
-                    level.sublevel = SubLevel::BossRoom
+                    *level = Level::BossRoom
                 }
             }
         }
@@ -885,9 +1055,9 @@ pub fn finish_level(
         bomb_satchel.bombs_available += unexploded_player_bombs;
 
         // move player to spawn
-        *player_position = match level.sublevel {
-            SubLevel::Regular(_) => Position { y: 1, x: 1 },
-            SubLevel::BossRoom => Position {
+        *player_position = match *level {
+            Level::Regular(_) => Position { y: 1, x: 1 },
+            Level::BossRoom => Position {
                 y: MAP_HEIGHT as isize - 4,
                 x: MAP_WIDTH as isize / 2,
             },
@@ -902,13 +1072,23 @@ pub fn finish_level(
             .entity(player_entity)
             .insert_bundle(ImmortalBundle::default());
 
-        let enemy_spawn_positions = spawn_enemies(&mut commands, &textures, &level);
+        let (mob_spawn_positions, mut bot_spawn_positions) =
+            spawn_story_mode_enemies(&mut commands, &textures, *level, *world_id);
+
+        let mut penguin_spawn_positions = vec![*player_position];
+        penguin_spawn_positions.append(&mut bot_spawn_positions);
+
         spawn_map(
             &mut commands,
             &textures,
-            &player_position,
-            &enemy_spawn_positions,
-            &level,
+            &penguin_spawn_positions,
+            &mob_spawn_positions,
+            if let Level::BossRoom = *level {
+                0.0
+            } else {
+                50.0
+            },
+            matches!(*level, Level::Regular(_)),
         );
 
         game_timer.0.reset();
@@ -916,13 +1096,17 @@ pub fn finish_level(
 }
 
 pub fn fail_level(
-    game_score: Res<GameScore>,
+    game_score: Option<Res<GameScore>>,
     game_timer: Res<GameTimer>,
     query: Query<&Protagonist>,
     mut state: ResMut<State<AppState>>,
 ) {
     if game_timer.0.finished() || query.iter().count() == 0 {
-        println!("Game over! Final score: {}", game_score.0);
+        let mut exit_message = String::from("Game over!");
+        if let Some(game_score) = game_score {
+            exit_message += format!(" Final score: {}", game_score.0).as_str();
+        }
+        println!("{}", exit_message);
         state.overwrite_pop().unwrap();
     }
 }
@@ -931,7 +1115,7 @@ pub fn bomb_drop(
     mut commands: Commands,
     textures: Res<Textures>,
     fonts: Res<Fonts>,
-    level: Res<Level>,
+    world_id: Res<WorldID>,
     mut ev_player_action: EventReader<PlayerActionEvent>,
     mut query: Query<(&Position, &mut BombSatchel)>,
     query2: Query<&Position, Or<(With<Solid>, With<Exit>, With<BurningItem>)>>,
@@ -963,7 +1147,7 @@ pub fn bomb_drop(
                     })
                     .insert(*position)
                     .with_children(|parent| {
-                        let fuse_color = if level.world == 2 {
+                        let fuse_color = if world_id.0 == 2 {
                             Color::rgb_u8(231, 72, 86)
                         } else {
                             Color::rgb_u8(249, 241, 165)
@@ -1095,7 +1279,7 @@ pub fn animate_fuse(
 
 pub fn perishable_tick(
     time: Res<Time>,
-    exit_position: Res<ExitPosition>,
+    exit_position: Option<Res<ExitPosition>>,
     mut commands: Commands,
     textures: Res<Textures>,
     mut query: Query<(
@@ -1125,7 +1309,7 @@ pub fn perishable_tick(
 
             // TODO: move into separate system
             if wall.is_some() {
-                if *position == exit_position.0 {
+                if matches!(exit_position, Some(ref p) if p.0 == *position) {
                     commands
                         .spawn_bundle(SpriteBundle {
                             material: textures.exit.clone(),
@@ -1300,7 +1484,7 @@ pub fn player_burn(
 
 pub fn player_damage(
     mut commands: Commands,
-    mut game_score: ResMut<GameScore>,
+    mut game_score: Option<ResMut<GameScore>>,
     mut query: Query<
         (
             Entity,
@@ -1334,8 +1518,10 @@ pub fn player_damage(
                     println!("player died: {:?}", pe);
                     commands.entity(pe).despawn_recursive();
 
-                    if let Some(point_value) = point_value {
-                        game_score.0 += point_value.0;
+                    if let Some(ref mut game_score) = game_score {
+                        if let Some(point_value) = point_value {
+                            game_score.0 += point_value.0;
+                        }
                     }
                 } else {
                     health.health = health.max_health;
@@ -1509,4 +1695,8 @@ pub fn teardown(mut commands: Commands, query: Query<Entity>) {
     for entity in query.iter() {
         commands.entity(entity).despawn_recursive();
     }
+    commands.remove_resource::<GameScore>();
+    commands.remove_resource::<GameTimer>();
+    commands.remove_resource::<Level>();
+    commands.remove_resource::<WorldID>();
 }
