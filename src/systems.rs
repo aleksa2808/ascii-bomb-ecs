@@ -23,65 +23,6 @@ use crate::{
     AppState,
 };
 
-pub fn load_textures(
-    mut commands: Commands,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-    asset_server: Res<AssetServer>,
-) {
-    let map_textures = (1..=3)
-        .map(|world| MapTextures {
-            empty: materials.add(
-                asset_server
-                    .load(format!("sprites/world/{}/empty.png", world).as_str())
-                    .into(),
-            ),
-            wall: materials.add(
-                asset_server
-                    .load(format!("sprites/world/{}/wall.png", world).as_str())
-                    .into(),
-            ),
-            destructible_wall: materials.add(
-                asset_server
-                    .load(format!("sprites/world/{}/destructible_wall.png", world).as_str())
-                    .into(),
-            ),
-            burning_wall: materials.add(
-                asset_server
-                    .load(format!("sprites/world/{}/burning_wall.png", world).as_str())
-                    .into(),
-            ),
-        })
-        .collect();
-
-    commands.insert_resource(Textures {
-        // players + effects
-        penguin: materials.add(asset_server.load("sprites/penguin.png").into()),
-        immortal_penguin: materials.add(asset_server.load("sprites/immortal_penguin.png").into()),
-        crook: materials.add(asset_server.load("sprites/crook.png").into()),
-        immortal_crook: materials.add(asset_server.load("sprites/immortal_crook.png").into()),
-        hatter: materials.add(asset_server.load("sprites/hatter.png").into()),
-        immortal_hatter: materials.add(asset_server.load("sprites/immortal_hatter.png").into()),
-        bat: materials.add(asset_server.load("sprites/bat.png").into()),
-        immortal_bat: materials.add(asset_server.load("sprites/immortal_bat.png").into()),
-        // bomb + fire
-        bomb: materials.add(asset_server.load("sprites/bomb.png").into()),
-        fire: materials.add(asset_server.load("sprites/fire.png").into()),
-        // map textures
-        map_textures,
-        map_textures_index: 0, // defaults to world 1
-        // exit
-        exit: materials.add(asset_server.load("sprites/exit.png").into()),
-        // items
-        bombs_up: materials.add(asset_server.load("sprites/bombs_up.png").into()),
-        range_up: materials.add(asset_server.load("sprites/range_up.png").into()),
-        lives_up: materials.add(asset_server.load("sprites/lives_up.png").into()),
-        wall_hack: materials.add(asset_server.load("sprites/wall_hack.png").into()),
-        bomb_push: materials.add(asset_server.load("sprites/bomb_push.png").into()),
-        immortal: materials.add(asset_server.load("sprites/immortal.png").into()),
-        burning_item: materials.add(asset_server.load("sprites/burning_item.png").into()),
-    });
-}
-
 pub fn setup_menu(
     fonts: Res<Fonts>,
     mut commands: Commands,

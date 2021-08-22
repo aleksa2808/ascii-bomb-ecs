@@ -110,6 +110,7 @@ pub fn run() {
     use bevy::render::camera::camera_system;
 
     app.add_state(AppState::MainMenu)
+        .init_resource::<Textures>()
         .init_resource::<Fonts>()
         .init_resource::<ButtonMaterials>()
         .insert_resource(ClearColor(Color::BLACK))
@@ -117,7 +118,6 @@ pub fn run() {
         .add_event::<ExplosionEvent>()
         .add_event::<BurnEvent>()
         .add_event::<DamageEvent>()
-        .add_startup_system(load_textures.system())
         .add_system(exit_on_window_close_system.system())
         .add_system_to_stage(
             CoreStage::PostUpdate,
