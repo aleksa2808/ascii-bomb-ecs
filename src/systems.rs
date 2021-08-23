@@ -1210,6 +1210,7 @@ pub fn perishable_tick(
     )>,
     mut query2: Query<&mut BombSatchel>,
     mut ev_explosion: EventWriter<ExplosionEvent>,
+    state: Res<State<AppState>>,
 ) {
     for (entity, mut perishable, position, bomb, wall) in query.iter_mut() {
         perishable.timer.tick(time.delta());
@@ -1246,7 +1247,7 @@ pub fn perishable_tick(
                     // generate power up
                     const POWER_CHANCE: usize = 100;
                     if rand::thread_rng().gen::<usize>() % 100 < POWER_CHANCE {
-                        let item = Item::generate(false);
+                        let item = Item::generate(matches!(state.current(), AppState::BattleMode));
                         commands
                             .spawn_bundle(SpriteBundle {
                                 material: match item {
