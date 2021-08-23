@@ -1757,4 +1757,5 @@ pub fn teardown(mut commands: Commands, query: Query<Entity>) {
 
     // battle mode
     commands.remove_resource::<Leaderboard>();
+    commands.remove_resource::<WallOfDeath>();
 }
