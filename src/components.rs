@@ -107,16 +107,13 @@ pub struct Wall;
 pub struct Destructible;
 
 pub struct Exit {
-    pub spawn_cooldown: Timer,
-    // needed since we lack a Cooldown-like struct
-    pub first_use: bool,
+    pub spawn_cooldown: Cooldown,
 }
 
 impl Default for Exit {
     fn default() -> Self {
         Exit {
-            spawn_cooldown: Timer::from_seconds(2.0, false),
-            first_use: true,
+            spawn_cooldown: Cooldown::from_seconds(2.0),
         }
     }
 }

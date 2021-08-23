@@ -1548,35 +1548,32 @@ pub fn exit_burn(
     mut query: Query<(&Position, &mut Exit)>,
     mut ev_burn: EventReader<BurnEvent>,
 ) {
-    // TODO: move into a separate system
+    // we do checks here because some levels don't have exits (e.g. boss rooms)
+    // TODO: make a separate state for those scenarios that don't run this system?
     if let Ok((_, mut exit)) = query.single_mut() {
         exit.spawn_cooldown.tick(time.delta());
     }
 
     for BurnEvent(position) in ev_burn.iter() {
         if let Ok((exit_position, mut exit)) = query.single_mut() {
-            if (exit.spawn_cooldown.finished() || exit.first_use) && *exit_position == *position {
+            if *exit_position == *position && exit.spawn_cooldown.ready() {
                 println!("exit burned: {:?}", position);
-                exit.spawn_cooldown.reset();
-                if exit.first_use {
-                    exit.first_use = false;
-                }
 
                 // spawn mob
                 let base_material = textures.crook.clone();
-                let immortal_material = textures.immortal_crook.clone();
-                let mut ec = commands.spawn_bundle(SpriteBundle {
-                    material: base_material.clone(),
-                    transform: Transform::from_xyz(
-                        get_x(exit_position.x),
-                        get_y(exit_position.y),
-                        50.0,
-                    ),
-                    sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
-                    ..Default::default()
-                });
-                ec.insert(BaseMaterial(base_material))
-                    .insert(ImmortalMaterial(immortal_material))
+                commands
+                    .spawn_bundle(SpriteBundle {
+                        material: base_material.clone(),
+                        transform: Transform::from_xyz(
+                            get_x(exit_position.x),
+                            get_y(exit_position.y),
+                            50.0,
+                        ),
+                        sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+                        ..Default::default()
+                    })
+                    .insert(BaseMaterial(base_material))
+                    .insert(ImmortalMaterial(textures.immortal_crook.clone()))
                     .insert(Player)
                     .insert(MobAI::default())
                     .insert(MoveCooldown(Cooldown::from_seconds(0.4)))
@@ -1589,6 +1586,8 @@ pub fn exit_burn(
                     .insert(MeleeAttacker)
                     .insert(TeamID(1))
                     .insert_bundle(ImmortalBundle::default());
+
+                exit.spawn_cooldown.trigger();
             }
         }
     }
