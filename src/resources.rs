@@ -2,7 +2,10 @@ use std::collections::HashMap;
 
 use bevy::prelude::*;
 
-use crate::components::Position;
+use crate::{
+    components::Position,
+    types::{Cooldown, Direction},
+};
 
 #[derive(Default)]
 pub struct MapTextures {
@@ -175,4 +178,16 @@ pub struct ExitPosition(pub Position);
 pub struct Leaderboard {
     pub scores: HashMap<usize, usize>,
     pub winning_score: usize,
+}
+
+pub struct ActiveWallOfDeath {
+    pub position: Position,
+    pub direction: Direction,
+    pub cooldown: Cooldown,
+}
+
+pub enum WallOfDeath {
+    Dormant(Timer),
+    Active(ActiveWallOfDeath),
+    Done,
 }

@@ -161,7 +161,7 @@ pub fn enter_game_on_enter(
     mut state: ResMut<State<AppState>>,
 ) {
     if keyboard_input.just_pressed(KeyCode::Return) {
-        state.push(AppState::StoryMode).unwrap();
+        state.push(AppState::BattleMode).unwrap();
         keyboard_input.reset(KeyCode::Return);
     }
 }
@@ -369,7 +369,12 @@ pub fn setup_battle_mode(
             .collect(),
         winning_score: 3,
     });
-    commands.insert_resource(GameTimer(Timer::from_seconds(120.0, false)));
+    const ROUND_DURATION_SECS: f32 = 120.0;
+    commands.insert_resource(GameTimer(Timer::from_seconds(ROUND_DURATION_SECS, false)));
+    commands.insert_resource(WallOfDeath::Dormant(Timer::from_seconds(
+        ROUND_DURATION_SECS / 2.0,
+        false,
+    )));
     commands.insert_resource(world_id);
 }
 
@@ -982,6 +987,7 @@ pub fn finish_round(
     textures: Res<Textures>,
     mut game_timer: ResMut<GameTimer>,
     mut leaderboard: ResMut<Leaderboard>,
+    mut wall_of_death: ResMut<WallOfDeath>,
     query: Query<&TeamID, With<Player>>,
     query2: Query<Entity, (Without<Camera>, Without<GameStatsDisplay>)>,
     mut state: ResMut<State<AppState>>,
@@ -1019,6 +1025,10 @@ pub fn finish_round(
         );
 
         game_timer.0.reset();
+        *wall_of_death = WallOfDeath::Dormant(Timer::from_seconds(
+            game_timer.0.duration().as_secs_f32() / 2.0,
+            false,
+        ));
     }
 }
 
@@ -1582,6 +1592,137 @@ pub fn exit_burn(
                     .insert(TeamID(1))
                     .insert_bundle(ImmortalBundle::default());
             }
+        }
+    }
+}
+
+pub fn wall_of_death_update(
+    mut commands: Commands,
+    time: Res<Time>,
+    textures: Res<Textures>,
+    mut wall_of_death: ResMut<WallOfDeath>,
+    query: Query<&Position, (With<Wall>, Without<Destructible>)>,
+    query2: Query<(Entity, &Position, Option<&Bomb>)>,
+    mut query3: Query<&mut BombSatchel>,
+) {
+    let get_next_position_direction =
+        |mut position: Position, mut direction: Direction| -> Option<(Position, Direction)> {
+            const END_POSITION: Position = Position {
+                y: MAP_HEIGHT as isize - 3,
+                x: 3,
+            };
+
+            let walls: HashSet<Position> = query.iter().copied().collect();
+            loop {
+                if position == END_POSITION {
+                    break None;
+                }
+
+                match position {
+                    Position { y: 1, x: 1 } | Position { y: 2, x: 2 } => {
+                        direction = Direction::Right;
+                    }
+                    Position { y: 1, x } if x == MAP_WIDTH as isize - 2 => {
+                        direction = Direction::Down;
+                    }
+                    Position { y, x }
+                        if y == MAP_HEIGHT as isize - 2 && x == MAP_WIDTH as isize - 2 =>
+                    {
+                        direction = Direction::Left;
+                    }
+                    Position { y, x: 2 } if y == MAP_HEIGHT as isize - 2 => {
+                        direction = Direction::Up;
+                    }
+                    Position { y: 2, x } if x == MAP_WIDTH as isize - 3 => {
+                        direction = Direction::Down;
+                    }
+                    Position { y, x }
+                        if y == MAP_HEIGHT as isize - 3 && x == MAP_WIDTH as isize - 3 =>
+                    {
+                        direction = Direction::Left;
+                    }
+                    _ => (),
+                }
+
+                position = position.offset(&direction, 1);
+                if !walls.contains(&position) {
+                    break Some((position, direction));
+                }
+            }
+        };
+
+    let mut clear_position_and_spawn_wall = |position: Position| {
+        for (e, _, b) in query2.iter().filter(|(_, p, _)| **p == position) {
+            commands.entity(e).despawn_recursive();
+
+            // TODO: this is the same logic as in perishable_tick, move into a separate system
+            if let Some(bomb) = b {
+                if let Ok(mut bomb_satchel) = query3.get_mut(bomb.parent) {
+                    bomb_satchel.bombs_available += 1;
+                }
+            }
+        }
+
+        commands
+            .spawn_bundle(SpriteBundle {
+                material: textures.get_map_textures().wall.clone(),
+                transform: Transform::from_xyz(get_x(position.x), get_y(position.y), 0.0),
+                sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+                ..Default::default()
+            })
+            .insert(Wall)
+            .insert(Solid)
+            .insert(position);
+    };
+
+    loop {
+        let new_state = match *wall_of_death {
+            WallOfDeath::Dormant(ref mut timer) => {
+                timer.tick(time.delta());
+
+                if timer.finished() {
+                    println!("Wall of Death activated!");
+
+                    Some(WallOfDeath::Active(ActiveWallOfDeath {
+                        position: Position {
+                            y: MAP_HEIGHT as isize - 1,
+                            x: 1,
+                        },
+                        direction: Direction::Up,
+                        cooldown: Cooldown::from_seconds(0.2),
+                    }))
+                } else {
+                    None
+                }
+            }
+            WallOfDeath::Active(ref mut active_wall_of_death) => {
+                active_wall_of_death.cooldown.tick(time.delta());
+                if active_wall_of_death.cooldown.ready() {
+                    if let Some((position, direction)) = get_next_position_direction(
+                        active_wall_of_death.position,
+                        active_wall_of_death.direction,
+                    ) {
+                        active_wall_of_death.cooldown.trigger();
+                        active_wall_of_death.position = position;
+                        active_wall_of_death.direction = direction;
+
+                        clear_position_and_spawn_wall(active_wall_of_death.position);
+
+                        None
+                    } else {
+                        Some(WallOfDeath::Done)
+                    }
+                } else {
+                    None
+                }
+            }
+            WallOfDeath::Done => None,
+        };
+
+        if let Some(new_state) = new_state {
+            *wall_of_death = new_state;
+        } else {
+            break;
         }
     }
 }

@@ -27,6 +27,7 @@ enum Label {
     Explosion,
     Burn,
     Damage,
+    GameEndCheck,
 }
 
 fn add_common_game_systems(app: &mut App, state: AppState) {
@@ -121,15 +122,36 @@ pub fn run() {
         .add_system_set(
             SystemSet::on_update(AppState::StoryMode)
                 // game end check
-                .with_system(fail_level.exclusive_system().at_end())
-                .with_system(finish_level.exclusive_system().at_end()),
+                .with_system(
+                    fail_level
+                        .exclusive_system()
+                        .at_end()
+                        .label(Label::GameEndCheck),
+                )
+                .with_system(
+                    finish_level
+                        .exclusive_system()
+                        .at_end()
+                        .label(Label::GameEndCheck),
+                ),
         );
 
     add_common_game_systems(&mut app, AppState::BattleMode);
     app.add_system_set(SystemSet::on_enter(AppState::BattleMode).with_system(setup_battle_mode))
         .add_system_set(
             SystemSet::on_update(AppState::BattleMode)
-                .with_system(finish_round.exclusive_system().at_end()),
+                .with_system(
+                    wall_of_death_update
+                        .exclusive_system()
+                        .at_end()
+                        .before(Label::GameEndCheck),
+                )
+                .with_system(
+                    finish_round
+                        .exclusive_system()
+                        .at_end()
+                        .label(Label::GameEndCheck),
+                ),
         );
 
     app.run();
