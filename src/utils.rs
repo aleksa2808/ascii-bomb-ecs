@@ -10,7 +10,7 @@ use crate::{
     components::*,
     constants::*,
     resources::*,
-    types::{Cooldown, Direction},
+    types::{Cooldown, Direction, PlayerAction},
 };
 
 pub fn get_x(x: isize) -> f32 {
@@ -579,6 +579,116 @@ pub fn bomb_can_hit_a_player(
                 fireproof_positions,
             )
     })
+}
+
+fn number_of_destructibles_in_range(
+    bomb_position: Position,
+    bomb_range: usize,
+    fireproof_positions: &HashSet<Position>,
+    destructible_positions: &HashSet<Position>,
+) -> usize {
+    let mut destructibles_in_range = 0;
+
+    for direction in Direction::LIST {
+        for i in 1..=bomb_range {
+            let position = bomb_position.offset(direction, i);
+            if destructible_positions.contains(&position) {
+                destructibles_in_range += 1;
+            }
+            if fireproof_positions.contains(&position) {
+                break;
+            }
+        }
+    }
+
+    destructibles_in_range
+}
+
+pub fn get_destructible_destroying_action(
+    position: Position,
+    bomb_satchel: &BombSatchel,
+    invalid_bomb_spawn_positions: &HashSet<Position>,
+    fire_positions: &HashSet<Position>,
+    bomb_positions_ranges: &HashMap<Position, usize>,
+    fireproof_positions: &HashSet<Position>,
+    impassable_positions: &HashSet<Position>,
+    wall_positions: &HashSet<Position>,
+    destructible_positions: &HashSet<Position>,
+) -> Option<PlayerAction> {
+    let mut action = None;
+    let mut max_destruction_potential = 0;
+
+    if bomb_satchel.bombs_available > 0
+        && !invalid_bomb_spawn_positions.contains(&position)
+        && !fire_positions.contains(&position)
+    {
+        let mut bomb_positions_ranges = bomb_positions_ranges.clone();
+        bomb_positions_ranges.insert(position, bomb_satchel.bomb_range);
+
+        if !get_directions_to_closest_safe_positions(
+            position,
+            fire_positions,
+            &bomb_positions_ranges,
+            fireproof_positions,
+            impassable_positions,
+            wall_positions,
+        )
+        .is_empty()
+        {
+            max_destruction_potential = number_of_destructibles_in_range(
+                position,
+                bomb_satchel.bomb_range,
+                fireproof_positions,
+                destructible_positions,
+            );
+            if max_destruction_potential > 0 {
+                action = Some(PlayerAction::DropBomb);
+            }
+        }
+    }
+
+    let mut directions: Vec<Direction> = Direction::LIST.into();
+    directions.shuffle(&mut rand::thread_rng());
+    for direction in directions {
+        let position = position.offset(direction, 1);
+        if !impassable_positions.contains(&position)
+            && position_is_safe(
+                position,
+                fire_positions,
+                bomb_positions_ranges,
+                fireproof_positions,
+                wall_positions,
+            )
+            && !invalid_bomb_spawn_positions.contains(&position)
+        {
+            let mut bomb_positions_ranges = bomb_positions_ranges.clone();
+            bomb_positions_ranges.insert(position, bomb_satchel.bomb_range);
+
+            if !get_directions_to_closest_safe_positions(
+                position,
+                fire_positions,
+                &bomb_positions_ranges,
+                fireproof_positions,
+                impassable_positions,
+                wall_positions,
+            )
+            .is_empty()
+            {
+                let destruction_potential = number_of_destructibles_in_range(
+                    position,
+                    bomb_satchel.bomb_range,
+                    fireproof_positions,
+                    destructible_positions,
+                );
+                if destruction_potential > max_destruction_potential {
+                    max_destruction_potential = destruction_potential;
+                    action = Some(PlayerAction::Move(direction));
+                }
+            }
+        }
+    }
+
+    action
 }
 
 #[cfg(test)]

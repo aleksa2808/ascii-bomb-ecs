@@ -564,6 +564,7 @@ pub fn bot_ai(
     query6: Query<(&Position, &TeamID), With<Player>>,
     query7: Query<&Position, With<Wall>>,
     query8: Query<&Position, Or<(With<Wall>, With<Bomb>, With<Exit>, With<BurningItem>)>>,
+    query9: Query<&Position, With<Destructible>>,
     mut ev_player_action: EventWriter<PlayerActionEvent>,
 ) {
     // TODO: this is wasted work for situations where there aren't any bots
@@ -574,6 +575,7 @@ pub fn bot_ai(
     let fireproof_positions: HashSet<Position> = query5.iter().copied().collect();
     let wall_positions: HashSet<Position> = query7.iter().copied().collect();
     let invalid_bomb_spawn_positions: HashSet<Position> = query8.iter().copied().collect();
+    let destructible_positions: HashSet<Position> = query9.iter().copied().collect();
 
     for (entity, position, move_cooldown, wall_hack, bomb_satchel, team_id) in query.iter() {
         let impassable_positions: HashSet<Position> = if wall_hack.is_none() {
@@ -585,6 +587,7 @@ pub fn bot_ai(
                 .collect()
         };
 
+        // run to safety
         if move_cooldown.0.ready() {
             if let Some(safe_direction) = get_directions_to_closest_safe_positions(
                 *position,
@@ -640,6 +643,7 @@ pub fn bot_ai(
             }
         }
 
+        // chase enemies
         if move_cooldown.0.ready() {
             if let Some(safe_direction_to_enemy) =
                 get_directions_to_closest_positions_with_criteria(
@@ -665,6 +669,21 @@ pub fn bot_ai(
                 ));
                 continue;
             }
+        }
+
+        // break nearby walls
+        if let Some(action) = get_destructible_destroying_action(
+            *position,
+            bomb_satchel,
+            &invalid_bomb_spawn_positions,
+            &fire_positions,
+            &bomb_positions_ranges,
+            &fireproof_positions,
+            &impassable_positions,
+            &wall_positions,
+            &destructible_positions,
+        ) {
+            ev_player_action.send(PlayerActionEvent(entity, action));
         }
 
         // TODO: more actions
