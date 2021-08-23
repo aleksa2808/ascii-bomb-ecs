@@ -6,7 +6,12 @@ use rand::{
     Rng,
 };
 
-use crate::{components::*, constants::*, resources::*, types::Direction};
+use crate::{
+    components::*,
+    constants::*,
+    resources::*,
+    types::{Cooldown, Direction},
+};
 
 pub fn get_x(x: isize) -> f32 {
     TILE_WIDTH as f32 / 2.0 + (x * TILE_WIDTH as isize) as f32
@@ -103,7 +108,7 @@ pub fn spawn_story_mode_enemies(
             .insert(ImmortalMaterial(immortal_material))
             .insert(Player)
             .insert(MobAI::default())
-            .insert(MoveCooldown(Timer::from_seconds(0.4, false)))
+            .insert(MoveCooldown(Cooldown::from_seconds(0.4)))
             .insert(Health {
                 lives: 1,
                 max_health: health,
@@ -144,7 +149,7 @@ pub fn spawn_story_mode_enemies(
             .insert(ImmortalMaterial(immortal_material))
             .insert(Player)
             .insert(BotAI)
-            .insert(MoveCooldown(Timer::from_seconds(0.3, false)))
+            .insert(MoveCooldown(Cooldown::from_seconds(0.3)))
             .insert(Health {
                 lives: 1,
                 max_health: 2,
@@ -224,7 +229,7 @@ pub fn spawn_battle_mode_players(commands: &mut Commands, textures: &Textures) -
             .insert(ImmortalMaterial(immortal_material))
             .insert(Player)
             .insert(BotAI)
-            .insert(MoveCooldown(Timer::from_seconds(0.3, false)))
+            .insert(MoveCooldown(Cooldown::from_seconds(0.3)))
             .insert(Health {
                 lives: 1,
                 max_health: 1,

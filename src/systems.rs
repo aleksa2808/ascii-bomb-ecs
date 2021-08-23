@@ -543,7 +543,6 @@ pub fn mob_ai(
             if let Some(direction) = passable_dir {
                 mob_ai.direction = passable_dir;
                 ev_player_action.send(PlayerActionEvent(entity, PlayerAction::Move(direction)));
-                break;
             }
         }
     }
@@ -589,7 +588,7 @@ pub fn bot_ai(
                 .collect()
         };
 
-        if move_cooldown.0.finished() {
+        if move_cooldown.0.ready() {
             if let Some(safe_direction) = get_directions_to_closest_safe_positions(
                 *position,
                 &fire_positions,
@@ -644,7 +643,7 @@ pub fn bot_ai(
             }
         }
 
-        if move_cooldown.0.finished() {
+        if move_cooldown.0.ready() {
             if let Some(safe_direction_to_enemy) =
                 get_directions_to_closest_positions_with_criteria(
                     *position,
@@ -681,7 +680,6 @@ pub fn player_move(
     mut q: QuerySet<(
         QueryState<
             (
-                Entity,
                 &mut Position,
                 &mut Sprite,
                 Option<&WallHack>,
@@ -713,7 +711,7 @@ pub fn player_move(
             None
         }
     }) {
-        if let Ok((entity, mut position, mut sprite, wall_hack, bomb_push, mut move_cooldown)) =
+        if let Ok((mut position, mut sprite, wall_hack, bomb_push, mut move_cooldown)) =
             q.q0().get_mut(entity)
         {
             // visual / sprite flipping
@@ -724,7 +722,7 @@ pub fn player_move(
             }
 
             if let Some(move_cooldown) = move_cooldown.as_mut() {
-                if !move_cooldown.0.finished() {
+                if !move_cooldown.0.ready() {
                     continue;
                 }
             }
@@ -741,13 +739,13 @@ pub fn player_move(
                     commands
                         .entity(*e)
                         .insert(Moving { direction })
-                        .insert(MoveCooldown(Timer::from_seconds(0.01, false)));
+                        .insert(MoveCooldown(Cooldown::from_seconds(0.01)));
                 }
             }
 
             if moved {
                 if let Some(mut move_cooldown) = move_cooldown {
-                    move_cooldown.0.reset();
+                    move_cooldown.0.trigger();
                 }
 
                 let mut transform = query2.get_mut(entity).unwrap();
@@ -775,7 +773,7 @@ pub fn moving_object_update(
     let impassable_positions: HashSet<Position> = q.q1().iter().copied().collect();
 
     for (entity, moving, mut move_cooldown, mut position, mut transform) in q.q0().iter_mut() {
-        if move_cooldown.0.finished() {
+        if move_cooldown.0.ready() {
             let new_position = position.offset(&moving.direction, 1);
             if impassable_positions.get(&new_position).is_none() {
                 *position = new_position;
@@ -784,7 +782,7 @@ pub fn moving_object_update(
                 translation.x = get_x(position.x);
                 translation.y = get_y(position.y);
 
-                move_cooldown.0.reset();
+                move_cooldown.0.trigger();
             } else {
                 commands.entity(entity).remove::<Moving>();
                 commands.entity(entity).remove::<MoveCooldown>();
@@ -1581,7 +1579,7 @@ pub fn exit_burn(
                     .insert(ImmortalMaterial(immortal_material))
                     .insert(Player)
                     .insert(MobAI::default())
-                    .insert(MoveCooldown(Timer::from_seconds(0.4, false)))
+                    .insert(MoveCooldown(Cooldown::from_seconds(0.4)))
                     .insert(Health {
                         lives: 1,
                         max_health: 1,

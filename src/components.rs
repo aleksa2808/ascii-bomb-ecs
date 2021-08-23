@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::types::Direction;
+use crate::types::{Cooldown, Direction};
 
 // menu components
 
@@ -49,8 +49,7 @@ pub struct MobAI {
 
 pub struct BotAI;
 
-// TODO: make an actual Cooldown type, a Timer will have an initial delay
-pub struct MoveCooldown(pub Timer);
+pub struct MoveCooldown(pub Cooldown);
 
 // currently used for bomb movement only, will stop before items
 pub struct Moving {
