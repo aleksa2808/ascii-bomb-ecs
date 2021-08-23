@@ -18,7 +18,7 @@ pub struct Position {
 }
 
 impl Position {
-    pub fn offset(&self, direction: &Direction, distance: usize) -> Self {
+    pub fn offset(&self, direction: Direction, distance: usize) -> Self {
         let distance = distance as isize;
 
         let (y_offset, x_offset) = match direction {

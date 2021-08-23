@@ -517,7 +517,7 @@ pub fn mob_ai(
             Direction::LIST.iter().copied().collect();
 
         if let Some(direction) = mob_ai.direction {
-            let result = solids.get(&position.offset(&direction, 1));
+            let result = solids.get(&position.offset(direction, 1));
             if result.is_none() || (wall_hack.is_some() && matches!(result, Some(true))) {
                 ev_player_action.send(PlayerActionEvent(entity, PlayerAction::Move(direction)));
             } else {
@@ -533,13 +533,10 @@ pub fn mob_ai(
             potential_directions.shuffle(&mut rand::thread_rng());
 
             // move towards one that leads to passable terrain (if existing)
-            let passable_dir = potential_directions
-                .iter()
-                .find(|direction| {
-                    let result = solids.get(&position.offset(direction, 1));
-                    result.is_none() || (wall_hack.is_some() && matches!(result, Some(true)))
-                })
-                .copied();
+            let passable_dir = potential_directions.into_iter().find(|direction| {
+                let result = solids.get(&position.offset(*direction, 1));
+                result.is_none() || (wall_hack.is_some() && matches!(result, Some(true)))
+            });
             if let Some(direction) = passable_dir {
                 mob_ai.direction = passable_dir;
                 ev_player_action.send(PlayerActionEvent(entity, PlayerAction::Move(direction)));
@@ -727,7 +724,7 @@ pub fn player_move(
                 }
             }
 
-            let new_position = position.offset(&direction, 1);
+            let new_position = position.offset(direction, 1);
             let solid = solids.get(&new_position);
 
             let mut moved = false;
@@ -774,7 +771,7 @@ pub fn moving_object_update(
 
     for (entity, moving, mut move_cooldown, mut position, mut transform) in q.q0().iter_mut() {
         if move_cooldown.0.ready() {
-            let new_position = position.offset(&moving.direction, 1);
+            let new_position = position.offset(moving.direction, 1);
             if impassable_positions.get(&new_position).is_none() {
                 *position = new_position;
 
@@ -1306,7 +1303,7 @@ pub fn handle_explosion(
         spawn_fire(&mut commands, position);
         for direction in Direction::LIST {
             for i in 1..=range {
-                let position = position.offset(&direction, i);
+                let position = position.offset(direction, i);
 
                 if fireproof_positions.contains(&position) {
                     ev_burn.send(BurnEvent(position));
@@ -1642,7 +1639,7 @@ pub fn wall_of_death_update(
                     _ => (),
                 }
 
-                position = position.offset(&direction, 1);
+                position = position.offset(direction, 1);
                 if !walls.contains(&position) {
                     break Some((position, direction));
                 }

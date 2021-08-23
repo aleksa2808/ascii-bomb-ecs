@@ -336,7 +336,7 @@ pub fn spawn_map(
         destructible_wall_potential_positions.remove(penguin_spawn_position);
         for position in Direction::LIST
             .iter()
-            .map(|direction| penguin_spawn_position.offset(direction, 1))
+            .map(|direction| penguin_spawn_position.offset(*direction, 1))
         {
             destructible_wall_potential_positions.remove(&position);
         }
@@ -354,7 +354,7 @@ pub fn spawn_map(
         .unwrap()
         {
             for j in 1..3 {
-                let position = mob_spawn_position.offset(direction, j);
+                let position = mob_spawn_position.offset(*direction, j);
                 if stone_wall_positions.contains(&position) {
                     break;
                 }
@@ -452,7 +452,7 @@ fn bomb_explosions_can_reach_position(
 
     closest_dangerous_bombs.iter().any(|(direction, distance)| {
         !(1..*distance)
-            .map(|i| target_position.offset(direction, i))
+            .map(|i| target_position.offset(*direction, i))
             .any(|p| fireproof_positions.contains(&p))
     })
 }
@@ -519,7 +519,7 @@ where
                 continue;
             }
 
-            let adjacent_position = current_position.offset(&direction, 1);
+            let adjacent_position = current_position.offset(direction, 1);
             if path_position_criteria(adjacent_position) {
                 let mut extended_path = current_path.clone();
                 extended_path.push(direction);
@@ -557,7 +557,7 @@ pub fn get_directions_to_closest_safe_positions(
         |position| !impassable_positions.contains(&position),
     )
     .into_iter()
-    .filter(|direction| !fire_positions.contains(&starting_position.offset(direction, 1)))
+    .filter(|direction| !fire_positions.contains(&starting_position.offset(*direction, 1)))
     .collect()
 }
 
