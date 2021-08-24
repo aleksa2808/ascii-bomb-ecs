@@ -4,6 +4,7 @@ use bevy::prelude::*;
 
 use crate::{
     components::Position,
+    constants::COLORS,
     types::{Cooldown, Direction},
 };
 
@@ -150,19 +151,40 @@ impl FromWorld for Fonts {
 }
 
 // menu
-pub struct ButtonMaterials {
-    pub normal: Handle<ColorMaterial>,
-    pub hovered: Handle<ColorMaterial>,
-    pub pressed: Handle<ColorMaterial>,
+pub struct MenuMaterials {
+    pub modal_background_color: Color,
+    pub modal_foreground_color: Color,
+    pub modal_backround: Handle<ColorMaterial>,
+    pub modal_foreground: Handle<ColorMaterial>,
 }
 
-impl FromWorld for ButtonMaterials {
+impl FromWorld for MenuMaterials {
     fn from_world(world: &mut World) -> Self {
         let mut materials = world.get_resource_mut::<Assets<ColorMaterial>>().unwrap();
-        ButtonMaterials {
-            normal: materials.add(Color::rgb(0.15, 0.15, 0.15).into()),
-            hovered: materials.add(Color::rgb(0.25, 0.25, 0.25).into()),
-            pressed: materials.add(Color::rgb(0.35, 0.75, 0.35).into()),
+        let modal_background_color: Color = COLORS[8].into();
+        let modal_foreground_color: Color = COLORS[1].into();
+        MenuMaterials {
+            modal_background_color,
+            modal_foreground_color,
+            modal_backround: materials.add(modal_background_color.into()),
+            modal_foreground: materials.add(modal_foreground_color.into()),
+        }
+    }
+}
+
+pub struct MenuState {
+    pub options: Vec<String>,
+    pub cursor_position: usize,
+}
+
+impl Default for MenuState {
+    fn default() -> Self {
+        Self {
+            options: vec!["PLAY", "OPTIONS", "HELP", "HALL OF FAME", "EXIT"]
+                .into_iter()
+                .map(|s| s.to_string())
+                .collect(),
+            cursor_position: 0,
         }
     }
 }

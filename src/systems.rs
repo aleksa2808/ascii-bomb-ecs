@@ -26,7 +26,8 @@ use crate::{
 pub fn setup_menu(
     fonts: Res<Fonts>,
     mut commands: Commands,
-    button_materials: Res<ButtonMaterials>,
+    menu_materials: Res<MenuMaterials>,
+    menu_state: Res<MenuState>,
     mut windows: ResMut<Windows>,
 ) {
     // FIXME: this method of window resizing can happen mid-frame, after a state change,
@@ -66,108 +67,246 @@ pub fn setup_menu(
         ..Default::default()
     });
 
-    commands
-        .spawn_bundle(ButtonBundle {
+    let mut place_text = |y, x, str: &str, c: usize| {
+        commands.spawn_bundle(TextBundle {
+            text: Text::with_section(
+                str.to_string(),
+                TextStyle {
+                    font: fonts.mono.clone(),
+                    font_size: 2.0 * PIXEL_SCALE as f32,
+                    color: COLORS[c].into(),
+                },
+                TextAlignment::default(),
+            ),
             style: Style {
-                size: Size::new(Val::Px(150.0), Val::Px(65.0)),
-                // center button
-                margin: Rect::all(Val::Auto),
-                // horizontally center child text
-                justify_content: JustifyContent::Center,
-                // vertically center child text
-                align_items: AlignItems::Center,
+                position_type: PositionType::Absolute,
+                position: Rect {
+                    top: Val::Px(y as f32 * 2.0 * PIXEL_SCALE as f32),
+                    left: Val::Px(x as f32 * PIXEL_SCALE as f32),
+                    ..Default::default()
+                },
                 ..Default::default()
             },
-            material: button_materials.normal.clone(),
             ..Default::default()
-        })
-        .with_children(|parent| {
-            parent.spawn_bundle(TextBundle {
-                text: Text::with_section(
-                    "Story mode",
-                    TextStyle {
-                        font: fonts.bold.clone(),
-                        font_size: 4.0 * PIXEL_SCALE as f32,
-                        color: Color::rgb(0.9, 0.9, 0.9),
-                    },
-                    Default::default(),
-                ),
-                ..Default::default()
-            });
-        })
-        .insert(ButtonAction::StartStoryMode);
+        });
+    };
+
+    let k = 0;
+
+    let c = 14;
+    place_text(10, 4, "*", c);
+    place_text(15, 2, if k % 200 < 100 { "*" } else { "\u{2219}" }, c);
+    place_text(40, 21, if k % 100 < 50 { "\u{2219}" } else { "*" }, c);
+    place_text(30, 9, "*", c);
+    place_text(43, 40, if k % 222 < 111 { "*" } else { "+" }, c);
+    place_text(46, 70, "*", c);
+    place_text(44, 5, "*", c);
+    place_text(30, 86, if k % 700 < 350 { "*" } else { "\u{2219}" }, c);
+    place_text(5, 91, if k % 312 < 156 { "*" } else { "+" }, c);
+    place_text(13, 78, if k % 160 < 80 { " " } else { "*" }, c);
+    place_text(17, 72, "*", c);
+    place_text(19, 92, if k % 123 < 62 { "\u{2219}" } else { "*" }, c);
+
+    place_text(
+        39,
+        83,
+        r#"
+ \__/
+  ██
+__██__
+  ||
+ =██=
+  ||
+"#,
+        8,
+    );
+
+    place_text(
+        38,
+        82,
+        r#"
+ .    .
+
+
+.      .
+"#,
+        if k % 348 / 2 < 348 / 4 { 4 } else { 12 },
+    );
 
     commands
-        .spawn_bundle(ButtonBundle {
+        .spawn_bundle(NodeBundle {
             style: Style {
-                size: Size::new(Val::Px(150.0), Val::Px(65.0)),
-                // center button
-                margin: Rect::all(Val::Auto),
-                // horizontally center child text
-                justify_content: JustifyContent::Center,
-                // vertically center child text
-                align_items: AlignItems::Center,
+                size: Size::new(
+                    Val::Px(40.0 * PIXEL_SCALE as f32),
+                    Val::Px(40.0 * PIXEL_SCALE as f32),
+                ),
+                position_type: PositionType::Absolute,
+                position: Rect {
+                    left: Val::Px(30.0 * PIXEL_SCALE as f32),
+                    top: Val::Px(36.0 * PIXEL_SCALE as f32),
+                    ..Default::default()
+                },
+                border: Rect {
+                    left: Val::Px(PIXEL_SCALE as f32),
+                    top: Val::Px(2.0 * PIXEL_SCALE as f32),
+                    right: Val::Px(PIXEL_SCALE as f32),
+                    bottom: Val::Px(2.0 * PIXEL_SCALE as f32),
+                },
                 ..Default::default()
             },
-            material: button_materials.normal.clone(),
+            material: menu_materials.modal_foreground.clone(),
             ..Default::default()
         })
         .with_children(|parent| {
-            parent.spawn_bundle(TextBundle {
-                text: Text::with_section(
-                    "Battle mode",
-                    TextStyle {
-                        font: fonts.bold.clone(),
-                        font_size: 4.0 * PIXEL_SCALE as f32,
-                        color: Color::rgb(0.9, 0.9, 0.9),
+            parent
+                .spawn_bundle(NodeBundle {
+                    style: Style {
+                        size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                        ..Default::default()
                     },
-                    Default::default(),
-                ),
-                ..Default::default()
-            });
-        })
-        .insert(ButtonAction::StartBattleMode);
+                    material: menu_materials.modal_backround.clone(),
+                    ..Default::default()
+                })
+                .with_children(|parent| {
+                    parent.spawn_bundle(TextBundle {
+                        text: Text::with_section(
+                            r#"
+┌──────────────────────────────────────┐
+│                                      │
+│                                      │
+│                                      │
+│                                      │
+│                                      │
+│                                      │
+│                                      │
+│                                      │
+│                                      │
+│                                      │
+│                                      │
+│                                      │
+│                                      │
+│                                      │
+│                                      │
+│                                      │
+│                                      │
+│                                      │
+└──────────────────────────────────────┘
+"#,
+                            TextStyle {
+                                font: fonts.mono.clone(),
+                                font_size: 2.0 * PIXEL_SCALE as f32,
+                                color: menu_materials.modal_background_color,
+                            },
+                            TextAlignment::default(),
+                        ),
+                        style: Style {
+                            position_type: PositionType::Absolute,
+                            position: Rect {
+                                top: Val::Px(-2.0 * PIXEL_SCALE as f32),
+                                left: Val::Px(-1.0 * PIXEL_SCALE as f32),
+                                ..Default::default()
+                            },
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    });
+                    parent.spawn_bundle(TextBundle {
+                        text: Text::with_section(
+                            menu_state.options.join("\n\n"),
+                            TextStyle {
+                                font: fonts.mono.clone(),
+                                font_size: 2.0 * PIXEL_SCALE as f32,
+                                color: menu_materials.modal_foreground_color,
+                            },
+                            TextAlignment::default(),
+                        ),
+                        style: Style {
+                            position_type: PositionType::Absolute,
+                            position: Rect {
+                                top: Val::Px(2.0 * PIXEL_SCALE as f32),
+                                left: Val::Px(3.0 * PIXEL_SCALE as f32),
+                                ..Default::default()
+                            },
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    });
+                    parent
+                        .spawn_bundle(TextBundle {
+                            text: Text::with_section(
+                                "»",
+                                TextStyle {
+                                    font: fonts.mono.clone(),
+                                    font_size: 2.0 * PIXEL_SCALE as f32,
+                                    color: menu_materials.modal_foreground_color,
+                                },
+                                TextAlignment::default(),
+                            ),
+                            style: Style {
+                                position_type: PositionType::Absolute,
+                                position: Rect {
+                                    top: Val::Px(
+                                        ((2 + menu_state.cursor_position * 4) * PIXEL_SCALE) as f32,
+                                    ),
+                                    left: Val::Px(1.0 * PIXEL_SCALE as f32),
+                                    ..Default::default()
+                                },
+                                ..Default::default()
+                            },
+                            ..Default::default()
+                        })
+                        .insert(Cursor);
+                });
+        });
 }
 
 pub fn menu(
     mut state: ResMut<State<AppState>>,
-    button_materials: Res<ButtonMaterials>,
-    mut interaction_query: Query<
-        (&Interaction, &mut Handle<ColorMaterial>, &ButtonAction),
-        (Changed<Interaction>, With<Button>),
-    >,
-    mut mouse_button_input: ResMut<Input<MouseButton>>,
+    mut menu_state: ResMut<MenuState>,
+    mut query: Query<&mut Style, With<Cursor>>,
+    mut keyboard_input: ResMut<Input<KeyCode>>,
+    mut ev_exit: EventWriter<AppExit>,
 ) {
-    for (interaction, mut material, button_action) in interaction_query.iter_mut() {
-        match *interaction {
-            Interaction::Clicked => {
-                *material = button_materials.pressed.clone();
+    if let Ok(mut style) = query.single_mut() {
+        let mut cursor_moved = false;
+        if keyboard_input.just_pressed(KeyCode::Down) {
+            if menu_state.cursor_position == menu_state.options.len() - 1 {
+                menu_state.cursor_position = 0;
+            } else {
+                menu_state.cursor_position += 1;
+            }
+            cursor_moved = true;
+        }
+        if keyboard_input.just_pressed(KeyCode::Up) {
+            if menu_state.cursor_position == 0 {
+                menu_state.cursor_position = menu_state.options.len() - 1;
+            } else {
+                menu_state.cursor_position -= 1;
+            }
+            cursor_moved = true;
+        }
 
-                match button_action {
-                    ButtonAction::StartStoryMode => state.push(AppState::StoryMode).unwrap(),
-                    ButtonAction::StartBattleMode => state.push(AppState::BattleMode).unwrap(),
-                }
-
-                // hack to prevent just_pressed being true in the in-game system as well
-                mouse_button_input.reset(MouseButton::Left);
-            }
-            Interaction::Hovered => {
-                *material = button_materials.hovered.clone();
-            }
-            Interaction::None => {
-                *material = button_materials.normal.clone();
-            }
+        if cursor_moved {
+            style.position.top =
+                Val::Px(((2 + menu_state.cursor_position * 4) * PIXEL_SCALE) as f32);
         }
     }
-}
 
-pub fn enter_game_on_enter(
-    mut keyboard_input: ResMut<Input<KeyCode>>,
-    mut state: ResMut<State<AppState>>,
-) {
     if keyboard_input.just_pressed(KeyCode::Return) {
-        state.push(AppState::BattleMode).unwrap();
-        keyboard_input.reset(KeyCode::Return);
+        match menu_state.cursor_position {
+            0 => {
+                state.push(AppState::StoryMode).unwrap();
+                keyboard_input.reset(KeyCode::Return);
+            }
+            1 => {
+                state.push(AppState::BattleMode).unwrap();
+                keyboard_input.reset(KeyCode::Return);
+            }
+            _ if menu_state.cursor_position == menu_state.options.len() - 1 => {
+                ev_exit.send(AppExit)
+            }
+            _ => (),
+        }
     }
 }
 
@@ -1740,12 +1879,6 @@ pub fn pop_state_on_enter(
     if keyboard_input.just_pressed(KeyCode::Return) {
         state.pop().unwrap();
         keyboard_input.reset(KeyCode::Return);
-    }
-}
-
-pub fn exit_on_esc(keyboard_input: Res<Input<KeyCode>>, mut exit: EventWriter<AppExit>) {
-    if keyboard_input.just_pressed(KeyCode::Escape) {
-        exit.send(AppExit);
     }
 }
 

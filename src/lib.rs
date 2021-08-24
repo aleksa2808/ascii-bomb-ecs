@@ -86,7 +86,8 @@ pub fn run() {
     use bevy::render::camera::camera_system;
 
     app.add_state(AppState::MainMenu)
-        .init_resource::<ButtonMaterials>()
+        .init_resource::<MenuMaterials>()
+        .init_resource::<MenuState>()
         .init_resource::<Fonts>()
         .init_resource::<Textures>()
         .insert_resource(ClearColor(COLORS[0].into()))
@@ -103,12 +104,7 @@ pub fn run() {
         .add_system_set(SystemSet::on_resume(AppState::MainMenu).with_system(setup_menu))
         .add_system_set(SystemSet::on_pause(AppState::MainMenu).with_system(teardown))
         .add_system_set(SystemSet::on_exit(AppState::MainMenu).with_system(teardown))
-        .add_system_set(
-            SystemSet::on_update(AppState::MainMenu)
-                .with_system(enter_game_on_enter)
-                .with_system(menu)
-                .with_system(exit_on_esc),
-        )
+        .add_system_set(SystemSet::on_update(AppState::MainMenu).with_system(menu))
         .add_system_set(
             SystemSet::on_update(AppState::Paused)
                 .with_system(display_stats)

@@ -4,10 +4,7 @@ use crate::types::{Cooldown, Direction};
 
 // menu components
 
-pub enum ButtonAction {
-    StartStoryMode,
-    StartBattleMode,
-}
+pub struct Cursor;
 
 // game components
 
