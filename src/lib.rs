@@ -91,7 +91,7 @@ pub fn run() {
         .init_resource::<ButtonMaterials>()
         .init_resource::<Fonts>()
         .init_resource::<Textures>()
-        .insert_resource(ClearColor(Color::BLACK))
+        .insert_resource(ClearColor(COLORS[0].into()))
         .add_event::<PlayerActionEvent>()
         .add_event::<ExplosionEvent>()
         .add_event::<BurnEvent>()

@@ -44,7 +44,7 @@ pub fn setup_menu(
             TextStyle {
                 font: fonts.mono.clone(),
                 font_size: 20.0,
-                color: Color::WHITE,
+                color: COLORS[15].into(),
             },
             TextAlignment::default(),
         ),
@@ -1081,11 +1081,7 @@ pub fn bomb_drop(
                     })
                     .insert(*position)
                     .with_children(|parent| {
-                        let fuse_color = if world_id.0 == 2 {
-                            Color::rgb_u8(231, 72, 86)
-                        } else {
-                            Color::rgb_u8(249, 241, 165)
-                        };
+                        let fuse_color = COLORS[if world_id.0 == 2 { 12 } else { 14 }].into();
 
                         let mut text = Text::with_section(
                             '*',
@@ -1104,7 +1100,7 @@ pub fn bomb_drop(
                             style: TextStyle {
                                 font: fonts.mono.clone(),
                                 font_size: 10.0,
-                                color: Color::BLACK,
+                                color: COLORS[0].into(),
                             },
                         });
 
@@ -1162,7 +1158,7 @@ pub fn animate_fuse(
                         style: TextStyle {
                             font: fonts.mono.clone(),
                             font_size: 10.0,
-                            color: Color::BLACK,
+                            color: COLORS[0].into(),
                         },
                     },
                 ];
@@ -1185,7 +1181,7 @@ pub fn animate_fuse(
                         style: TextStyle {
                             font: fonts.mono.clone(),
                             font_size: 10.0,
-                            color: Color::BLACK,
+                            color: COLORS[0].into(),
                         },
                     },
                 ];
