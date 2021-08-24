@@ -22,6 +22,7 @@ pub enum AppState {
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemLabel)]
 enum Label {
+    Setup,
     TimeUpdate,
     Input,
     Explosion,
@@ -78,6 +79,8 @@ pub fn run() {
 
     app.insert_resource(WindowDescriptor {
         title: "ascii-bomb-ecs".to_string(),
+        width: (100 * PIXEL_SCALE) as f32,
+        height: (100 * PIXEL_SCALE) as f32,
         resizable: false,
         ..Default::default()
     })
@@ -86,11 +89,11 @@ pub fn run() {
     use bevy::render::camera::camera_system;
 
     app.add_state(AppState::MainMenu)
+        .insert_resource(ClearColor(COLORS[0].into()))
         .init_resource::<MenuMaterials>()
         .init_resource::<MenuState>()
         .init_resource::<Fonts>()
         .init_resource::<Textures>()
-        .insert_resource(ClearColor(COLORS[0].into()))
         .add_event::<PlayerActionEvent>()
         .add_event::<ExplosionEvent>()
         .add_event::<BurnEvent>()
@@ -100,8 +103,16 @@ pub fn run() {
             CoreStage::PostUpdate,
             camera_system::<SimpleOrthoProjection>,
         )
-        .add_system_set(SystemSet::on_enter(AppState::MainMenu).with_system(setup_menu))
-        .add_system_set(SystemSet::on_resume(AppState::MainMenu).with_system(setup_menu))
+        .add_system_set(
+            SystemSet::on_enter(AppState::MainMenu)
+                .with_system(setup_menu.exclusive_system().label(Label::Setup))
+                .with_system(resize_window.exclusive_system().after(Label::Setup)),
+        )
+        .add_system_set(
+            SystemSet::on_resume(AppState::MainMenu)
+                .with_system(setup_menu.exclusive_system().label(Label::Setup))
+                .with_system(resize_window.exclusive_system().after(Label::Setup)),
+        )
         .add_system_set(SystemSet::on_pause(AppState::MainMenu).with_system(teardown))
         .add_system_set(SystemSet::on_exit(AppState::MainMenu).with_system(teardown))
         .add_system_set(SystemSet::on_update(AppState::MainMenu).with_system(menu))
@@ -112,41 +123,49 @@ pub fn run() {
         );
 
     add_common_game_systems(&mut app, AppState::StoryMode);
-    app.add_system_set(SystemSet::on_enter(AppState::StoryMode).with_system(setup_story_mode))
-        .add_system_set(
-            SystemSet::on_update(AppState::StoryMode)
-                // game end check
-                .with_system(
-                    fail_level
-                        .exclusive_system()
-                        .at_end()
-                        .label(Label::GameEndCheck),
-                )
-                .with_system(
-                    finish_level
-                        .exclusive_system()
-                        .at_end()
-                        .label(Label::GameEndCheck),
-                ),
-        );
+    app.add_system_set(
+        SystemSet::on_enter(AppState::StoryMode)
+            .with_system(setup_story_mode.exclusive_system().label(Label::Setup))
+            .with_system(resize_window.exclusive_system().after(Label::Setup)),
+    )
+    .add_system_set(
+        SystemSet::on_update(AppState::StoryMode)
+            // game end check
+            .with_system(
+                fail_level
+                    .exclusive_system()
+                    .at_end()
+                    .label(Label::GameEndCheck),
+            )
+            .with_system(
+                finish_level
+                    .exclusive_system()
+                    .at_end()
+                    .label(Label::GameEndCheck),
+            ),
+    );
 
     add_common_game_systems(&mut app, AppState::BattleMode);
-    app.add_system_set(SystemSet::on_enter(AppState::BattleMode).with_system(setup_battle_mode))
-        .add_system_set(
-            SystemSet::on_update(AppState::BattleMode)
-                .with_system(
-                    wall_of_death_update
-                        .exclusive_system()
-                        .at_end()
-                        .before(Label::GameEndCheck),
-                )
-                .with_system(
-                    finish_round
-                        .exclusive_system()
-                        .at_end()
-                        .label(Label::GameEndCheck),
-                ),
-        );
+    app.add_system_set(
+        SystemSet::on_enter(AppState::BattleMode)
+            .with_system(setup_battle_mode.exclusive_system().label(Label::Setup))
+            .with_system(resize_window.exclusive_system().after(Label::Setup)),
+    )
+    .add_system_set(
+        SystemSet::on_update(AppState::BattleMode)
+            .with_system(
+                wall_of_death_update
+                    .exclusive_system()
+                    .at_end()
+                    .before(Label::GameEndCheck),
+            )
+            .with_system(
+                finish_round
+                    .exclusive_system()
+                    .at_end()
+                    .label(Label::GameEndCheck),
+            ),
+    );
 
     app.run();
 }

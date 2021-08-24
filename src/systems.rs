@@ -28,13 +28,7 @@ pub fn setup_menu(
     mut commands: Commands,
     menu_materials: Res<MenuMaterials>,
     menu_state: Res<MenuState>,
-    mut windows: ResMut<Windows>,
 ) {
-    // FIXME: this method of window resizing can happen mid-frame, after a state change,
-    // when the previous state sprites haven't yet despawned
-    let window = windows.get_primary_mut().unwrap();
-    window.set_resolution((100 * PIXEL_SCALE) as f32, (100 * PIXEL_SCALE) as f32);
-
     commands.spawn_bundle(UiCameraBundle::default());
 
     let title_text = r#"
@@ -321,18 +315,21 @@ pub fn menu(
     }
 }
 
-pub fn setup_story_mode(
-    mut commands: Commands,
-    mut textures: ResMut<Textures>,
-    fonts: Res<Fonts>,
-    mut windows: ResMut<Windows>,
-) {
+pub fn resize_window(mut windows: ResMut<Windows>, state: Res<State<AppState>>) {
     let window = windows.get_primary_mut().unwrap();
-    window.set_resolution(
-        (MAP_WIDTH * TILE_WIDTH) as f32,
-        (MAP_HEIGHT * TILE_HEIGHT) as f32,
-    );
+    match state.current() {
+        AppState::StoryMode | AppState::BattleMode => window.set_resolution(
+            (MAP_WIDTH * TILE_WIDTH) as f32,
+            (MAP_HEIGHT * TILE_HEIGHT) as f32,
+        ),
+        AppState::MainMenu => {
+            window.set_resolution((100 * PIXEL_SCALE) as f32, (100 * PIXEL_SCALE) as f32)
+        }
+        _ => (),
+    }
+}
 
+pub fn setup_story_mode(mut commands: Commands, mut textures: ResMut<Textures>, fonts: Res<Fonts>) {
     let world_id = WorldID(1);
     let level = Level::Regular(1);
 
@@ -443,14 +440,7 @@ pub fn setup_battle_mode(
     mut commands: Commands,
     mut textures: ResMut<Textures>,
     fonts: Res<Fonts>,
-    mut windows: ResMut<Windows>,
 ) {
-    let window = windows.get_primary_mut().unwrap();
-    window.set_resolution(
-        (MAP_WIDTH * TILE_WIDTH) as f32,
-        (MAP_HEIGHT * TILE_HEIGHT) as f32,
-    );
-
     let world_id = WorldID(rand::thread_rng().gen_range(1..=3));
     textures.set_map_textures(world_id.0);
 
