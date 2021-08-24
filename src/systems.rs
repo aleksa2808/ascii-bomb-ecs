@@ -245,7 +245,7 @@ pub fn setup_story_mode(mut textures: ResMut<Textures>, fonts: Res<Fonts>, mut c
 
     // spawn player
     let player_spawn_position = Position { y: 1, x: 1 };
-    let base_material = textures.penguin.clone();
+    let base_material = textures.penguin_variants[0].clone();
     let immortal_material = textures.immortal_penguin.clone();
     commands
         .spawn_bundle(SpriteBundle {

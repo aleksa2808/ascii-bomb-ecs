@@ -17,7 +17,7 @@ pub struct MapTextures {
 
 pub struct Textures {
     // players + effects
-    pub penguin: Handle<ColorMaterial>,
+    pub penguin_variants: Vec<Handle<ColorMaterial>>,
     pub immortal_penguin: Handle<ColorMaterial>,
     pub crook: Handle<ColorMaterial>,
     pub immortal_crook: Handle<ColorMaterial>,
@@ -87,9 +87,19 @@ impl FromWorld for Textures {
                 })
                 .collect();
 
+            let penguin_variants = (0..=14)
+                .map(|i| {
+                    materials.add(
+                        asset_server
+                            .load(format!("sprites/penguins/{}.png", i).as_str())
+                            .into(),
+                    )
+                })
+                .collect();
+
             textures = Some(Textures {
                 // players + effects
-                penguin: materials.add(asset_server.load("sprites/penguin.png").into()),
+                penguin_variants,
                 immortal_penguin: materials
                     .add(asset_server.load("sprites/immortal_penguin.png").into()),
                 crook: materials.add(asset_server.load("sprites/crook.png").into()),

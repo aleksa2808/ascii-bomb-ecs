@@ -132,7 +132,7 @@ pub fn spawn_story_mode_enemies(
             x: MAP_WIDTH as isize / 2,
         };
         bot_spawn_positions.push(boss_spawn_position);
-        let base_material = textures.penguin.clone();
+        let base_material = textures.penguin_variants[3 + world_id.0].clone();
         let immortal_material = textures.immortal_penguin.clone();
         commands
             .spawn_bundle(SpriteBundle {
@@ -172,7 +172,7 @@ pub fn spawn_battle_mode_players(commands: &mut Commands, textures: &Textures) -
 
     // spawn player
     let player_spawn_position = Position { y: 1, x: 1 };
-    let base_material = textures.penguin.clone();
+    let base_material = textures.penguin_variants[player_spawn_positions.len()].clone();
     let immortal_material = textures.immortal_penguin.clone();
     commands
         .spawn_bundle(SpriteBundle {
@@ -212,7 +212,7 @@ pub fn spawn_battle_mode_players(commands: &mut Commands, textures: &Textures) -
     .enumerate()
     {
         let bot_spawn_position = Position { y: *y, x: *x };
-        let base_material = textures.penguin.clone();
+        let base_material = textures.penguin_variants[player_spawn_positions.len()].clone();
         let immortal_material = textures.immortal_penguin.clone();
         commands
             .spawn_bundle(SpriteBundle {
