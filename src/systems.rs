@@ -27,7 +27,13 @@ pub fn setup_menu(
     fonts: Res<Fonts>,
     mut commands: Commands,
     button_materials: Res<ButtonMaterials>,
+    mut windows: ResMut<Windows>,
 ) {
+    // FIXME: this method of window resizing can happen mid-frame, after a state change,
+    // when the previous state sprites haven't yet despawned
+    let window = windows.get_primary_mut().unwrap();
+    window.set_resolution((100 * PIXEL_SCALE) as f32, (100 * PIXEL_SCALE) as f32);
+
     commands.spawn_bundle(UiCameraBundle::default());
 
     let title_text = r#"
@@ -43,7 +49,7 @@ pub fn setup_menu(
             title_text.to_string(),
             TextStyle {
                 font: fonts.mono.clone(),
-                font_size: 20.0,
+                font_size: 2.0 * PIXEL_SCALE as f32,
                 color: COLORS[15].into(),
             },
             TextAlignment::default(),
@@ -51,8 +57,8 @@ pub fn setup_menu(
         style: Style {
             position_type: PositionType::Absolute,
             position: Rect {
-                top: Val::Px(5.0),
-                left: Val::Px(5.0),
+                top: Val::Px(12.0 * PIXEL_SCALE as f32),
+                left: Val::Px(17.0 * PIXEL_SCALE as f32),
                 ..Default::default()
             },
             ..Default::default()
@@ -81,7 +87,7 @@ pub fn setup_menu(
                     "Story mode",
                     TextStyle {
                         font: fonts.bold.clone(),
-                        font_size: 40.0,
+                        font_size: 4.0 * PIXEL_SCALE as f32,
                         color: Color::rgb(0.9, 0.9, 0.9),
                     },
                     Default::default(),
@@ -112,7 +118,7 @@ pub fn setup_menu(
                     "Battle mode",
                     TextStyle {
                         font: fonts.bold.clone(),
-                        font_size: 40.0,
+                        font_size: 4.0 * PIXEL_SCALE as f32,
                         color: Color::rgb(0.9, 0.9, 0.9),
                     },
                     Default::default(),
@@ -165,33 +171,17 @@ pub fn enter_game_on_enter(
     }
 }
 
-pub fn setup_story_mode(mut textures: ResMut<Textures>, fonts: Res<Fonts>, mut commands: Commands) {
-    // let colors = vec![
-    //     (12, 12, 12),
-    //     (0, 55, 218),
-    //     (19, 161, 14),
-    //     (58, 150, 221),
-    //     (197, 15, 31),
-    //     (136, 23, 152),
-    //     (193, 156, 0),
-    //     (204, 204, 204),
-    //     (118, 118, 118),
-    //     (59, 120, 255),
-    //     (22, 198, 12),
-    //     (97, 214, 214),
-    //     (231, 72, 86),
-    //     (180, 0, 158),
-    //     (249, 241, 165),
-    //     (242, 242, 242),
-    // ];
-    // for (i, c) in colors.iter().enumerate() {
-    //     commands.spawn_bundle(SpriteBundle {
-    //         material: materials.add(Color::rgb_u8(c.0, c.1, c.2).into()),
-    //         transform: Transform::from_xyz(get_x(i as isize), get_y(-1), 50.0),
-    //         sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
-    //         ..Default::default()
-    //     });
-    // }
+pub fn setup_story_mode(
+    mut commands: Commands,
+    mut textures: ResMut<Textures>,
+    fonts: Res<Fonts>,
+    mut windows: ResMut<Windows>,
+) {
+    let window = windows.get_primary_mut().unwrap();
+    window.set_resolution(
+        (MAP_WIDTH * TILE_WIDTH) as f32,
+        (MAP_HEIGHT * TILE_HEIGHT) as f32,
+    );
 
     let world_id = WorldID(1);
     let level = Level::Regular(1);
@@ -223,7 +213,7 @@ pub fn setup_story_mode(mut textures: ResMut<Textures>, fonts: Res<Fonts>, mut c
                 "Score: ".to_string(),
                 TextStyle {
                     font: fonts.bold.clone(),
-                    font_size: 40.0,
+                    font_size: 4.0 * PIXEL_SCALE as f32,
                     color: Color::rgb(0.5, 0.5, 1.0),
                 },
                 TextAlignment::default(),
@@ -300,10 +290,17 @@ pub fn setup_story_mode(mut textures: ResMut<Textures>, fonts: Res<Fonts>, mut c
 }
 
 pub fn setup_battle_mode(
+    mut commands: Commands,
     mut textures: ResMut<Textures>,
     fonts: Res<Fonts>,
-    mut commands: Commands,
+    mut windows: ResMut<Windows>,
 ) {
+    let window = windows.get_primary_mut().unwrap();
+    window.set_resolution(
+        (MAP_WIDTH * TILE_WIDTH) as f32,
+        (MAP_HEIGHT * TILE_HEIGHT) as f32,
+    );
+
     let world_id = WorldID(rand::thread_rng().gen_range(1..=3));
     textures.set_map_textures(world_id.0);
 
@@ -332,7 +329,7 @@ pub fn setup_battle_mode(
                 "Score: ".to_string(),
                 TextStyle {
                     font: fonts.bold.clone(),
-                    font_size: 40.0,
+                    font_size: 4.0 * PIXEL_SCALE as f32,
                     color: Color::rgb(0.5, 0.5, 1.0),
                 },
                 TextAlignment::default(),
@@ -1087,7 +1084,7 @@ pub fn bomb_drop(
                             '*',
                             TextStyle {
                                 font: fonts.mono.clone(),
-                                font_size: 10.0,
+                                font_size: 2.0 * PIXEL_SCALE as f32,
                                 color: fuse_color,
                             },
                             TextAlignment {
@@ -1099,7 +1096,7 @@ pub fn bomb_drop(
                             value: "┐\n │".into(),
                             style: TextStyle {
                                 font: fonts.mono.clone(),
-                                font_size: 10.0,
+                                font_size: 2.0 * PIXEL_SCALE as f32,
                                 color: COLORS[0].into(),
                             },
                         });
@@ -1149,7 +1146,7 @@ pub fn animate_fuse(
                         value: fuse_char.into(),
                         style: TextStyle {
                             font: fonts.mono.clone(),
-                            font_size: 10.0,
+                            font_size: 2.0 * PIXEL_SCALE as f32,
                             color: *fuse_color,
                         },
                     },
@@ -1157,7 +1154,7 @@ pub fn animate_fuse(
                         value: "┐\n │".into(),
                         style: TextStyle {
                             font: fonts.mono.clone(),
-                            font_size: 10.0,
+                            font_size: 2.0 * PIXEL_SCALE as f32,
                             color: COLORS[0].into(),
                         },
                     },
@@ -1172,7 +1169,7 @@ pub fn animate_fuse(
                         value: fuse_char.into(),
                         style: TextStyle {
                             font: fonts.mono.clone(),
-                            font_size: 10.0,
+                            font_size: 2.0 * PIXEL_SCALE as f32,
                             color: *fuse_color,
                         },
                     },
@@ -1180,7 +1177,7 @@ pub fn animate_fuse(
                         value: "\n│".into(),
                         style: TextStyle {
                             font: fonts.mono.clone(),
-                            font_size: 10.0,
+                            font_size: 2.0 * PIXEL_SCALE as f32,
                             color: COLORS[0].into(),
                         },
                     },
@@ -1194,7 +1191,7 @@ pub fn animate_fuse(
                     value: fuse_char.into(),
                     style: TextStyle {
                         font: fonts.mono.clone(),
-                        font_size: 10.0,
+                        font_size: 2.0 * PIXEL_SCALE as f32,
                         color: *fuse_color,
                     },
                 }];

@@ -1,6 +1,6 @@
 use crate::types::RGBColor;
 
-pub const PIXEL_SCALE: usize = 5;
+pub const PIXEL_SCALE: usize = 8;
 
 pub const TILE_HEIGHT: usize = 8 * PIXEL_SCALE;
 pub const TILE_WIDTH: usize = 6 * PIXEL_SCALE;

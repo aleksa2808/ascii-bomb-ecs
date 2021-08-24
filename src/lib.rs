@@ -76,11 +76,9 @@ fn add_common_game_systems(app: &mut App, state: AppState) {
 pub fn run() {
     let mut app = App::new();
 
-    const DISPLAY_SCALE: usize = 2;
     app.insert_resource(WindowDescriptor {
         title: "ascii-bomb-ecs".to_string(),
-        height: (MAP_HEIGHT * DISPLAY_SCALE * TILE_HEIGHT) as f32,
-        width: (MAP_WIDTH * DISPLAY_SCALE * TILE_WIDTH) as f32,
+        resizable: false,
         ..Default::default()
     })
     .add_plugins(DefaultPlugins);
