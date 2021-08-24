@@ -133,7 +133,7 @@ impl FromWorld for Fonts {
         let asset_server = world.get_resource::<AssetServer>().unwrap();
 
         Fonts {
-            mono: asset_server.load("fonts/FiraMono-Medium.ttf"),
+            mono: asset_server.load("fonts/UbuntuMono-R.ttf"),
             bold: asset_server.load("fonts/FiraSans-Bold.ttf"),
         }
     }

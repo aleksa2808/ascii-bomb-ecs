@@ -88,9 +88,9 @@ pub fn run() {
     use bevy::render::camera::camera_system;
 
     app.add_state(AppState::MainMenu)
-        .init_resource::<Textures>()
-        .init_resource::<Fonts>()
         .init_resource::<ButtonMaterials>()
+        .init_resource::<Fonts>()
+        .init_resource::<Textures>()
         .insert_resource(ClearColor(Color::BLACK))
         .add_event::<PlayerActionEvent>()
         .add_event::<ExplosionEvent>()
