@@ -8,5 +8,5 @@ name = "ascii_bomb_ecs_lib"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-bevy = { git = "https://github.com/bevyengine/bevy" }
+bevy = { git = "https://github.com/bevyengine/bevy", features = ["dynamic"] }
 rand = "0.8"
