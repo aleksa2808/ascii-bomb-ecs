@@ -26,7 +26,6 @@ use crate::{
 pub fn setup_menu(
     fonts: Res<Fonts>,
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
     button_materials: Res<ButtonMaterials>,
 ) {
     commands.spawn_bundle(UiCameraBundle::default());
@@ -81,7 +80,7 @@ pub fn setup_menu(
                 text: Text::with_section(
                     "Story mode",
                     TextStyle {
-                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                        font: fonts.bold.clone(),
                         font_size: 40.0,
                         color: Color::rgb(0.9, 0.9, 0.9),
                     },
@@ -112,7 +111,7 @@ pub fn setup_menu(
                 text: Text::with_section(
                     "Battle mode",
                     TextStyle {
-                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                        font: fonts.bold.clone(),
                         font_size: 40.0,
                         color: Color::rgb(0.9, 0.9, 0.9),
                     },
