@@ -210,27 +210,29 @@ __██__
                         },
                         ..Default::default()
                     });
-                    parent.spawn_bundle(TextBundle {
-                        text: Text::with_section(
-                            menu_state.options.join("\n\n"),
-                            TextStyle {
-                                font: fonts.mono.clone(),
-                                font_size: 2.0 * PIXEL_SCALE as f32,
-                                color: menu_materials.modal_foreground_color,
-                            },
-                            TextAlignment::default(),
-                        ),
-                        style: Style {
-                            position_type: PositionType::Absolute,
-                            position: Rect {
-                                top: Val::Px(2.0 * PIXEL_SCALE as f32),
-                                left: Val::Px(3.0 * PIXEL_SCALE as f32),
+                    parent
+                        .spawn_bundle(TextBundle {
+                            text: Text::with_section(
+                                menu_state.get_option_names().join("\n\n"),
+                                TextStyle {
+                                    font: fonts.mono.clone(),
+                                    font_size: 2.0 * PIXEL_SCALE as f32,
+                                    color: menu_materials.modal_foreground_color,
+                                },
+                                TextAlignment::default(),
+                            ),
+                            style: Style {
+                                position_type: PositionType::Absolute,
+                                position: Rect {
+                                    top: Val::Px(2.0 * PIXEL_SCALE as f32),
+                                    left: Val::Px(3.0 * PIXEL_SCALE as f32),
+                                    ..Default::default()
+                                },
                                 ..Default::default()
                             },
                             ..Default::default()
-                        },
-                        ..Default::default()
-                    });
+                        })
+                        .insert(MenuOptionText);
                     parent
                         .spawn_bundle(TextBundle {
                             text: Text::with_section(
@@ -246,7 +248,8 @@ __██__
                                 position_type: PositionType::Absolute,
                                 position: Rect {
                                     top: Val::Px(
-                                        ((2 + menu_state.cursor_position * 4) * PIXEL_SCALE) as f32,
+                                        ((2 + menu_state.get_cursor_position() * 4) * PIXEL_SCALE)
+                                            as f32,
                                     ),
                                     left: Val::Px(1.0 * PIXEL_SCALE as f32),
                                     ..Default::default()
@@ -263,49 +266,57 @@ __██__
 pub fn menu(
     mut state: ResMut<State<AppState>>,
     mut menu_state: ResMut<MenuState>,
-    mut query: Query<&mut Style, With<Cursor>>,
     mut keyboard_input: ResMut<Input<KeyCode>>,
+    mut query: Query<&mut Style, With<Cursor>>,
+    mut query2: Query<&mut Text, With<MenuOptionText>>,
     mut ev_exit: EventWriter<AppExit>,
 ) {
-    if let Ok(mut style) = query.single_mut() {
-        let mut cursor_moved = false;
-        if keyboard_input.just_pressed(KeyCode::Down) {
-            if menu_state.cursor_position == menu_state.options.len() - 1 {
-                menu_state.cursor_position = 0;
-            } else {
-                menu_state.cursor_position += 1;
+    let mut menu_changed = false;
+    if keyboard_input.just_pressed(KeyCode::Return) {
+        match menu_state.get_action() {
+            MenuAction::LaunchStoryMode => {
+                state.push(AppState::StoryMode).unwrap();
+                keyboard_input.reset(KeyCode::Return);
+                return;
             }
-            cursor_moved = true;
-        }
-        if keyboard_input.just_pressed(KeyCode::Up) {
-            if menu_state.cursor_position == 0 {
-                menu_state.cursor_position = menu_state.options.len() - 1;
-            } else {
-                menu_state.cursor_position -= 1;
+            MenuAction::LaunchBattleMode => {
+                state.push(AppState::BattleMode).unwrap();
+                keyboard_input.reset(KeyCode::Return);
+                return;
             }
-            cursor_moved = true;
-        }
-
-        if cursor_moved {
-            style.position.top =
-                Val::Px(((2 + menu_state.cursor_position * 4) * PIXEL_SCALE) as f32);
+            MenuAction::SwitchMenu(menu_id) => {
+                menu_state.switch_menu(menu_id);
+                menu_changed = true;
+            }
+            MenuAction::Exit => {
+                ev_exit.send(AppExit);
+                return;
+            }
+            _ => (),
         }
     }
 
-    if keyboard_input.just_pressed(KeyCode::Return) {
-        match menu_state.cursor_position {
-            0 => {
-                state.push(AppState::StoryMode).unwrap();
-                keyboard_input.reset(KeyCode::Return);
-            }
-            1 => {
-                state.push(AppState::BattleMode).unwrap();
-                keyboard_input.reset(KeyCode::Return);
-            }
-            _ if menu_state.cursor_position == menu_state.options.len() - 1 => {
-                ev_exit.send(AppExit)
-            }
-            _ => (),
+    if keyboard_input.just_pressed(KeyCode::Escape) && menu_state.back().is_ok() {
+        menu_changed = true;
+    }
+
+    if menu_changed {
+        query2.single_mut().unwrap().sections[0].value = menu_state.get_option_names().join("\n\n");
+    }
+
+    if let Ok(mut style) = query.single_mut() {
+        if keyboard_input.just_pressed(KeyCode::Down) {
+            menu_state.move_cursor(Direction::Down);
+            menu_changed = true;
+        }
+        if keyboard_input.just_pressed(KeyCode::Up) {
+            menu_state.move_cursor(Direction::Up);
+            menu_changed = true;
+        }
+
+        if menu_changed {
+            style.position.top =
+                Val::Px(((2 + menu_state.get_cursor_position() * 4) * PIXEL_SCALE) as f32);
         }
     }
 }

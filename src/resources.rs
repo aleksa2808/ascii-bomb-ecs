@@ -172,19 +172,100 @@ impl FromWorld for MenuMaterials {
     }
 }
 
+#[derive(Clone, Copy)]
+pub enum MenuAction {
+    SwitchMenu(usize),
+    LaunchStoryMode,
+    LaunchBattleMode,
+    Exit,
+    Disabled, // TODO: remove
+}
+
 pub struct MenuState {
-    pub options: Vec<String>,
-    pub cursor_position: usize,
+    options: Vec<Vec<(&'static str, MenuAction)>>,
+    menu_id_stack: Vec<usize>,
+    cursor_position: usize,
 }
 
 impl Default for MenuState {
     fn default() -> Self {
         Self {
-            options: vec!["PLAY", "OPTIONS", "HELP", "HALL OF FAME", "EXIT"]
-                .into_iter()
-                .map(|s| s.to_string())
-                .collect(),
+            options: vec![
+                vec![
+                    ("PLAY", MenuAction::SwitchMenu(1)),
+                    ("OPTIONS", MenuAction::Disabled),
+                    ("HELP", MenuAction::SwitchMenu(2)),
+                    ("HALL OF FAME", MenuAction::Disabled),
+                    ("EXIT", MenuAction::Exit),
+                ],
+                vec![
+                    ("STORY MODE", MenuAction::LaunchStoryMode),
+                    ("BATTLE MODE", MenuAction::LaunchBattleMode),
+                ],
+                vec![
+                    ("ABOUT", MenuAction::Disabled),
+                    ("CONTROLS", MenuAction::Disabled),
+                    ("POWER-UPS", MenuAction::Disabled),
+                ],
+            ],
+            menu_id_stack: vec![0],
             cursor_position: 0,
+        }
+    }
+}
+
+impl MenuState {
+    fn get_options(&self) -> &Vec<(&'static str, MenuAction)> {
+        &self.options[*self.menu_id_stack.last().unwrap()]
+    }
+
+    pub fn get_option_names(&self) -> Vec<&'static str> {
+        self.options[*self.menu_id_stack.last().unwrap()]
+            .iter()
+            .map(|(s, _)| *s)
+            .collect::<Vec<&'static str>>()
+    }
+
+    pub fn get_action(&self) -> MenuAction {
+        self.options[*self.menu_id_stack.last().unwrap()][self.cursor_position].1
+    }
+
+    pub fn get_cursor_position(&self) -> usize {
+        self.cursor_position
+    }
+
+    pub fn move_cursor(&mut self, direction: Direction) {
+        match direction {
+            Direction::Up => {
+                if self.cursor_position == 0 {
+                    self.cursor_position = self.get_options().len() - 1;
+                } else {
+                    self.cursor_position -= 1;
+                }
+            }
+            Direction::Down => {
+                if self.cursor_position == self.get_options().len() - 1 {
+                    self.cursor_position = 0;
+                } else {
+                    self.cursor_position += 1;
+                }
+            }
+            _ => (),
+        }
+    }
+
+    pub fn switch_menu(&mut self, menu_id: usize) {
+        self.menu_id_stack.push(menu_id);
+        self.cursor_position = 0;
+    }
+
+    pub fn back(&mut self) -> Result<(), ()> {
+        if self.menu_id_stack.len() > 1 {
+            self.menu_id_stack.pop();
+            self.cursor_position = 0;
+            Ok(())
+        } else {
+            Err(())
         }
     }
 }

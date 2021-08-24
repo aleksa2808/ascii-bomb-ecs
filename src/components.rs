@@ -6,6 +6,8 @@ use crate::types::{Cooldown, Direction};
 
 pub struct Cursor;
 
+pub struct MenuOptionText;
+
 // game components
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
