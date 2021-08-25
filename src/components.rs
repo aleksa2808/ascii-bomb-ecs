@@ -38,6 +38,10 @@ pub struct Player;
 
 pub struct Protagonist;
 
+// usize represents the penguin's ID
+#[derive(Clone, Copy)]
+pub struct Penguin(pub usize);
+
 // usize represents the controller/player number
 pub struct HumanControlled(pub usize);
 
@@ -91,8 +95,6 @@ pub struct TeamID(pub usize);
 
 pub struct PointValue(pub usize);
 
-pub struct GameStatsDisplay;
-
 pub struct Perishable {
     pub timer: Timer,
 }
@@ -116,6 +118,22 @@ impl Default for Exit {
         }
     }
 }
+
+// HUD display
+
+pub struct HUDComponent;
+
+pub struct HUDBackground;
+
+pub struct GameTimerDisplay;
+
+pub struct LivesDisplay;
+
+pub struct PointsDisplay;
+
+pub struct PenguinPortraitDisplay;
+
+pub struct PenguinPortrait(pub Penguin);
 
 // Bundles
 

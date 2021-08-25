@@ -18,7 +18,200 @@ pub fn get_x(x: isize) -> f32 {
 }
 
 pub fn get_y(y: isize) -> f32 {
-    -(TILE_HEIGHT as f32 / 2.0 + (y * TILE_HEIGHT as isize) as f32)
+    -(TILE_HEIGHT as f32 / 2.0 + (14 * PIXEL_SCALE as isize + y * TILE_HEIGHT as isize) as f32)
+}
+
+pub fn init_hud_display(
+    commands: &mut Commands,
+    hud_materials: &HUDMaterials,
+    fonts: &Fonts,
+    textures: &Textures,
+    world_id: WorldID,
+    penguin_tags: &[Penguin],
+) {
+    commands
+        .spawn_bundle(NodeBundle {
+            style: Style {
+                size: Size::new(
+                    Val::Px(90.0 * PIXEL_SCALE as f32),
+                    Val::Px(14.0 * PIXEL_SCALE as f32),
+                ),
+                position_type: PositionType::Absolute,
+                position: Rect {
+                    left: Val::Px(0.0),
+                    top: Val::Px(0.0),
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            material: hud_materials.get_background_material(world_id).clone(),
+            ..Default::default()
+        })
+        .insert(HUDComponent)
+        .insert(HUDBackground)
+        .insert(PenguinPortraitDisplay) // TODO: make a separate NodeBundle for this
+        .with_children(|parent| {
+            // lives display
+            parent
+                .spawn_bundle(TextBundle {
+                    text: Text::with_section(
+                        "",
+                        TextStyle {
+                            font: fonts.mono.clone(),
+                            font_size: 2.0 * PIXEL_SCALE as f32,
+                            color: COLORS[0].into(),
+                        },
+                        TextAlignment::default(),
+                    ),
+                    style: Style {
+                        position_type: PositionType::Absolute,
+                        position: Rect {
+                            top: Val::Px(12.0 * PIXEL_SCALE as f32),
+                            left: Val::Px(6.0 * PIXEL_SCALE as f32),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                })
+                .insert(HUDComponent)
+                .insert(LivesDisplay);
+
+            // points display
+            parent
+                .spawn_bundle(TextBundle {
+                    text: Text::with_section(
+                        "",
+                        TextStyle {
+                            font: fonts.mono.clone(),
+                            font_size: 2.0 * PIXEL_SCALE as f32,
+                            color: COLORS[0].into(),
+                        },
+                        TextAlignment::default(),
+                    ),
+                    style: Style {
+                        position_type: PositionType::Absolute,
+                        position: Rect {
+                            top: Val::Px(12.0 * PIXEL_SCALE as f32),
+                            left: Val::Px(16.0 * PIXEL_SCALE as f32),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                })
+                .insert(HUDComponent)
+                .insert(PointsDisplay);
+
+            // clock / pause indicator
+            parent
+                .spawn_bundle(NodeBundle {
+                    style: Style {
+                        size: Size::new(
+                            Val::Px(5.0 * PIXEL_SCALE as f32),
+                            Val::Px(2.0 * PIXEL_SCALE as f32),
+                        ),
+                        position_type: PositionType::Absolute,
+                        position: Rect {
+                            left: Val::Px(42.0 * PIXEL_SCALE as f32),
+                            top: Val::Px(12.0 * PIXEL_SCALE as f32),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    },
+                    material: hud_materials.black.clone(),
+                    ..Default::default()
+                })
+                .insert(HUDComponent)
+                .with_children(|parent| {
+                    parent
+                        .spawn_bundle(TextBundle {
+                            text: Text::with_section(
+                                "",
+                                TextStyle {
+                                    font: fonts.mono.clone(),
+                                    font_size: 2.0 * PIXEL_SCALE as f32,
+                                    color: COLORS[15].into(),
+                                },
+                                TextAlignment::default(),
+                            ),
+                            style: Style {
+                                position_type: PositionType::Absolute,
+                                position: Rect {
+                                    top: Val::Px(0.0),
+                                    left: Val::Px(0.0),
+                                    ..Default::default()
+                                },
+                                ..Default::default()
+                            },
+                            ..Default::default()
+                        })
+                        .insert(HUDComponent)
+                        .insert(GameTimerDisplay);
+                });
+
+            init_penguin_portraits(parent, penguin_tags, hud_materials, textures);
+        });
+}
+
+pub fn init_penguin_portraits(
+    parent: &mut ChildBuilder,
+    penguin_tags: &[Penguin],
+    hud_materials: &HUDMaterials,
+    textures: &Textures,
+) {
+    for penguin in penguin_tags {
+        parent
+            .spawn_bundle(NodeBundle {
+                style: Style {
+                    size: Size::new(
+                        Val::Px(8.0 * PIXEL_SCALE as f32),
+                        Val::Px(10.0 * PIXEL_SCALE as f32),
+                    ),
+                    position_type: PositionType::Absolute,
+                    position: Rect {
+                        left: Val::Px(((5 + 12 * penguin.0) * PIXEL_SCALE) as f32),
+                        top: Val::Px(1.0 * PIXEL_SCALE as f32),
+                        ..Default::default()
+                    },
+                    border: Rect {
+                        left: Val::Px(PIXEL_SCALE as f32),
+                        top: Val::Px(PIXEL_SCALE as f32),
+                        right: Val::Px(PIXEL_SCALE as f32),
+                        bottom: Val::Px(PIXEL_SCALE as f32),
+                    },
+                    ..Default::default()
+                },
+                material: hud_materials.portrait_border_color.clone(),
+                ..Default::default()
+            })
+            .insert(PenguinPortrait(*penguin))
+            .insert(HUDComponent)
+            .with_children(|parent| {
+                parent
+                    .spawn_bundle(NodeBundle {
+                        style: Style {
+                            size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                            ..Default::default()
+                        },
+                        material: hud_materials.portrait_background_color.clone(),
+                        ..Default::default()
+                    })
+                    .insert(HUDComponent)
+                    .with_children(|parent| {
+                        parent
+                            .spawn_bundle(ImageBundle {
+                                style: Style {
+                                    size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                                    ..Default::default()
+                                },
+                                material: textures.get_penguin_texture(*penguin).clone(),
+                                ..Default::default()
+                            })
+                            .insert(HUDComponent);
+                    });
+            });
+    }
 }
 
 pub fn spawn_story_mode_enemies(
@@ -26,7 +219,7 @@ pub fn spawn_story_mode_enemies(
     textures: &Textures,
     level: Level,
     world_id: WorldID,
-) -> (Vec<Position>, Vec<Position>) {
+) -> (Vec<Position>, Vec<Position>, Vec<Penguin>) {
     // spawn mobs
     let mob_number = if let Level::Regular(num) = level {
         num + 1
@@ -125,6 +318,7 @@ pub fn spawn_story_mode_enemies(
     }
 
     let mut bot_spawn_positions = vec![];
+    let mut penguin_tags = vec![];
     if let Level::BossRoom = level {
         // spawn boss
         let boss_spawn_position = Position {
@@ -132,7 +326,8 @@ pub fn spawn_story_mode_enemies(
             x: MAP_WIDTH as isize / 2,
         };
         bot_spawn_positions.push(boss_spawn_position);
-        let base_material = textures.penguin_variants[3 + world_id.0].clone();
+        let penguin_tag = Penguin(3 + world_id.0);
+        let base_material = textures.get_penguin_texture(penguin_tag).clone();
         let immortal_material = textures.immortal_penguin.clone();
         commands
             .spawn_bundle(SpriteBundle {
@@ -148,6 +343,7 @@ pub fn spawn_story_mode_enemies(
             .insert(BaseMaterial(base_material))
             .insert(ImmortalMaterial(immortal_material))
             .insert(Player)
+            .insert(penguin_tag)
             .insert(BotAI)
             .insert(MoveCooldown(Cooldown::from_seconds(0.3)))
             .insert(Health {
@@ -162,17 +358,23 @@ pub fn spawn_story_mode_enemies(
             })
             .insert(TeamID(1))
             .insert(PointValue(200));
+        penguin_tags.push(penguin_tag);
     }
 
-    (mob_spawn_positions, bot_spawn_positions)
+    (mob_spawn_positions, bot_spawn_positions, penguin_tags)
 }
 
-pub fn spawn_battle_mode_players(commands: &mut Commands, textures: &Textures) -> Vec<Position> {
+pub fn spawn_battle_mode_players(
+    commands: &mut Commands,
+    textures: &Textures,
+) -> (Vec<Position>, Vec<Penguin>) {
     let mut player_spawn_positions = vec![];
+    let mut penguin_tags = vec![];
 
     // spawn player
     let player_spawn_position = Position { y: 1, x: 1 };
-    let base_material = textures.penguin_variants[player_spawn_positions.len()].clone();
+    let penguin_tag = Penguin(player_spawn_positions.len());
+    let base_material = textures.get_penguin_texture(penguin_tag).clone();
     let immortal_material = textures.immortal_penguin.clone();
     commands
         .spawn_bundle(SpriteBundle {
@@ -188,6 +390,7 @@ pub fn spawn_battle_mode_players(commands: &mut Commands, textures: &Textures) -
         .insert(BaseMaterial(base_material))
         .insert(ImmortalMaterial(immortal_material))
         .insert(Player)
+        .insert(penguin_tag)
         .insert(HumanControlled(0))
         .insert(Health {
             lives: 1,
@@ -199,20 +402,19 @@ pub fn spawn_battle_mode_players(commands: &mut Commands, textures: &Textures) -
             bombs_available: 3,
             bomb_range: 2,
         })
-        .insert(TeamID(0));
+        .insert(TeamID(penguin_tag.0));
     player_spawn_positions.push(player_spawn_position);
+    penguin_tags.push(penguin_tag);
 
     // spawn bots
-    for (i, (y, x)) in [
+    for (y, x) in [
         (MAP_HEIGHT as isize - 2, MAP_WIDTH as isize - 2),
         (1, MAP_WIDTH as isize - 2),
         (MAP_HEIGHT as isize - 2, 1),
-    ]
-    .iter()
-    .enumerate()
-    {
-        let bot_spawn_position = Position { y: *y, x: *x };
-        let base_material = textures.penguin_variants[player_spawn_positions.len()].clone();
+    ] {
+        let bot_spawn_position = Position { y, x };
+        let penguin_tag = Penguin(player_spawn_positions.len());
+        let base_material = textures.get_penguin_texture(penguin_tag).clone();
         let immortal_material = textures.immortal_penguin.clone();
         commands
             .spawn_bundle(SpriteBundle {
@@ -228,6 +430,7 @@ pub fn spawn_battle_mode_players(commands: &mut Commands, textures: &Textures) -
             .insert(BaseMaterial(base_material))
             .insert(ImmortalMaterial(immortal_material))
             .insert(Player)
+            .insert(penguin_tag)
             .insert(BotAI)
             .insert(MoveCooldown(Cooldown::from_seconds(0.3)))
             .insert(Health {
@@ -240,11 +443,12 @@ pub fn spawn_battle_mode_players(commands: &mut Commands, textures: &Textures) -
                 bombs_available: 3,
                 bomb_range: 2,
             })
-            .insert(TeamID(i + 1)); // the main player already reserved 1 TID
+            .insert(TeamID(penguin_tag.0));
         player_spawn_positions.push(bot_spawn_position);
+        penguin_tags.push(penguin_tag);
     }
 
-    player_spawn_positions
+    (player_spawn_positions, penguin_tags)
 }
 
 pub fn spawn_map(

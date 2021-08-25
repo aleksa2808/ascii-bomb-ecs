@@ -320,7 +320,7 @@ pub fn resize_window(mut windows: ResMut<Windows>, state: Res<State<AppState>>) 
     match state.current() {
         AppState::StoryMode | AppState::BattleMode => window.set_resolution(
             (MAP_WIDTH * TILE_WIDTH) as f32,
-            (MAP_HEIGHT * TILE_HEIGHT) as f32,
+            (14 * PIXEL_SCALE + MAP_HEIGHT * TILE_HEIGHT) as f32,
         ),
         AppState::MainMenu => {
             window.set_resolution((100 * PIXEL_SCALE) as f32, (100 * PIXEL_SCALE) as f32)
@@ -329,11 +329,17 @@ pub fn resize_window(mut windows: ResMut<Windows>, state: Res<State<AppState>>) 
     }
 }
 
-pub fn setup_story_mode(mut commands: Commands, mut textures: ResMut<Textures>, fonts: Res<Fonts>) {
+pub fn setup_story_mode(
+    mut commands: Commands,
+    mut textures: ResMut<Textures>,
+    hud_materials: Res<HUDMaterials>,
+    fonts: Res<Fonts>,
+) {
     let world_id = WorldID(1);
     let level = Level::Regular(1);
+    const LEVEL_DURATION_SECONDS: usize = 180;
 
-    textures.set_map_textures(world_id.0);
+    textures.set_map_textures(world_id);
 
     // spawn camera
     let projection = SimpleOrthoProjection::new(MAP_WIDTH, MAP_HEIGHT);
@@ -353,36 +359,12 @@ pub fn setup_story_mode(mut commands: Commands, mut textures: ResMut<Textures>, 
 
     commands.spawn_bundle(UiCameraBundle::default());
 
-    // score display
-    commands
-        .spawn_bundle(TextBundle {
-            text: Text::with_section(
-                "Score: ".to_string(),
-                TextStyle {
-                    font: fonts.bold.clone(),
-                    font_size: 4.0 * PIXEL_SCALE as f32,
-                    color: Color::rgb(0.5, 0.5, 1.0),
-                },
-                TextAlignment::default(),
-            ),
-            style: Style {
-                position_type: PositionType::Absolute,
-                position: Rect {
-                    top: Val::Px(5.0),
-                    left: Val::Px(5.0),
-                    ..Default::default()
-                },
-                ..Default::default()
-            },
-            ..Default::default()
-        })
-        .insert(GameStatsDisplay);
-
     // map generation //
 
     // spawn player
     let player_spawn_position = Position { y: 1, x: 1 };
-    let base_material = textures.penguin_variants[0].clone();
+    let player_penguin_tag = Penguin(0);
+    let base_material = textures.get_penguin_texture(player_penguin_tag).clone();
     let immortal_material = textures.immortal_penguin.clone();
     commands
         .spawn_bundle(SpriteBundle {
@@ -410,10 +392,22 @@ pub fn setup_story_mode(mut commands: Commands, mut textures: ResMut<Textures>, 
             bombs_available: 3,
             bomb_range: 2,
         })
+        .insert(player_penguin_tag)
         .insert(TeamID(0));
 
-    let (mob_spawn_positions, mut bot_spawn_positions) =
+    let (mob_spawn_positions, mut bot_spawn_positions, mut bot_penguin_tags) =
         spawn_story_mode_enemies(&mut commands, &textures, level, world_id);
+
+    let mut penguin_tags = vec![player_penguin_tag];
+    penguin_tags.append(&mut bot_penguin_tags);
+    init_hud_display(
+        &mut commands,
+        &hud_materials,
+        &fonts,
+        &textures,
+        world_id,
+        &[player_penguin_tag],
+    );
 
     let mut penguin_spawn_positions = vec![player_spawn_position];
     penguin_spawn_positions.append(&mut bot_spawn_positions);
@@ -431,7 +425,10 @@ pub fn setup_story_mode(mut commands: Commands, mut textures: ResMut<Textures>, 
     );
 
     commands.insert_resource(GameScore(0));
-    commands.insert_resource(GameTimer(Timer::from_seconds(180.0, false)));
+    commands.insert_resource(GameTimer(Timer::from_seconds(
+        LEVEL_DURATION_SECONDS as f32,
+        false,
+    )));
     commands.insert_resource(level);
     commands.insert_resource(world_id);
 }
@@ -440,9 +437,12 @@ pub fn setup_battle_mode(
     mut commands: Commands,
     mut textures: ResMut<Textures>,
     fonts: Res<Fonts>,
+    hud_materials: Res<HUDMaterials>,
 ) {
+    const ROUND_DURATION_SECS: usize = 120;
+
     let world_id = WorldID(rand::thread_rng().gen_range(1..=3));
-    textures.set_map_textures(world_id.0);
+    textures.set_map_textures(world_id);
 
     // spawn camera
     let projection = SimpleOrthoProjection::new(MAP_WIDTH, MAP_HEIGHT);
@@ -462,33 +462,9 @@ pub fn setup_battle_mode(
 
     commands.spawn_bundle(UiCameraBundle::default());
 
-    // score display
-    commands
-        .spawn_bundle(TextBundle {
-            text: Text::with_section(
-                "Score: ".to_string(),
-                TextStyle {
-                    font: fonts.bold.clone(),
-                    font_size: 4.0 * PIXEL_SCALE as f32,
-                    color: Color::rgb(0.5, 0.5, 1.0),
-                },
-                TextAlignment::default(),
-            ),
-            style: Style {
-                position_type: PositionType::Absolute,
-                position: Rect {
-                    top: Val::Px(5.0),
-                    left: Val::Px(5.0),
-                    ..Default::default()
-                },
-                ..Default::default()
-            },
-            ..Default::default()
-        })
-        .insert(GameStatsDisplay);
-
     // map generation //
-    let player_spawn_positions = spawn_battle_mode_players(&mut commands, &textures);
+    let (player_spawn_positions, penguin_tags) =
+        spawn_battle_mode_players(&mut commands, &textures);
     spawn_map(
         &mut commands,
         &textures,
@@ -498,6 +474,15 @@ pub fn setup_battle_mode(
         false,
     );
 
+    init_hud_display(
+        &mut commands,
+        &hud_materials,
+        &fonts,
+        &textures,
+        world_id,
+        &penguin_tags,
+    );
+
     commands.insert_resource(Leaderboard {
         scores: (0..=player_spawn_positions.len())
             .into_iter()
@@ -505,41 +490,71 @@ pub fn setup_battle_mode(
             .collect(),
         winning_score: 3,
     });
-    const ROUND_DURATION_SECS: f32 = 120.0;
-    commands.insert_resource(GameTimer(Timer::from_seconds(ROUND_DURATION_SECS, false)));
+    commands.insert_resource(GameTimer(Timer::from_seconds(
+        ROUND_DURATION_SECS as f32,
+        false,
+    )));
     commands.insert_resource(WallOfDeath::Dormant(Timer::from_seconds(
-        ROUND_DURATION_SECS / 2.0,
+        ROUND_DURATION_SECS as f32 / 2.0,
         false,
     )));
     commands.insert_resource(world_id);
 }
 
-pub fn display_stats(
+pub fn hud_update(
+    mut commands: Commands,
     game_score: Option<Res<GameScore>>,
     game_timer: Res<GameTimer>,
-    mut query: Query<&mut Text, With<GameStatsDisplay>>,
-    query2: Query<&Health, With<Protagonist>>,
+    mut q: QuerySet<(
+        QueryState<&mut Text, With<LivesDisplay>>,
+        QueryState<&mut Text, With<PointsDisplay>>,
+        QueryState<&mut Text, With<GameTimerDisplay>>,
+    )>,
+    query3: Query<&Health, With<Protagonist>>,
+    query4: Query<&Penguin>,
+    query5: Query<(Entity, &PenguinPortrait)>,
     state: Res<State<AppState>>,
 ) {
-    let mut text = query.single_mut().unwrap();
-    let remaining_seconds = (game_timer.0.duration() - game_timer.0.elapsed())
-        .as_secs_f32()
-        .ceil() as usize;
-    text.sections[0].value = format!(
-        "Time left: {}:{:02}",
-        remaining_seconds / 60,
-        remaining_seconds % 60,
-    );
     if matches!(state.current(), AppState::StoryMode)
         || state.inactives().contains(&AppState::StoryMode)
     {
-        text.sections[0].value += format!(" - Lives: {}", query2.single().unwrap().lives).as_str();
+        let mut tmp = q.q0();
+        let mut text = tmp.single_mut().unwrap();
+        text.sections[0].value = format!(
+            "Lives:{}\t",
+            if let Ok(player) = query3.single() {
+                player.lives
+            } else {
+                // if a protagonist doesn't exist in story mode, that means he's dead == has 0 lives
+                0
+            }
+        );
     }
+
     if let Some(game_score) = game_score {
-        text.sections[0].value += format!(" - Score: {}", game_score.0).as_str();
+        let mut tmp = q.q1();
+        let mut text = tmp.single_mut().unwrap();
+        text.sections[0].value = format!("Points:{}", game_score.0);
     }
+
     if let AppState::Paused = state.current() {
-        text.sections[0].value += " - PAUSED";
+        q.q2().single_mut().unwrap().sections[0].value = String::from("PAUSE");
+    } else {
+        let remaining_seconds = (game_timer.0.duration() - game_timer.0.elapsed())
+            .as_secs_f32()
+            .ceil() as usize;
+        q.q2().single_mut().unwrap().sections[0].value = format!(
+            "{:02}:{:02}",
+            remaining_seconds / 60,
+            remaining_seconds % 60
+        );
+    }
+
+    // remove dead penguin portraits :(
+    for (entity, PenguinPortrait(penguin)) in query5.iter() {
+        if !query4.iter().any(|p| p.0 == penguin.0) {
+            commands.entity(entity).despawn_recursive();
+        }
     }
 }
 
@@ -979,6 +994,7 @@ pub fn pick_up_item(
 pub fn finish_level(
     mut commands: Commands,
     mut textures: ResMut<Textures>,
+    hud_materials: Res<HUDMaterials>,
     mut level: ResMut<Level>,
     mut world_id: ResMut<WorldID>,
     mut game_score: ResMut<GameScore>,
@@ -997,15 +1013,10 @@ pub fn finish_level(
         QueryState<&Position, With<Exit>>,
     )>,
     query3: Query<&TeamID, With<Player>>,
-    query4: Query<
-        Entity,
-        (
-            Without<Camera>,
-            Without<GameStatsDisplay>,
-            Without<Protagonist>,
-        ),
-    >,
+    query4: Query<Entity, (Without<Camera>, Without<HUDComponent>, Without<Protagonist>)>,
     query5: Query<&Bomb>,
+    mut query6: Query<&mut Handle<ColorMaterial>, With<HUDBackground>>,
+    query7: Query<Entity, With<PenguinPortraitDisplay>>,
     mut state: ResMut<State<AppState>>,
     keyboard_input: Res<Input<KeyCode>>,
 ) {
@@ -1055,7 +1066,9 @@ pub fn finish_level(
             (Level::BossRoom, _) => {
                 world_id.0 += 1;
                 *level = Level::Regular(1);
-                textures.set_map_textures(world_id.0);
+                *query6.single_mut().unwrap() =
+                    hud_materials.get_background_material(*world_id).clone();
+                textures.set_map_textures(*world_id);
             }
             (Level::Regular(num), _) => {
                 if num < 4 {
@@ -1097,11 +1110,17 @@ pub fn finish_level(
             .entity(player_entity)
             .insert_bundle(ImmortalBundle::default());
 
-        let (mob_spawn_positions, mut bot_spawn_positions) =
+        let (mob_spawn_positions, mut bot_spawn_positions, penguin_tags) =
             spawn_story_mode_enemies(&mut commands, &textures, *level, *world_id);
-
         let mut penguin_spawn_positions = vec![*player_position];
         penguin_spawn_positions.append(&mut bot_spawn_positions);
+
+        // add enemy penguin portraits (the player's one is left as is)
+        commands
+            .entity(query7.single().unwrap())
+            .with_children(|parent| {
+                init_penguin_portraits(parent, &penguin_tags, &hud_materials, &textures);
+            });
 
         spawn_map(
             &mut commands,
@@ -1134,12 +1153,15 @@ pub fn fail_level(
 
 pub fn finish_round(
     mut commands: Commands,
+    hud_materials: Res<HUDMaterials>,
     textures: Res<Textures>,
     mut game_timer: ResMut<GameTimer>,
     mut leaderboard: ResMut<Leaderboard>,
     mut wall_of_death: ResMut<WallOfDeath>,
     query: Query<&TeamID, With<Player>>,
-    query2: Query<Entity, (Without<Camera>, Without<GameStatsDisplay>)>,
+    query2: Query<Entity, (Without<Camera>, Without<HUDComponent>)>,
+    query3: Query<Entity, With<PenguinPortrait>>,
+    query4: Query<Entity, With<PenguinPortraitDisplay>>,
     mut state: ResMut<State<AppState>>,
 ) {
     let mut round_over = false;
@@ -1163,8 +1185,19 @@ pub fn finish_round(
             commands.entity(entity).despawn_recursive();
         }
 
+        // clear penguin portraits
+        for entity in query3.iter() {
+            commands.entity(entity).despawn_recursive();
+        }
+
         // spawn players & map again
-        let player_spawn_positions = spawn_battle_mode_players(&mut commands, &textures);
+        let (player_spawn_positions, penguin_tags) =
+            spawn_battle_mode_players(&mut commands, &textures);
+        commands
+            .entity(query4.single().unwrap())
+            .with_children(|parent| {
+                init_penguin_portraits(parent, &penguin_tags, &hud_materials, &textures);
+            });
         spawn_map(
             &mut commands,
             &textures,

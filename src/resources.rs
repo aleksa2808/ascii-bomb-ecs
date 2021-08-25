@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use bevy::prelude::*;
 
 use crate::{
-    components::Position,
+    components::{Penguin, Position},
     constants::COLORS,
     types::{Cooldown, Direction},
 };
@@ -18,7 +18,7 @@ pub struct MapTextures {
 
 pub struct Textures {
     // players + effects
-    pub penguin_variants: Vec<Handle<ColorMaterial>>,
+    penguin_variants: Vec<Handle<ColorMaterial>>,
     pub immortal_penguin: Handle<ColorMaterial>,
     pub crook: Handle<ColorMaterial>,
     pub immortal_crook: Handle<ColorMaterial>,
@@ -30,8 +30,8 @@ pub struct Textures {
     pub bomb: Handle<ColorMaterial>,
     pub fire: Handle<ColorMaterial>,
     // map textures
-    pub map_textures: Vec<MapTextures>,
-    pub map_textures_index: usize,
+    map_textures: Vec<MapTextures>,
+    map_textures_index: usize,
     // exit
     pub exit: Handle<ColorMaterial>,
     // items
@@ -45,12 +45,16 @@ pub struct Textures {
 }
 
 impl Textures {
-    pub fn set_map_textures(&mut self, world: usize) {
-        self.map_textures_index = world - 1;
+    pub fn set_map_textures(&mut self, world_id: WorldID) {
+        self.map_textures_index = world_id.0 - 1;
     }
 
     pub fn get_map_textures(&self) -> &MapTextures {
         &self.map_textures[self.map_textures_index]
+    }
+
+    pub fn get_penguin_texture(&self, penguin: Penguin) -> &Handle<ColorMaterial> {
+        self.penguin_variants.iter().cycle().nth(penguin.0).unwrap()
     }
 }
 
@@ -136,7 +140,6 @@ impl FromWorld for Textures {
 
 pub struct Fonts {
     pub mono: Handle<Font>,
-    pub bold: Handle<Font>,
 }
 
 impl FromWorld for Fonts {
@@ -145,7 +148,45 @@ impl FromWorld for Fonts {
 
         Fonts {
             mono: asset_server.load("fonts/UbuntuMono-R.ttf"),
-            bold: asset_server.load("fonts/FiraSans-Bold.ttf"),
+        }
+    }
+}
+
+// HUD display
+pub struct HUDMaterials {
+    pub background_materials: Vec<Handle<ColorMaterial>>,
+    pub background_materials_index: usize,
+    pub black: Handle<ColorMaterial>,
+    pub portrait_background_color: Handle<ColorMaterial>,
+    pub portrait_border_color: Handle<ColorMaterial>,
+}
+
+impl HUDMaterials {
+    pub fn get_background_material(&self, world_id: WorldID) -> &Handle<ColorMaterial> {
+        &self.background_materials[world_id.0 - 1]
+    }
+}
+
+impl FromWorld for HUDMaterials {
+    fn from_world(world: &mut World) -> Self {
+        let mut materials = world.get_resource_mut::<Assets<ColorMaterial>>().unwrap();
+
+        let background_materials = vec![
+            materials.add(Color::into(COLORS[2].into())),
+            materials.add(Color::into(COLORS[11].into())),
+            materials.add(Color::into(COLORS[3].into())),
+        ];
+
+        let black: Color = COLORS[0].into();
+        let portrait_background_color: Color = COLORS[3].into();
+        let portrait_border_color: Color = COLORS[8].into();
+
+        HUDMaterials {
+            background_materials,
+            background_materials_index: 0,
+            black: materials.add(black.into()),
+            portrait_background_color: materials.add(portrait_background_color.into()),
+            portrait_border_color: materials.add(portrait_border_color.into()),
         }
     }
 }

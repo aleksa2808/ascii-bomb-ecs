@@ -69,8 +69,13 @@ fn add_common_game_systems(app: &mut App, state: AppState) {
                 // animation
                 .with_system(animate_fuse.after(Label::TimeUpdate))
                 .with_system(animate_immortality.after(Label::TimeUpdate))
-                // display game stats
-                .with_system(display_stats.after(Label::TimeUpdate).after(Label::Damage)),
+                // display HUD
+                .with_system(
+                    hud_update
+                        .exclusive_system()
+                        .at_end()
+                        .before(Label::GameEndCheck),
+                ),
         );
 }
 
@@ -94,6 +99,7 @@ pub fn run() {
         .init_resource::<MenuState>()
         .init_resource::<Fonts>()
         .init_resource::<Textures>()
+        .init_resource::<HUDMaterials>()
         .add_event::<PlayerActionEvent>()
         .add_event::<ExplosionEvent>()
         .add_event::<BurnEvent>()
@@ -118,7 +124,7 @@ pub fn run() {
         .add_system_set(SystemSet::on_update(AppState::MainMenu).with_system(menu))
         .add_system_set(
             SystemSet::on_update(AppState::Paused)
-                .with_system(display_stats)
+                .with_system(hud_update)
                 .with_system(pop_state_on_enter),
         );
 
