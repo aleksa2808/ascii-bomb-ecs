@@ -18,6 +18,7 @@ pub enum AppState {
     StoryMode,
     BattleMode,
     Paused,
+    BossSpeech,
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemLabel)]
@@ -126,7 +127,9 @@ pub fn run() {
             SystemSet::on_update(AppState::Paused)
                 .with_system(hud_update)
                 .with_system(pop_state_on_enter),
-        );
+        )
+        .add_system_set(SystemSet::on_enter(AppState::BossSpeech).with_system(setup_boss_speech))
+        .add_system_set(SystemSet::on_update(AppState::BossSpeech).with_system(boss_speech_update));
 
     add_common_game_systems(&mut app, AppState::StoryMode);
     app.add_system_set(

@@ -121,9 +121,9 @@ impl Default for Exit {
 
 // HUD display
 
-pub struct HUDComponent;
+pub struct HUDBase;
 
-pub struct HUDBackground;
+pub struct HUDComponent;
 
 pub struct GameTimerDisplay;
 

@@ -394,12 +394,18 @@ pub fn setup_story_mode(
         })
         .insert(player_penguin_tag)
         .insert(TeamID(0));
-
-    let (mob_spawn_positions, mut bot_spawn_positions, mut bot_penguin_tags) =
-        spawn_story_mode_enemies(&mut commands, &textures, level, world_id);
-
+    let mut penguin_spawn_positions = vec![player_spawn_position];
     let mut penguin_tags = vec![player_penguin_tag];
-    penguin_tags.append(&mut bot_penguin_tags);
+
+    let mob_spawn_positions = spawn_story_mode_mobs(&mut commands, &textures, level, world_id);
+
+    if let Level::BossRoom = level {
+        let (boss_spawn_position, boss_penguin_tag) =
+            spawn_story_mode_boss(&mut commands, &textures, world_id);
+        penguin_spawn_positions.push(boss_spawn_position);
+        penguin_tags.push(boss_penguin_tag);
+    }
+
     init_hud_display(
         &mut commands,
         &hud_materials,
@@ -409,8 +415,6 @@ pub fn setup_story_mode(
         &[player_penguin_tag],
     );
 
-    let mut penguin_spawn_positions = vec![player_spawn_position];
-    penguin_spawn_positions.append(&mut bot_spawn_positions);
     spawn_map(
         &mut commands,
         &textures,
@@ -1005,18 +1009,21 @@ pub fn finish_level(
                 Entity,
                 &mut Position,
                 &mut Transform,
+                &mut Handle<ColorMaterial>,
+                &BaseMaterial,
                 &TeamID,
                 &mut BombSatchel,
+                &Penguin,
             ),
             (With<Player>, With<Protagonist>),
         >,
         QueryState<&Position, With<Exit>>,
+        QueryState<&mut Handle<ColorMaterial>, With<HUDBase>>,
     )>,
     query3: Query<&TeamID, With<Player>>,
     query4: Query<Entity, (Without<Camera>, Without<HUDComponent>, Without<Protagonist>)>,
     query5: Query<&Bomb>,
-    mut query6: Query<&mut Handle<ColorMaterial>, With<HUDBackground>>,
-    query7: Query<Entity, With<PenguinPortraitDisplay>>,
+    query6: Query<Entity, With<PenguinPortraitDisplay>>,
     mut state: ResMut<State<AppState>>,
     keyboard_input: Res<Input<KeyCode>>,
 ) {
@@ -1026,7 +1033,7 @@ pub fn finish_level(
             // if an exit is spawned...
             if let Ok(exit_position) = q.q1().single().map(|p| *p) {
                 // ...check if a protagonist reached it when all the enemies are dead
-                if q.q0().iter_mut().any(|(_, pp, _, ptid, _)| {
+                if q.q0().iter_mut().any(|(_, pp, _, _, _, ptid, _, _)| {
                     *pp == exit_position && !query3.iter().any(|tid| tid.0 != ptid.0)
                 }) {
                     level_completed = true;
@@ -1037,7 +1044,7 @@ pub fn finish_level(
             // if a protagonist killed all the enemies
             if q.q0()
                 .iter_mut()
-                .any(|(_, _, _, ptid, _)| !query3.iter().any(|tid| tid.0 != ptid.0))
+                .any(|(_, _, _, _, _, ptid, _, _)| !query3.iter().any(|tid| tid.0 != ptid.0))
             {
                 level_completed = true;
             }
@@ -1066,7 +1073,7 @@ pub fn finish_level(
             (Level::BossRoom, _) => {
                 world_id.0 += 1;
                 *level = Level::Regular(1);
-                *query6.single_mut().unwrap() =
+                *q.q2().single_mut().unwrap() =
                     hud_materials.get_background_material(*world_id).clone();
                 textures.set_map_textures(*world_id);
             }
@@ -1080,8 +1087,19 @@ pub fn finish_level(
         }
 
         let mut tmp = q.q0();
-        let (player_entity, mut player_position, mut transform, _, mut bomb_satchel) =
-            tmp.single_mut().unwrap();
+        let (
+            player_entity,
+            mut player_position,
+            mut transform,
+            mut player_material,
+            base_material,
+            _,
+            mut bomb_satchel,
+            player_penguin_tag,
+        ) = tmp.single_mut().unwrap();
+
+        // reset the player's texture (clears immortality animation effects)
+        *player_material = base_material.0.clone();
 
         let unexploded_player_bombs = query5.iter().filter(|b| b.parent == player_entity).count();
 
@@ -1100,6 +1118,7 @@ pub fn finish_level(
                 x: MAP_WIDTH as isize / 2,
             },
         };
+        let mut penguin_spawn_positions = vec![*player_position];
 
         let translation = &mut transform.translation;
         translation.x = get_x(player_position.x);
@@ -1110,17 +1129,57 @@ pub fn finish_level(
             .entity(player_entity)
             .insert_bundle(ImmortalBundle::default());
 
-        let (mob_spawn_positions, mut bot_spawn_positions, penguin_tags) =
-            spawn_story_mode_enemies(&mut commands, &textures, *level, *world_id);
-        let mut penguin_spawn_positions = vec![*player_position];
-        penguin_spawn_positions.append(&mut bot_spawn_positions);
+        let mob_spawn_positions =
+            spawn_story_mode_mobs(&mut commands, &textures, *level, *world_id);
 
-        // add enemy penguin portraits (the player's one is left as is)
-        commands
-            .entity(query7.single().unwrap())
-            .with_children(|parent| {
-                init_penguin_portraits(parent, &penguin_tags, &hud_materials, &textures);
-            });
+        if let Level::BossRoom = *level {
+            let (boss_spawn_position, boss_penguin_tag) =
+                spawn_story_mode_boss(&mut commands, &textures, *world_id);
+            penguin_spawn_positions.push(boss_spawn_position);
+
+            // add enemy penguin portraits (the player's one is left as is)
+            commands
+                .entity(query6.single().unwrap())
+                .with_children(|parent| {
+                    init_penguin_portraits(parent, &[boss_penguin_tag], &hud_materials, &textures);
+                });
+
+            let player = *player_penguin_tag;
+            let boss = boss_penguin_tag;
+            commands.insert_resource(BossSpeechScript::new(match world_id.0 {
+                1 => vec![
+                    (boss, "You will never reach the north alive!"),
+                    (player, "Penguins can talk in this game? Cooooool!"),
+                    (boss, "Prepare to die!"),
+                ],
+                2 => vec![
+                    (boss, "How did you manage to get here?"),
+                    (
+                        player,
+                        "Dunno, killed some guys, went through some doors...",
+                    ),
+                    (player, "That kind of stuff..."),
+                    (boss, "Ugh, those fools!"),
+                    (
+                        boss,
+                        "Well, your journey stops here, you will never find the cloud city!",
+                    ),
+                    (
+                        player,
+                        "A cloud city? Nice, was getting kind of bored with this theme...",
+                    ),
+                ],
+                3 => vec![
+                    (boss, "Ah, I have been expecting you Agent P!"),
+                    (player, "Who even wrote these stupid dialogues?"),
+                    (boss, "nenexexedadada!"),
+                    (player, "Let's just get this over with..."),
+                ],
+                _ => unreachable!(), // TODO: feels like world_id should be an enum
+            }));
+
+            state.push(AppState::BossSpeech).unwrap();
+        }
 
         spawn_map(
             &mut commands,
@@ -1933,4 +1992,217 @@ pub fn teardown(mut commands: Commands, query: Query<Entity>) {
     // battle mode
     commands.remove_resource::<Leaderboard>();
     commands.remove_resource::<WallOfDeath>();
+}
+
+pub fn setup_boss_speech(
+    mut commands: Commands,
+    hud_materials: Res<HUDMaterials>,
+    textures: Res<Textures>,
+    boss_speech_script: Res<BossSpeechScript>,
+    fonts: Res<Fonts>,
+    query: Query<Entity, With<HUDBase>>,
+) {
+    let mut speech_box = None;
+    let mut speaker_portrait = None;
+    let mut speech_text = None;
+
+    commands
+        .entity(query.single().unwrap())
+        .with_children(|parent| {
+            speech_box = Some(
+                parent
+                    .spawn_bundle(NodeBundle {
+                        style: Style {
+                            size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                            position_type: PositionType::Absolute,
+                            position: Rect {
+                                left: Val::Px(0.0),
+                                top: Val::Px(0.0),
+                                ..Default::default()
+                            },
+                            ..Default::default()
+                        },
+                        material: hud_materials.black.clone(),
+                        ..Default::default()
+                    })
+                    .insert(HUDComponent)
+                    .with_children(|parent| {
+                        // dialog border
+                        parent
+                            .spawn_bundle(TextBundle {
+                                text: Text::with_section(
+                                    r#"
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+"#,
+                                    TextStyle {
+                                        font: fonts.mono.clone(),
+                                        font_size: 2.0 * PIXEL_SCALE as f32,
+                                        color: COLORS[15].into(), // TODO: is this the right color?
+                                    },
+                                    TextAlignment::default(),
+                                ),
+                                style: Style {
+                                    position_type: PositionType::Absolute,
+                                    position: Rect {
+                                        top: Val::Px(0.0),
+                                        left: Val::Px(0.0),
+                                        ..Default::default()
+                                    },
+                                    ..Default::default()
+                                },
+                                ..Default::default()
+                            })
+                            .insert(HUDComponent);
+
+                        // player portrait
+                        parent
+                            .spawn_bundle(NodeBundle {
+                                style: Style {
+                                    size: Size::new(
+                                        Val::Px(8.0 * PIXEL_SCALE as f32),
+                                        Val::Px(10.0 * PIXEL_SCALE as f32),
+                                    ),
+                                    position_type: PositionType::Absolute,
+                                    position: Rect {
+                                        left: Val::Px(4.0 * PIXEL_SCALE as f32),
+                                        top: Val::Px(2.0 * PIXEL_SCALE as f32),
+                                        ..Default::default()
+                                    },
+                                    border: Rect {
+                                        left: Val::Px(PIXEL_SCALE as f32),
+                                        top: Val::Px(PIXEL_SCALE as f32),
+                                        right: Val::Px(PIXEL_SCALE as f32),
+                                        bottom: Val::Px(PIXEL_SCALE as f32),
+                                    },
+                                    ..Default::default()
+                                },
+                                material: hud_materials.portrait_border_color.clone(),
+                                ..Default::default()
+                            })
+                            .insert(HUDComponent)
+                            .with_children(|parent| {
+                                parent
+                                    .spawn_bundle(NodeBundle {
+                                        style: Style {
+                                            size: Size::new(
+                                                Val::Percent(100.0),
+                                                Val::Percent(100.0),
+                                            ),
+                                            ..Default::default()
+                                        },
+                                        material: hud_materials.portrait_background_color.clone(),
+                                        ..Default::default()
+                                    })
+                                    .insert(HUDComponent)
+                                    .with_children(|parent| {
+                                        speaker_portrait = Some(
+                                            parent
+                                                .spawn_bundle(ImageBundle {
+                                                    style: Style {
+                                                        size: Size::new(
+                                                            Val::Percent(100.0),
+                                                            Val::Percent(100.0),
+                                                        ),
+                                                        ..Default::default()
+                                                    },
+                                                    material: textures
+                                                        .get_penguin_texture(
+                                                            boss_speech_script
+                                                                .get_current_speaker(),
+                                                        )
+                                                        .clone(),
+                                                    ..Default::default()
+                                                })
+                                                .insert(HUDComponent)
+                                                .id(),
+                                        );
+                                    });
+                            });
+
+                        // speech text
+                        speech_text = Some(
+                            parent
+                                .spawn_bundle(TextBundle {
+                                    text: Text::with_section(
+                                        boss_speech_script.get_current_line_state(),
+                                        TextStyle {
+                                            font: fonts.mono.clone(),
+                                            font_size: 2.0 * PIXEL_SCALE as f32,
+                                            color: COLORS[15].into(), // TODO: is this the right color?
+                                        },
+                                        TextAlignment::default(),
+                                    ),
+                                    style: Style {
+                                        position_type: PositionType::Absolute,
+                                        position: Rect {
+                                            top: Val::Px(6.0 * PIXEL_SCALE as f32),
+                                            left: Val::Px(16.0 * PIXEL_SCALE as f32),
+                                            ..Default::default()
+                                        },
+                                        ..Default::default()
+                                    },
+                                    ..Default::default()
+                                })
+                                .insert(HUDComponent)
+                                .id(),
+                        );
+                    })
+                    .id(),
+            );
+        });
+
+    commands.insert_resource(BossSpeechBoxEntities {
+        speech_box: speech_box.unwrap(),
+        speaker_portrait: speaker_portrait.unwrap(),
+        speech_text: speech_text.unwrap(),
+    });
+}
+
+pub fn boss_speech_update(
+    mut commands: Commands,
+    time: Res<Time>,
+    textures: Res<Textures>,
+    mut boss_speech_script: ResMut<BossSpeechScript>,
+    boss_speech_box_entities: Res<BossSpeechBoxEntities>,
+    mut keyboard_input: ResMut<Input<KeyCode>>,
+    mut state: ResMut<State<AppState>>,
+    mut query: Query<&mut Text>,
+    mut query2: Query<&mut Handle<ColorMaterial>>,
+) {
+    boss_speech_script.tick(time.delta());
+
+    if keyboard_input.just_pressed(KeyCode::Space) {
+        if boss_speech_script.line_in_progress() {
+            boss_speech_script.complete_current_line();
+        } else if boss_speech_script.advance_script().is_ok() {
+            *query2
+                .get_mut(boss_speech_box_entities.speaker_portrait)
+                .unwrap() = textures
+                .get_penguin_texture(boss_speech_script.get_current_speaker())
+                .clone();
+        } else {
+            commands
+                .entity(boss_speech_box_entities.speech_box)
+                .despawn_recursive();
+
+            commands.remove_resource::<BossSpeechBoxEntities>();
+            commands.remove_resource::<BossSpeechScript>();
+
+            state.pop().unwrap();
+            keyboard_input.reset(KeyCode::Space);
+            return;
+        }
+    }
+
+    query
+        .get_mut(boss_speech_box_entities.speech_text)
+        .unwrap()
+        .sections[0]
+        .value = boss_speech_script.get_current_line_state().to_string();
 }

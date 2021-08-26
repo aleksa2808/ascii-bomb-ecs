@@ -48,7 +48,7 @@ pub fn init_hud_display(
             ..Default::default()
         })
         .insert(HUDComponent)
-        .insert(HUDBackground)
+        .insert(HUDBase)
         .insert(PenguinPortraitDisplay) // TODO: make a separate NodeBundle for this
         .with_children(|parent| {
             // lives display
@@ -214,12 +214,12 @@ pub fn init_penguin_portraits(
     }
 }
 
-pub fn spawn_story_mode_enemies(
+pub fn spawn_story_mode_mobs(
     commands: &mut Commands,
     textures: &Textures,
     level: Level,
     world_id: WorldID,
-) -> (Vec<Position>, Vec<Position>, Vec<Penguin>) {
+) -> Vec<Position> {
     // spawn mobs
     let mob_number = if let Level::Regular(num) = level {
         num + 1
@@ -227,7 +227,7 @@ pub fn spawn_story_mode_enemies(
         1
     } + world_id.0;
 
-    // hardcoded for 11x15
+    // TODO: currently hardcoded for 11x15
     let x = [
         MAP_WIDTH - 4,
         MAP_WIDTH - 2,
@@ -317,51 +317,52 @@ pub fn spawn_story_mode_enemies(
         }
     }
 
-    let mut bot_spawn_positions = vec![];
-    let mut penguin_tags = vec![];
-    if let Level::BossRoom = level {
-        // spawn boss
-        let boss_spawn_position = Position {
-            y: 3,
-            x: MAP_WIDTH as isize / 2,
-        };
-        bot_spawn_positions.push(boss_spawn_position);
-        let penguin_tag = Penguin(3 + world_id.0);
-        let base_material = textures.get_penguin_texture(penguin_tag).clone();
-        let immortal_material = textures.immortal_penguin.clone();
-        commands
-            .spawn_bundle(SpriteBundle {
-                material: base_material.clone(),
-                transform: Transform::from_xyz(
-                    get_x(boss_spawn_position.x),
-                    get_y(boss_spawn_position.y),
-                    50.0,
-                ),
-                sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
-                ..Default::default()
-            })
-            .insert(BaseMaterial(base_material))
-            .insert(ImmortalMaterial(immortal_material))
-            .insert(Player)
-            .insert(penguin_tag)
-            .insert(BotAI)
-            .insert(MoveCooldown(Cooldown::from_seconds(0.3)))
-            .insert(Health {
-                lives: 1,
-                max_health: 2,
-                health: 2,
-            })
-            .insert(boss_spawn_position)
-            .insert(BombSatchel {
-                bombs_available: 1 + world_id.0,
-                bomb_range: 1 + world_id.0,
-            })
-            .insert(TeamID(1))
-            .insert(PointValue(200));
-        penguin_tags.push(penguin_tag);
-    }
+    mob_spawn_positions
+}
 
-    (mob_spawn_positions, bot_spawn_positions, penguin_tags)
+pub fn spawn_story_mode_boss(
+    commands: &mut Commands,
+    textures: &Textures,
+    world_id: WorldID,
+) -> (Position, Penguin) {
+    let boss_spawn_position = Position {
+        y: 3,
+        x: MAP_WIDTH as isize / 2,
+    };
+    let boss_penguin_tag = Penguin(3 + world_id.0);
+    let base_material = textures.get_penguin_texture(boss_penguin_tag).clone();
+    let immortal_material = textures.immortal_penguin.clone();
+    commands
+        .spawn_bundle(SpriteBundle {
+            material: base_material.clone(),
+            transform: Transform::from_xyz(
+                get_x(boss_spawn_position.x),
+                get_y(boss_spawn_position.y),
+                50.0,
+            ),
+            sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+            ..Default::default()
+        })
+        .insert(BaseMaterial(base_material))
+        .insert(ImmortalMaterial(immortal_material))
+        .insert(Player)
+        .insert(boss_penguin_tag)
+        .insert(BotAI)
+        .insert(MoveCooldown(Cooldown::from_seconds(0.3)))
+        .insert(Health {
+            lives: 1,
+            max_health: 2,
+            health: 2,
+        })
+        .insert(boss_spawn_position)
+        .insert(BombSatchel {
+            bombs_available: 1 + world_id.0,
+            bomb_range: 1 + world_id.0,
+        })
+        .insert(TeamID(1))
+        .insert(PointValue(200));
+
+    (boss_spawn_position, boss_penguin_tag)
 }
 
 pub fn spawn_battle_mode_players(
