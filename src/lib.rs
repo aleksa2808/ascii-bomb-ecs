@@ -113,11 +113,6 @@ pub fn run() {
             camera_system::<SimpleOrthoProjection>,
         )
         .add_system_set(
-            SystemSet::on_enter(AppState::MainMenu)
-                .with_system(setup_menu.exclusive_system().label(Label::Setup))
-                .with_system(resize_window.exclusive_system().after(Label::Setup)),
-        )
-        .add_system_set(
             SystemSet::on_enter(AppState::SplashScreen).with_system(setup_splash_screen),
         )
         .add_system_set(
@@ -125,13 +120,22 @@ pub fn run() {
         )
         .add_system_set(SystemSet::on_exit(AppState::SplashScreen).with_system(teardown))
         .add_system_set(
+            SystemSet::on_enter(AppState::MainMenu)
+                .with_system(setup_menu.exclusive_system().label(Label::Setup))
+                .with_system(resize_window.exclusive_system().after(Label::Setup)),
+        )
+        .add_system_set(
             SystemSet::on_resume(AppState::MainMenu)
                 .with_system(setup_menu.exclusive_system().label(Label::Setup))
                 .with_system(resize_window.exclusive_system().after(Label::Setup)),
         )
         .add_system_set(SystemSet::on_pause(AppState::MainMenu).with_system(teardown))
         .add_system_set(SystemSet::on_exit(AppState::MainMenu).with_system(teardown))
-        .add_system_set(SystemSet::on_update(AppState::MainMenu).with_system(menu))
+        .add_system_set(
+            SystemSet::on_update(AppState::MainMenu)
+                .with_system(menu_navigation)
+                .with_system(animate_menu_background),
+        )
         .add_system_set(
             SystemSet::on_update(AppState::Paused)
                 .with_system(hud_update)

@@ -171,6 +171,7 @@ pub fn setup_menu(
 ) {
     commands.spawn_bundle(UiCameraBundle::default());
 
+    let mut menu_background_animation_context = None;
     commands
         .spawn_bundle(NodeBundle {
             style: Style {
@@ -238,25 +239,16 @@ pub fn setup_menu(
                         },
                         ..Default::default()
                     })
-                    .insert(UIComponent);
+                    .insert(UIComponent)
+                    .id()
             };
-
-            let k = 0;
 
             let c = 14;
             place_text(10, 4, "*", c);
-            place_text(15, 2, if k % 200 < 100 { "*" } else { "\u{2219}" }, c);
-            place_text(40, 21, if k % 100 < 50 { "\u{2219}" } else { "*" }, c);
             place_text(30, 9, "*", c);
-            place_text(43, 40, if k % 222 < 111 { "*" } else { "+" }, c);
             place_text(46, 70, "*", c);
             place_text(44, 5, "*", c);
-            place_text(30, 86, if k % 700 < 350 { "*" } else { "\u{2219}" }, c);
-            place_text(5, 91, if k % 312 < 156 { "*" } else { "+" }, c);
-            place_text(13, 78, if k % 160 < 80 { " " } else { "*" }, c);
             place_text(17, 72, "*", c);
-            place_text(19, 92, if k % 123 < 62 { "\u{2219}" } else { "*" }, c);
-
             place_text(
                 39,
                 83,
@@ -271,17 +263,56 @@ __██__
                 8,
             );
 
-            place_text(
-                38,
-                82,
-                r#"
+            let mut entity_change_parameters = HashMap::new();
+
+            let mut add_text_entity_change_parameters = |y, x, modulo, threshold, v1, v2| {
+                let initial_value = String::from(v1);
+                entity_change_parameters.insert(
+                    place_text(y, x, &initial_value, c),
+                    MenuBackgroundEntityChangeParameters {
+                        modulo,
+                        threshold,
+                        values: MenuBackgroundEntityValues::Text(initial_value, String::from(v2)),
+                    },
+                );
+            };
+
+            add_text_entity_change_parameters(15, 2, 200, 100, "*", "\u{2219}");
+            add_text_entity_change_parameters(40, 21, 100, 50, "\u{2219}", "*");
+            add_text_entity_change_parameters(43, 40, 222, 111, "*", "+");
+            add_text_entity_change_parameters(30, 86, 700, 350, "*", "\u{2219}");
+            add_text_entity_change_parameters(5, 91, 312, 156, "*", "+");
+            add_text_entity_change_parameters(13, 78, 160, 80, " ", "*");
+            add_text_entity_change_parameters(19, 92, 123, 62, "\u{2219}", "*");
+
+            // add_color_entity_change_parameters
+            let initial_value = 4;
+            entity_change_parameters.insert(
+                place_text(
+                    38,
+                    82,
+                    r#"
  .    .
 
 
 .      .
 "#,
-                if k % 348 / 2 < 348 / 4 { 4 } else { 12 },
+                    initial_value,
+                ),
+                MenuBackgroundEntityChangeParameters {
+                    modulo: 348,
+                    threshold: 174,
+                    values: MenuBackgroundEntityValues::Color(
+                        COLORS[initial_value].into(),
+                        COLORS[12].into(),
+                    ),
+                },
             );
+
+            menu_background_animation_context = Some(MenuBackgroundAnimationContext {
+                entity_change_parameters,
+                timer: Timer::from_seconds(100.0, true),
+            });
 
             // spawn central modal
             parent
@@ -426,9 +457,11 @@ __██__
                         });
                 });
         });
+
+    commands.insert_resource(menu_background_animation_context.unwrap());
 }
 
-pub fn menu(
+pub fn menu_navigation(
     mut state: ResMut<State<AppState>>,
     mut menu_state: ResMut<MenuState>,
     mut keyboard_input: ResMut<Input<KeyCode>>,
@@ -482,6 +515,36 @@ pub fn menu(
         if menu_changed {
             style.position.top =
                 Val::Px(((2 + menu_state.get_cursor_position() * 4) * PIXEL_SCALE) as f32);
+        }
+    }
+}
+
+pub fn animate_menu_background(
+    time: Res<Time>,
+    mut menu_background_animation_context: ResMut<MenuBackgroundAnimationContext>,
+    mut query: Query<&mut Text>,
+) {
+    menu_background_animation_context.timer.tick(time.delta());
+    let k = (menu_background_animation_context.timer.percent() * 3000.0) as usize;
+
+    for (entity, change_parameters) in &menu_background_animation_context.entity_change_parameters {
+        match &change_parameters.values {
+            MenuBackgroundEntityValues::Text(v1, v2) => {
+                query.get_mut(*entity).unwrap().sections[0].value =
+                    if k % change_parameters.modulo < change_parameters.threshold {
+                        v1.clone()
+                    } else {
+                        v2.clone()
+                    }
+            }
+            MenuBackgroundEntityValues::Color(v1, v2) => {
+                query.get_mut(*entity).unwrap().sections[0].style.color =
+                    if k % change_parameters.modulo < change_parameters.threshold {
+                        *v1
+                    } else {
+                        *v2
+                    };
+            }
         }
     }
 }
@@ -2188,6 +2251,9 @@ pub fn teardown(mut commands: Commands, query: Query<Entity>) {
     for entity in query.iter() {
         commands.entity(entity).despawn_recursive();
     }
+
+    // menu
+    commands.remove_resource::<MenuBackgroundAnimationContext>();
 
     // common
     commands.remove_resource::<GameTimer>();

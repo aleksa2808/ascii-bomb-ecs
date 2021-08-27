@@ -353,6 +353,22 @@ impl MenuState {
     }
 }
 
+pub enum MenuBackgroundEntityValues {
+    Text(String, String),
+    Color(Color, Color),
+}
+
+pub struct MenuBackgroundEntityChangeParameters {
+    pub modulo: usize,
+    pub threshold: usize,
+    pub values: MenuBackgroundEntityValues,
+}
+
+pub struct MenuBackgroundAnimationContext {
+    pub entity_change_parameters: HashMap<Entity, MenuBackgroundEntityChangeParameters>,
+    pub timer: Timer,
+}
+
 // pretty similar to the ECS WorldId type, maybe rename?
 #[derive(Clone, Copy)]
 pub struct WorldID(pub usize);
