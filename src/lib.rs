@@ -16,9 +16,10 @@ use crate::{camera::SimpleOrthoProjection, constants::*, events::*, resources::*
 pub enum AppState {
     MainMenu,
     StoryMode,
-    BattleMode,
-    Paused,
     BossSpeech,
+    BattleMode,
+    LeaderboardDisplay,
+    Paused,
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemLabel)]
@@ -75,7 +76,7 @@ fn add_common_game_systems(app: &mut App, state: AppState) {
                     hud_update
                         .exclusive_system()
                         .at_end()
-                        .before(Label::GameEndCheck),
+                        .after(Label::GameEndCheck),
                 ),
         );
 }
@@ -85,8 +86,8 @@ pub fn run() {
 
     app.insert_resource(WindowDescriptor {
         title: "ascii-bomb-ecs".to_string(),
-        width: (100 * PIXEL_SCALE) as f32,
-        height: (100 * PIXEL_SCALE) as f32,
+        width: MENU_WIDTH as f32,
+        height: MENU_HEIGHT as f32,
         resizable: false,
         ..Default::default()
     })
@@ -95,7 +96,7 @@ pub fn run() {
     use bevy::render::camera::camera_system;
 
     app.add_state(AppState::MainMenu)
-        .insert_resource(ClearColor(COLORS[0].into()))
+        .init_resource::<BaseColorMaterials>()
         .init_resource::<MenuMaterials>()
         .init_resource::<MenuState>()
         .init_resource::<Fonts>()
@@ -129,7 +130,15 @@ pub fn run() {
                 .with_system(pop_state_on_enter),
         )
         .add_system_set(SystemSet::on_enter(AppState::BossSpeech).with_system(setup_boss_speech))
-        .add_system_set(SystemSet::on_update(AppState::BossSpeech).with_system(boss_speech_update));
+        .add_system_set(SystemSet::on_update(AppState::BossSpeech).with_system(boss_speech_update))
+        .add_system_set(
+            SystemSet::on_enter(AppState::LeaderboardDisplay)
+                .with_system(setup_leaderboard_display),
+        )
+        .add_system_set(
+            SystemSet::on_update(AppState::LeaderboardDisplay)
+                .with_system(leaderboard_display_update),
+        );
 
     add_common_game_systems(&mut app, AppState::StoryMode);
     app.add_system_set(

@@ -2,6 +2,12 @@ use bevy::prelude::*;
 
 use crate::types::{Cooldown, Direction};
 
+// UI
+
+pub struct UIRoot;
+
+pub struct UIComponent;
+
 // menu components
 
 pub struct Cursor;
@@ -39,7 +45,7 @@ pub struct Player;
 pub struct Protagonist;
 
 // usize represents the penguin's ID
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Penguin(pub usize);
 
 // usize represents the controller/player number
@@ -121,9 +127,7 @@ impl Default for Exit {
 
 // HUD display
 
-pub struct HUDBase;
-
-pub struct HUDComponent;
+pub struct HUDRoot;
 
 pub struct GameTimerDisplay;
 

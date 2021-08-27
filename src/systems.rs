@@ -31,7 +31,19 @@ pub fn setup_menu(
 ) {
     commands.spawn_bundle(UiCameraBundle::default());
 
-    let title_text = r#"
+    commands
+        .spawn_bundle(NodeBundle {
+            style: Style {
+                size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                ..Default::default()
+            },
+            material: menu_materials.background.clone(),
+            ..Default::default()
+        })
+        .insert(UIRoot)
+        .insert(UIComponent)
+        .with_children(|parent| {
+            let title_text = r#"
  ____   ____  __  __ ____  ______ _____  __  __          _   _ 
 |  _ \ / __ \|  \/  |  _ \|  ____|  __ \|  \/  |   /\   | \ | |
 | |_) | |  | | \  / | |_) | |__  | |__) | \  / |  /  \  |  \| |
@@ -39,72 +51,76 @@ pub fn setup_menu(
 | |_) | |__| | |  | | |_) | |____| | \ \| |  | |/ ____ \| |\  |
 |____/ \____/|_|  |_|____/|______|_|  \_\_|  |_/_/    \_\_| \_|
 "#;
-    commands.spawn_bundle(TextBundle {
-        text: Text::with_section(
-            title_text.to_string(),
-            TextStyle {
-                font: fonts.mono.clone(),
-                font_size: 2.0 * PIXEL_SCALE as f32,
-                color: COLORS[15].into(),
-            },
-            TextAlignment::default(),
-        ),
-        style: Style {
-            position_type: PositionType::Absolute,
-            position: Rect {
-                top: Val::Px(12.0 * PIXEL_SCALE as f32),
-                left: Val::Px(17.0 * PIXEL_SCALE as f32),
-                ..Default::default()
-            },
-            ..Default::default()
-        },
-        ..Default::default()
-    });
-
-    let mut place_text = |y, x, str: &str, c: usize| {
-        commands.spawn_bundle(TextBundle {
-            text: Text::with_section(
-                str.to_string(),
-                TextStyle {
-                    font: fonts.mono.clone(),
-                    font_size: 2.0 * PIXEL_SCALE as f32,
-                    color: COLORS[c].into(),
-                },
-                TextAlignment::default(),
-            ),
-            style: Style {
-                position_type: PositionType::Absolute,
-                position: Rect {
-                    top: Val::Px(y as f32 * 2.0 * PIXEL_SCALE as f32),
-                    left: Val::Px(x as f32 * PIXEL_SCALE as f32),
+            parent
+                .spawn_bundle(TextBundle {
+                    text: Text::with_section(
+                        title_text.to_string(),
+                        TextStyle {
+                            font: fonts.mono.clone(),
+                            font_size: 2.0 * PIXEL_SCALE as f32,
+                            color: COLORS[15].into(),
+                        },
+                        TextAlignment::default(),
+                    ),
+                    style: Style {
+                        position_type: PositionType::Absolute,
+                        position: Rect {
+                            top: Val::Px(12.0 * PIXEL_SCALE as f32),
+                            left: Val::Px(17.0 * PIXEL_SCALE as f32),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    },
                     ..Default::default()
-                },
-                ..Default::default()
-            },
-            ..Default::default()
-        });
-    };
+                })
+                .insert(UIComponent);
 
-    let k = 0;
+            let mut place_text = |y, x, str: &str, c: usize| {
+                parent
+                    .spawn_bundle(TextBundle {
+                        text: Text::with_section(
+                            str.to_string(),
+                            TextStyle {
+                                font: fonts.mono.clone(),
+                                font_size: 2.0 * PIXEL_SCALE as f32,
+                                color: COLORS[c].into(),
+                            },
+                            TextAlignment::default(),
+                        ),
+                        style: Style {
+                            position_type: PositionType::Absolute,
+                            position: Rect {
+                                top: Val::Px(y as f32 * 2.0 * PIXEL_SCALE as f32),
+                                left: Val::Px(x as f32 * PIXEL_SCALE as f32),
+                                ..Default::default()
+                            },
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    })
+                    .insert(UIComponent);
+            };
 
-    let c = 14;
-    place_text(10, 4, "*", c);
-    place_text(15, 2, if k % 200 < 100 { "*" } else { "\u{2219}" }, c);
-    place_text(40, 21, if k % 100 < 50 { "\u{2219}" } else { "*" }, c);
-    place_text(30, 9, "*", c);
-    place_text(43, 40, if k % 222 < 111 { "*" } else { "+" }, c);
-    place_text(46, 70, "*", c);
-    place_text(44, 5, "*", c);
-    place_text(30, 86, if k % 700 < 350 { "*" } else { "\u{2219}" }, c);
-    place_text(5, 91, if k % 312 < 156 { "*" } else { "+" }, c);
-    place_text(13, 78, if k % 160 < 80 { " " } else { "*" }, c);
-    place_text(17, 72, "*", c);
-    place_text(19, 92, if k % 123 < 62 { "\u{2219}" } else { "*" }, c);
+            let k = 0;
 
-    place_text(
-        39,
-        83,
-        r#"
+            let c = 14;
+            place_text(10, 4, "*", c);
+            place_text(15, 2, if k % 200 < 100 { "*" } else { "\u{2219}" }, c);
+            place_text(40, 21, if k % 100 < 50 { "\u{2219}" } else { "*" }, c);
+            place_text(30, 9, "*", c);
+            place_text(43, 40, if k % 222 < 111 { "*" } else { "+" }, c);
+            place_text(46, 70, "*", c);
+            place_text(44, 5, "*", c);
+            place_text(30, 86, if k % 700 < 350 { "*" } else { "\u{2219}" }, c);
+            place_text(5, 91, if k % 312 < 156 { "*" } else { "+" }, c);
+            place_text(13, 78, if k % 160 < 80 { " " } else { "*" }, c);
+            place_text(17, 72, "*", c);
+            place_text(19, 92, if k % 123 < 62 { "\u{2219}" } else { "*" }, c);
+
+            place_text(
+                39,
+                83,
+                r#"
  \__/
   ██
 __██__
@@ -112,59 +128,65 @@ __██__
  =██=
   ||
 "#,
-        8,
-    );
+                8,
+            );
 
-    place_text(
-        38,
-        82,
-        r#"
+            place_text(
+                38,
+                82,
+                r#"
  .    .
 
 
 .      .
 "#,
-        if k % 348 / 2 < 348 / 4 { 4 } else { 12 },
-    );
+                if k % 348 / 2 < 348 / 4 { 4 } else { 12 },
+            );
 
-    commands
-        .spawn_bundle(NodeBundle {
-            style: Style {
-                size: Size::new(
-                    Val::Px(40.0 * PIXEL_SCALE as f32),
-                    Val::Px(40.0 * PIXEL_SCALE as f32),
-                ),
-                position_type: PositionType::Absolute,
-                position: Rect {
-                    left: Val::Px(30.0 * PIXEL_SCALE as f32),
-                    top: Val::Px(36.0 * PIXEL_SCALE as f32),
-                    ..Default::default()
-                },
-                border: Rect {
-                    left: Val::Px(PIXEL_SCALE as f32),
-                    top: Val::Px(2.0 * PIXEL_SCALE as f32),
-                    right: Val::Px(PIXEL_SCALE as f32),
-                    bottom: Val::Px(2.0 * PIXEL_SCALE as f32),
-                },
-                ..Default::default()
-            },
-            material: menu_materials.modal_foreground.clone(),
-            ..Default::default()
-        })
-        .with_children(|parent| {
+            // spawn central modal
             parent
                 .spawn_bundle(NodeBundle {
                     style: Style {
-                        size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                        size: Size::new(
+                            Val::Px(40.0 * PIXEL_SCALE as f32),
+                            Val::Px(40.0 * PIXEL_SCALE as f32),
+                        ),
+                        position_type: PositionType::Absolute,
+                        position: Rect {
+                            left: Val::Px(30.0 * PIXEL_SCALE as f32),
+                            top: Val::Px(36.0 * PIXEL_SCALE as f32),
+                            ..Default::default()
+                        },
+                        border: Rect {
+                            left: Val::Px(PIXEL_SCALE as f32),
+                            top: Val::Px(2.0 * PIXEL_SCALE as f32),
+                            right: Val::Px(PIXEL_SCALE as f32),
+                            bottom: Val::Px(2.0 * PIXEL_SCALE as f32),
+                        },
                         ..Default::default()
                     },
-                    material: menu_materials.modal_backround.clone(),
+                    material: menu_materials.modal_foreground.clone(),
                     ..Default::default()
                 })
+                .insert(UIComponent)
                 .with_children(|parent| {
-                    parent.spawn_bundle(TextBundle {
-                        text: Text::with_section(
-                            r#"
+                    // spawn modal fill color
+                    parent
+                        .spawn_bundle(NodeBundle {
+                            style: Style {
+                                size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                                ..Default::default()
+                            },
+                            material: menu_materials.modal_background.clone(),
+                            ..Default::default()
+                        })
+                        .insert(UIComponent)
+                        .with_children(|parent| {
+                            // spawn modal border
+                            parent
+                                .spawn_bundle(TextBundle {
+                                    text: Text::with_section(
+                                        r#"
 ┌──────────────────────────────────────┐
 │                                      │
 │                                      │
@@ -186,73 +208,82 @@ __██__
 │                                      │
 └──────────────────────────────────────┘
 "#,
-                            TextStyle {
-                                font: fonts.mono.clone(),
-                                font_size: 2.0 * PIXEL_SCALE as f32,
-                                color: menu_materials.modal_background_color,
-                            },
-                            TextAlignment::default(),
-                        ),
-                        style: Style {
-                            position_type: PositionType::Absolute,
-                            position: Rect {
-                                top: Val::Px(-2.0 * PIXEL_SCALE as f32),
-                                left: Val::Px(-1.0 * PIXEL_SCALE as f32),
-                                ..Default::default()
-                            },
-                            ..Default::default()
-                        },
-                        ..Default::default()
-                    });
-                    parent
-                        .spawn_bundle(TextBundle {
-                            text: Text::with_section(
-                                menu_state.get_option_names().join("\n\n"),
-                                TextStyle {
-                                    font: fonts.mono.clone(),
-                                    font_size: 2.0 * PIXEL_SCALE as f32,
-                                    color: menu_materials.modal_foreground_color,
-                                },
-                                TextAlignment::default(),
-                            ),
-                            style: Style {
-                                position_type: PositionType::Absolute,
-                                position: Rect {
-                                    top: Val::Px(2.0 * PIXEL_SCALE as f32),
-                                    left: Val::Px(3.0 * PIXEL_SCALE as f32),
-                                    ..Default::default()
-                                },
-                                ..Default::default()
-                            },
-                            ..Default::default()
-                        })
-                        .insert(MenuOptionText);
-                    parent
-                        .spawn_bundle(TextBundle {
-                            text: Text::with_section(
-                                "»",
-                                TextStyle {
-                                    font: fonts.mono.clone(),
-                                    font_size: 2.0 * PIXEL_SCALE as f32,
-                                    color: menu_materials.modal_foreground_color,
-                                },
-                                TextAlignment::default(),
-                            ),
-                            style: Style {
-                                position_type: PositionType::Absolute,
-                                position: Rect {
-                                    top: Val::Px(
-                                        ((2 + menu_state.get_cursor_position() * 4) * PIXEL_SCALE)
-                                            as f32,
+                                        TextStyle {
+                                            font: fonts.mono.clone(),
+                                            font_size: 2.0 * PIXEL_SCALE as f32,
+                                            color: menu_materials.modal_background_color,
+                                        },
+                                        TextAlignment::default(),
                                     ),
-                                    left: Val::Px(1.0 * PIXEL_SCALE as f32),
+                                    style: Style {
+                                        position_type: PositionType::Absolute,
+                                        position: Rect {
+                                            top: Val::Px(-2.0 * PIXEL_SCALE as f32),
+                                            left: Val::Px(-1.0 * PIXEL_SCALE as f32),
+                                            ..Default::default()
+                                        },
+                                        ..Default::default()
+                                    },
                                     ..Default::default()
-                                },
-                                ..Default::default()
-                            },
-                            ..Default::default()
-                        })
-                        .insert(Cursor);
+                                })
+                                .insert(UIComponent);
+
+                            // spawn menu options
+                            parent
+                                .spawn_bundle(TextBundle {
+                                    text: Text::with_section(
+                                        menu_state.get_option_names().join("\n\n"),
+                                        TextStyle {
+                                            font: fonts.mono.clone(),
+                                            font_size: 2.0 * PIXEL_SCALE as f32,
+                                            color: menu_materials.modal_foreground_color,
+                                        },
+                                        TextAlignment::default(),
+                                    ),
+                                    style: Style {
+                                        position_type: PositionType::Absolute,
+                                        position: Rect {
+                                            top: Val::Px(2.0 * PIXEL_SCALE as f32),
+                                            left: Val::Px(3.0 * PIXEL_SCALE as f32),
+                                            ..Default::default()
+                                        },
+                                        ..Default::default()
+                                    },
+                                    ..Default::default()
+                                })
+                                .insert(UIComponent)
+                                .insert(MenuOptionText);
+
+                            // spawn cursor
+                            parent
+                                .spawn_bundle(TextBundle {
+                                    text: Text::with_section(
+                                        "»",
+                                        TextStyle {
+                                            font: fonts.mono.clone(),
+                                            font_size: 2.0 * PIXEL_SCALE as f32,
+                                            color: menu_materials.modal_foreground_color,
+                                        },
+                                        TextAlignment::default(),
+                                    ),
+                                    style: Style {
+                                        position_type: PositionType::Absolute,
+                                        position: Rect {
+                                            top: Val::Px(
+                                                ((2 + menu_state.get_cursor_position() * 4)
+                                                    * PIXEL_SCALE)
+                                                    as f32,
+                                            ),
+                                            left: Val::Px(1.0 * PIXEL_SCALE as f32),
+                                            ..Default::default()
+                                        },
+                                        ..Default::default()
+                                    },
+                                    ..Default::default()
+                                })
+                                .insert(UIComponent)
+                                .insert(Cursor);
+                        });
                 });
         });
 }
@@ -320,11 +351,9 @@ pub fn resize_window(mut windows: ResMut<Windows>, state: Res<State<AppState>>) 
     match state.current() {
         AppState::StoryMode | AppState::BattleMode => window.set_resolution(
             (MAP_WIDTH * TILE_WIDTH) as f32,
-            (14 * PIXEL_SCALE + MAP_HEIGHT * TILE_HEIGHT) as f32,
+            (HUD_HEIGHT + MAP_HEIGHT * TILE_HEIGHT) as f32,
         ),
-        AppState::MainMenu => {
-            window.set_resolution((100 * PIXEL_SCALE) as f32, (100 * PIXEL_SCALE) as f32)
-        }
+        AppState::MainMenu => window.set_resolution(MENU_WIDTH as f32, MENU_HEIGHT as f32),
         _ => (),
     }
 }
@@ -332,6 +361,7 @@ pub fn resize_window(mut windows: ResMut<Windows>, state: Res<State<AppState>>) 
 pub fn setup_story_mode(
     mut commands: Commands,
     mut textures: ResMut<Textures>,
+    base_color_materials: Res<BaseColorMaterials>,
     hud_materials: Res<HUDMaterials>,
     fonts: Res<Fonts>,
 ) {
@@ -406,14 +436,27 @@ pub fn setup_story_mode(
         penguin_tags.push(boss_penguin_tag);
     }
 
-    init_hud_display(
-        &mut commands,
-        &hud_materials,
-        &fonts,
-        &textures,
-        world_id,
-        &[player_penguin_tag],
-    );
+    commands
+        .spawn_bundle(NodeBundle {
+            style: Style {
+                size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                ..Default::default()
+            },
+            material: base_color_materials.none.clone(),
+            ..Default::default()
+        })
+        .insert(UIRoot)
+        .insert(UIComponent)
+        .with_children(|parent| {
+            init_hud_display(
+                parent,
+                &hud_materials,
+                &fonts,
+                &textures,
+                world_id,
+                &[player_penguin_tag],
+            );
+        });
 
     spawn_map(
         &mut commands,
@@ -441,6 +484,7 @@ pub fn setup_battle_mode(
     mut commands: Commands,
     mut textures: ResMut<Textures>,
     fonts: Res<Fonts>,
+    base_color_materials: Res<BaseColorMaterials>,
     hud_materials: Res<HUDMaterials>,
 ) {
     const ROUND_DURATION_SECS: usize = 120;
@@ -478,20 +522,31 @@ pub fn setup_battle_mode(
         false,
     );
 
-    init_hud_display(
-        &mut commands,
-        &hud_materials,
-        &fonts,
-        &textures,
-        world_id,
-        &penguin_tags,
-    );
+    commands
+        .spawn_bundle(NodeBundle {
+            style: Style {
+                size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                ..Default::default()
+            },
+            material: base_color_materials.none.clone(),
+            ..Default::default()
+        })
+        .insert(UIRoot)
+        .insert(UIComponent)
+        .with_children(|parent| {
+            init_hud_display(
+                parent,
+                &hud_materials,
+                &fonts,
+                &textures,
+                world_id,
+                &penguin_tags,
+            )
+        });
 
     commands.insert_resource(Leaderboard {
-        scores: (0..=player_spawn_positions.len())
-            .into_iter()
-            .map(|e| (e, 0))
-            .collect(),
+        scores: penguin_tags.into_iter().map(|p| (p, 0)).collect(),
+        last_round_winner: None,
         winning_score: 3,
     });
     commands.insert_resource(GameTimer(Timer::from_seconds(
@@ -525,7 +580,7 @@ pub fn hud_update(
         let mut tmp = q.q0();
         let mut text = tmp.single_mut().unwrap();
         text.sections[0].value = format!(
-            "Lives:{}\t",
+            "Lives:{}",
             if let Ok(player) = query3.single() {
                 player.lives
             } else {
@@ -1018,10 +1073,10 @@ pub fn finish_level(
             (With<Player>, With<Protagonist>),
         >,
         QueryState<&Position, With<Exit>>,
-        QueryState<&mut Handle<ColorMaterial>, With<HUDBase>>,
+        QueryState<&mut Handle<ColorMaterial>, With<HUDRoot>>,
     )>,
     query3: Query<&TeamID, With<Player>>,
-    query4: Query<Entity, (Without<Camera>, Without<HUDComponent>, Without<Protagonist>)>,
+    query4: Query<Entity, (Without<Camera>, Without<UIComponent>, Without<Protagonist>)>,
     query5: Query<&Bomb>,
     query6: Query<Entity, With<PenguinPortraitDisplay>>,
     mut state: ResMut<State<AppState>>,
@@ -1051,7 +1106,7 @@ pub fn finish_level(
         }
     }
 
-    // TODO: remove
+    // TODO: used for debugging, remove
     if keyboard_input.just_pressed(KeyCode::F) {
         level_completed = true;
     }
@@ -1217,8 +1272,9 @@ pub fn finish_round(
     mut game_timer: ResMut<GameTimer>,
     mut leaderboard: ResMut<Leaderboard>,
     mut wall_of_death: ResMut<WallOfDeath>,
-    query: Query<&TeamID, With<Player>>,
-    query2: Query<Entity, (Without<Camera>, Without<HUDComponent>)>,
+    keyboard_input: Res<Input<KeyCode>>,
+    query: Query<&Penguin, With<Player>>,
+    query2: Query<Entity, (Without<Camera>, Without<UIComponent>)>,
     query3: Query<Entity, With<PenguinPortrait>>,
     query4: Query<Entity, With<PenguinPortraitDisplay>>,
     mut state: ResMut<State<AppState>>,
@@ -1226,16 +1282,27 @@ pub fn finish_round(
     let mut round_over = false;
     if game_timer.0.finished() || query.iter().count() == 0 {
         println!("Round over with no winners!");
+        leaderboard.last_round_winner = None;
         round_over = true;
-    } else if let Ok(team_id) = query.single() {
-        println!("Player {:?} won the round!", team_id.0);
+    } else if let Ok(penguin) = query.single() {
+        println!("Player {:?} won the round!", penguin.0);
+        leaderboard.last_round_winner = Some(*penguin);
+        *leaderboard.scores.get_mut(penguin).unwrap() += 1;
+        round_over = true;
+    }
 
-        *leaderboard.scores.get_mut(&team_id.0).unwrap() += 1;
-        if leaderboard.scores[&team_id.0] >= leaderboard.winning_score {
-            println!("Tournament complete! Winner: {:?}", team_id.0);
-            state.overwrite_pop().unwrap();
-            return;
-        }
+    // TODO: used for debugging, remove
+    if keyboard_input.just_pressed(KeyCode::F) {
+        let winner_penguin = leaderboard
+            .scores
+            .iter()
+            .choose(&mut rand::thread_rng())
+            .map(|(p, _)| *p)
+            .unwrap();
+
+        leaderboard.last_round_winner = Some(winner_penguin);
+        let score = leaderboard.scores.get_mut(&winner_penguin).unwrap();
+        *score += 1;
         round_over = true;
     }
 
@@ -1271,6 +1338,8 @@ pub fn finish_round(
             game_timer.0.duration().as_secs_f32() / 2.0,
             false,
         ));
+
+        state.overwrite_push(AppState::LeaderboardDisplay).unwrap();
     }
 }
 
@@ -2000,7 +2069,7 @@ pub fn setup_boss_speech(
     textures: Res<Textures>,
     boss_speech_script: Res<BossSpeechScript>,
     fonts: Res<Fonts>,
-    query: Query<Entity, With<HUDBase>>,
+    query: Query<Entity, With<HUDRoot>>,
 ) {
     let mut speech_box = None;
     let mut speaker_portrait = None;
@@ -2025,7 +2094,7 @@ pub fn setup_boss_speech(
                         material: hud_materials.black.clone(),
                         ..Default::default()
                     })
-                    .insert(HUDComponent)
+                    .insert(UIComponent)
                     .with_children(|parent| {
                         // dialog border
                         parent
@@ -2058,7 +2127,7 @@ pub fn setup_boss_speech(
                                 },
                                 ..Default::default()
                             })
-                            .insert(HUDComponent);
+                            .insert(UIComponent);
 
                         // player portrait
                         parent
@@ -2085,7 +2154,7 @@ pub fn setup_boss_speech(
                                 material: hud_materials.portrait_border_color.clone(),
                                 ..Default::default()
                             })
-                            .insert(HUDComponent)
+                            .insert(UIComponent)
                             .with_children(|parent| {
                                 parent
                                     .spawn_bundle(NodeBundle {
@@ -2099,7 +2168,7 @@ pub fn setup_boss_speech(
                                         material: hud_materials.portrait_background_color.clone(),
                                         ..Default::default()
                                     })
-                                    .insert(HUDComponent)
+                                    .insert(UIComponent)
                                     .with_children(|parent| {
                                         speaker_portrait = Some(
                                             parent
@@ -2119,7 +2188,7 @@ pub fn setup_boss_speech(
                                                         .clone(),
                                                     ..Default::default()
                                                 })
-                                                .insert(HUDComponent)
+                                                .insert(UIComponent)
                                                 .id(),
                                         );
                                     });
@@ -2149,7 +2218,7 @@ pub fn setup_boss_speech(
                                     },
                                     ..Default::default()
                                 })
-                                .insert(HUDComponent)
+                                .insert(UIComponent)
                                 .id(),
                         );
                     })
@@ -2205,4 +2274,233 @@ pub fn boss_speech_update(
         .unwrap()
         .sections[0]
         .value = boss_speech_script.get_current_line_state().to_string();
+}
+
+pub fn setup_leaderboard_display(
+    mut commands: Commands,
+    base_color_materials: Res<BaseColorMaterials>,
+    textures: Res<Textures>,
+    fonts: Res<Fonts>,
+    leaderboard: Res<Leaderboard>,
+    query: Query<Entity, With<UIRoot>>,
+) {
+    let mut leaderboard_display_box = None;
+
+    commands
+        .entity(query.single().unwrap())
+        .with_children(|parent| {
+            leaderboard_display_box = Some(
+                parent
+                    .spawn_bundle(NodeBundle {
+                        style: Style {
+                            size: Size::new(
+                                Val::Px((MAP_WIDTH * TILE_WIDTH) as f32),
+                                Val::Px(HUD_HEIGHT as f32 + (MAP_HEIGHT * TILE_HEIGHT) as f32),
+                            ),
+                            position_type: PositionType::Absolute,
+                            position: Rect {
+                                left: Val::Px(0.0),
+                                top: Val::Px(0.0),
+                                ..Default::default()
+                            },
+                            ..Default::default()
+                        },
+                        material: base_color_materials.colors[0].clone(),
+                        ..Default::default()
+                    })
+                    .insert(UIComponent)
+                    .with_children(|parent| {
+                        // spawn border
+                        let mut spawn_color = |y: usize, x: usize| {
+                            parent
+                                .spawn_bundle(NodeBundle {
+                                    style: Style {
+                                        size: Size::new(
+                                            Val::Px(PIXEL_SCALE as f32),
+                                            Val::Px(PIXEL_SCALE as f32),
+                                        ),
+                                        position_type: PositionType::Absolute,
+                                        position: Rect {
+                                            left: Val::Px((x * PIXEL_SCALE) as f32),
+                                            top: Val::Px((y * PIXEL_SCALE) as f32),
+                                            ..Default::default()
+                                        },
+                                        ..Default::default()
+                                    },
+                                    material: base_color_materials.colors[rand::thread_rng()
+                                        .gen_range(0..base_color_materials.colors.len())]
+                                    .clone(),
+                                    ..Default::default()
+                                })
+                                .insert(UIComponent);
+                        };
+
+                        const HEIGHT: usize = (HUD_HEIGHT + TILE_HEIGHT * MAP_HEIGHT) / PIXEL_SCALE;
+                        const WIDTH: usize = TILE_WIDTH * MAP_WIDTH / PIXEL_SCALE;
+                        for y in 0..HEIGHT {
+                            spawn_color(y, 0);
+                            spawn_color(y, 1);
+                            spawn_color(y, WIDTH - 2);
+                            spawn_color(y, WIDTH - 1);
+                        }
+                        for x in 2..WIDTH - 2 {
+                            spawn_color(0, x);
+                            spawn_color(1, x);
+                            spawn_color(HEIGHT - 2, x);
+                            spawn_color(HEIGHT - 1, x);
+                        }
+
+                        for (penguin, score) in &leaderboard.scores {
+                            // spawn penguin portrait
+                            parent
+                                .spawn_bundle(NodeBundle {
+                                    style: Style {
+                                        size: Size::new(
+                                            Val::Px(TILE_WIDTH as f32),
+                                            Val::Px(TILE_HEIGHT as f32),
+                                        ),
+                                        position_type: PositionType::Absolute,
+                                        position: Rect {
+                                            left: Val::Px(4.0 * PIXEL_SCALE as f32),
+                                            top: Val::Px(
+                                                ((6 + penguin.0 * 12) * PIXEL_SCALE) as f32,
+                                            ),
+                                            ..Default::default()
+                                        },
+                                        ..Default::default()
+                                    },
+                                    material: base_color_materials.colors[2].clone(),
+                                    ..Default::default()
+                                })
+                                .insert(UIComponent)
+                                .with_children(|parent| {
+                                    parent
+                                        .spawn_bundle(ImageBundle {
+                                            style: Style {
+                                                size: Size::new(
+                                                    Val::Percent(100.0),
+                                                    Val::Percent(100.0),
+                                                ),
+                                                ..Default::default()
+                                            },
+                                            material: textures
+                                                .get_penguin_texture(*penguin)
+                                                .clone(),
+                                            ..Default::default()
+                                        })
+                                        .insert(UIComponent);
+                                });
+
+                            // spawn penguin trophies
+                            for i in 0..*score {
+                                parent
+                                    .spawn_bundle(ImageBundle {
+                                        style: Style {
+                                            size: Size::new(
+                                                Val::Px(5.0 * PIXEL_SCALE as f32),
+                                                Val::Px(7.0 * PIXEL_SCALE as f32),
+                                            ),
+                                            position_type: PositionType::Absolute,
+                                            position: Rect {
+                                                top: Val::Px(
+                                                    ((7 + penguin.0 * 12) * PIXEL_SCALE) as f32,
+                                                ),
+                                                left: Val::Px(((15 + i * 9) * PIXEL_SCALE) as f32),
+                                                ..Default::default()
+                                            },
+                                            ..Default::default()
+                                        },
+                                        material: textures.trophy.clone(),
+                                        ..Default::default()
+                                    })
+                                    .insert(UIComponent);
+                            }
+
+                            if let Some(round_winner_penguin) = leaderboard.last_round_winner {
+                                if *penguin == round_winner_penguin {
+                                    let mut place_text = |y, x, str: &str, c: usize| {
+                                        parent
+                                            .spawn_bundle(TextBundle {
+                                                text: Text::with_section(
+                                                    str.to_string(),
+                                                    TextStyle {
+                                                        font: fonts.mono.clone(),
+                                                        font_size: 2.0 * PIXEL_SCALE as f32,
+                                                        color: COLORS[c].into(),
+                                                    },
+                                                    TextAlignment::default(),
+                                                ),
+                                                style: Style {
+                                                    position_type: PositionType::Absolute,
+                                                    position: Rect {
+                                                        top: Val::Px(y as f32 * PIXEL_SCALE as f32),
+                                                        left: Val::Px(
+                                                            x as f32 * PIXEL_SCALE as f32,
+                                                        ),
+                                                        ..Default::default()
+                                                    },
+                                                    ..Default::default()
+                                                },
+                                                ..Default::default()
+                                            })
+                                            .insert(UIComponent);
+                                    };
+
+                                    place_text(
+                                        6 + penguin.0 * 12,
+                                        15 + (*score - 1) * 9 - 2,
+                                        "*",
+                                        15,
+                                    );
+                                    place_text(
+                                        8 + penguin.0 * 12,
+                                        15 + (*score - 1) * 9 + 6,
+                                        "*",
+                                        15,
+                                    );
+                                    place_text(
+                                        10 + penguin.0 * 12,
+                                        15 + (*score - 1) * 9 - 1,
+                                        "*",
+                                        15,
+                                    );
+                                }
+                            }
+                        }
+                    })
+                    .id(),
+            );
+        });
+
+    commands.insert_resource(LeaderboardDisplay {
+        leaderboard_display_box: leaderboard_display_box.unwrap(),
+        timer: Timer::from_seconds(1.5, false),
+    });
+}
+
+pub fn leaderboard_display_update(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut leaderboard_display_timer: ResMut<LeaderboardDisplay>,
+    leaderboard: Res<Leaderboard>,
+    mut state: ResMut<State<AppState>>,
+) {
+    leaderboard_display_timer.timer.tick(time.delta());
+    if leaderboard_display_timer.timer.finished() {
+        commands
+            .entity(leaderboard_display_timer.leaderboard_display_box)
+            .despawn_recursive();
+        commands.remove_resource::<LeaderboardDisplay>();
+
+        if let Some((penguin, _)) = leaderboard
+            .scores
+            .iter()
+            .find(|(_, s)| **s == leaderboard.winning_score)
+        {
+            println!("Tournament complete! Winner: {:?}", penguin.0);
+            state.replace(AppState::MainMenu).unwrap();
+        } else {
+            state.pop().unwrap();
+        }
+    }
 }

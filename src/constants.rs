@@ -2,11 +2,16 @@ use crate::types::RGBColor;
 
 pub const PIXEL_SCALE: usize = 8;
 
+pub const MENU_HEIGHT: usize = 100 * PIXEL_SCALE;
+pub const MENU_WIDTH: usize = 100 * PIXEL_SCALE;
+
+pub const HUD_HEIGHT: usize = 14 * PIXEL_SCALE;
+
 pub const TILE_HEIGHT: usize = 8 * PIXEL_SCALE;
 pub const TILE_WIDTH: usize = 6 * PIXEL_SCALE;
 
-pub const MAP_WIDTH: usize = 15;
 pub const MAP_HEIGHT: usize = 11;
+pub const MAP_WIDTH: usize = 15;
 
 pub const COLORS: [RGBColor; 16] = [
     RGBColor(12, 12, 12),

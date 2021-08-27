@@ -18,23 +18,23 @@ pub fn get_x(x: isize) -> f32 {
 }
 
 pub fn get_y(y: isize) -> f32 {
-    -(TILE_HEIGHT as f32 / 2.0 + (14 * PIXEL_SCALE as isize + y * TILE_HEIGHT as isize) as f32)
+    -(TILE_HEIGHT as f32 / 2.0 + (HUD_HEIGHT as isize + y * TILE_HEIGHT as isize) as f32)
 }
 
 pub fn init_hud_display(
-    commands: &mut Commands,
+    parent: &mut ChildBuilder,
     hud_materials: &HUDMaterials,
     fonts: &Fonts,
     textures: &Textures,
     world_id: WorldID,
     penguin_tags: &[Penguin],
 ) {
-    commands
+    parent
         .spawn_bundle(NodeBundle {
             style: Style {
                 size: Size::new(
-                    Val::Px(90.0 * PIXEL_SCALE as f32),
-                    Val::Px(14.0 * PIXEL_SCALE as f32),
+                    Val::Px((TILE_WIDTH * MAP_WIDTH) as f32),
+                    Val::Px(HUD_HEIGHT as f32),
                 ),
                 position_type: PositionType::Absolute,
                 position: Rect {
@@ -47,8 +47,8 @@ pub fn init_hud_display(
             material: hud_materials.get_background_material(world_id).clone(),
             ..Default::default()
         })
-        .insert(HUDComponent)
-        .insert(HUDBase)
+        .insert(UIComponent)
+        .insert(HUDRoot)
         .insert(PenguinPortraitDisplay) // TODO: make a separate NodeBundle for this
         .with_children(|parent| {
             // lives display
@@ -74,7 +74,7 @@ pub fn init_hud_display(
                     },
                     ..Default::default()
                 })
-                .insert(HUDComponent)
+                .insert(UIComponent)
                 .insert(LivesDisplay);
 
             // points display
@@ -100,7 +100,7 @@ pub fn init_hud_display(
                     },
                     ..Default::default()
                 })
-                .insert(HUDComponent)
+                .insert(UIComponent)
                 .insert(PointsDisplay);
 
             // clock / pause indicator
@@ -122,7 +122,7 @@ pub fn init_hud_display(
                     material: hud_materials.black.clone(),
                     ..Default::default()
                 })
-                .insert(HUDComponent)
+                .insert(UIComponent)
                 .with_children(|parent| {
                     parent
                         .spawn_bundle(TextBundle {
@@ -146,7 +146,7 @@ pub fn init_hud_display(
                             },
                             ..Default::default()
                         })
-                        .insert(HUDComponent)
+                        .insert(UIComponent)
                         .insert(GameTimerDisplay);
                 });
 
@@ -186,7 +186,7 @@ pub fn init_penguin_portraits(
                 ..Default::default()
             })
             .insert(PenguinPortrait(*penguin))
-            .insert(HUDComponent)
+            .insert(UIComponent)
             .with_children(|parent| {
                 parent
                     .spawn_bundle(NodeBundle {
@@ -197,7 +197,7 @@ pub fn init_penguin_portraits(
                         material: hud_materials.portrait_background_color.clone(),
                         ..Default::default()
                     })
-                    .insert(HUDComponent)
+                    .insert(UIComponent)
                     .with_children(|parent| {
                         parent
                             .spawn_bundle(ImageBundle {
@@ -208,7 +208,7 @@ pub fn init_penguin_portraits(
                                 material: textures.get_penguin_texture(*penguin).clone(),
                                 ..Default::default()
                             })
-                            .insert(HUDComponent);
+                            .insert(UIComponent);
                     });
             });
     }

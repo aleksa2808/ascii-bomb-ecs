@@ -8,6 +8,28 @@ use crate::{
     types::{Cooldown, Direction},
 };
 
+pub struct BaseColorMaterials {
+    pub none: Handle<ColorMaterial>,
+    pub colors: Vec<Handle<ColorMaterial>>,
+}
+
+impl FromWorld for BaseColorMaterials {
+    fn from_world(world: &mut World) -> Self {
+        let mut materials = world.get_resource_mut::<Assets<ColorMaterial>>().unwrap();
+        Self {
+            none: materials.add(Color::NONE.into()),
+            colors: COLORS
+                .iter()
+                .copied()
+                .map(|color| {
+                    let color: Color = color.into();
+                    materials.add(color.into())
+                })
+                .collect(),
+        }
+    }
+}
+
 #[derive(Default)]
 pub struct MapTextures {
     pub empty: Handle<ColorMaterial>,
@@ -42,6 +64,8 @@ pub struct Textures {
     pub bomb_push: Handle<ColorMaterial>,
     pub immortal: Handle<ColorMaterial>,
     pub burning_item: Handle<ColorMaterial>,
+    // leaderboard
+    pub trophy: Handle<ColorMaterial>,
 }
 
 impl Textures {
@@ -131,6 +155,7 @@ impl FromWorld for Textures {
                 bomb_push: materials.add(asset_server.load("sprites/bomb_push.png").into()),
                 immortal: materials.add(asset_server.load("sprites/immortal.png").into()),
                 burning_item: materials.add(asset_server.load("sprites/burning_item.png").into()),
+                trophy: materials.add(asset_server.load("sprites/trophy.png").into()),
             });
         });
 
@@ -154,8 +179,7 @@ impl FromWorld for Fonts {
 
 // HUD display
 pub struct HUDMaterials {
-    pub background_materials: Vec<Handle<ColorMaterial>>,
-    pub background_materials_index: usize,
+    background_materials: Vec<Handle<ColorMaterial>>,
     pub black: Handle<ColorMaterial>,
     pub portrait_background_color: Handle<ColorMaterial>,
     pub portrait_border_color: Handle<ColorMaterial>,
@@ -183,7 +207,6 @@ impl FromWorld for HUDMaterials {
 
         HUDMaterials {
             background_materials,
-            background_materials_index: 0,
             black: materials.add(black.into()),
             portrait_background_color: materials.add(portrait_background_color.into()),
             portrait_border_color: materials.add(portrait_border_color.into()),
@@ -193,21 +216,26 @@ impl FromWorld for HUDMaterials {
 
 // menu
 pub struct MenuMaterials {
+    pub background_color: Color,
     pub modal_background_color: Color,
     pub modal_foreground_color: Color,
-    pub modal_backround: Handle<ColorMaterial>,
+    pub background: Handle<ColorMaterial>,
+    pub modal_background: Handle<ColorMaterial>,
     pub modal_foreground: Handle<ColorMaterial>,
 }
 
 impl FromWorld for MenuMaterials {
     fn from_world(world: &mut World) -> Self {
         let mut materials = world.get_resource_mut::<Assets<ColorMaterial>>().unwrap();
+        let background_color: Color = COLORS[0].into();
         let modal_background_color: Color = COLORS[8].into();
         let modal_foreground_color: Color = COLORS[1].into();
         MenuMaterials {
+            background_color,
             modal_background_color,
             modal_foreground_color,
-            modal_backround: materials.add(modal_background_color.into()),
+            background: materials.add(background_color.into()),
+            modal_background: materials.add(modal_background_color.into()),
             modal_foreground: materials.add(modal_foreground_color.into()),
         }
     }
@@ -401,7 +429,8 @@ pub struct BossSpeechBoxEntities {
 
 // battle mode
 pub struct Leaderboard {
-    pub scores: HashMap<usize, usize>,
+    pub scores: HashMap<Penguin, usize>,
+    pub last_round_winner: Option<Penguin>,
     pub winning_score: usize,
 }
 
@@ -415,4 +444,10 @@ pub enum WallOfDeath {
     Dormant(Timer),
     Active(ActiveWallOfDeath),
     Done,
+}
+
+// leaderboard display
+pub struct LeaderboardDisplay {
+    pub leaderboard_display_box: Entity,
+    pub timer: Timer,
 }
