@@ -14,6 +14,7 @@ use crate::{camera::SimpleOrthoProjection, constants::*, events::*, resources::*
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum AppState {
+    SplashScreen,
     MainMenu,
     StoryMode,
     BossSpeech,
@@ -95,7 +96,7 @@ pub fn run() {
 
     use bevy::render::camera::camera_system;
 
-    app.add_state(AppState::MainMenu)
+    app.add_state(AppState::SplashScreen)
         .init_resource::<BaseColorMaterials>()
         .init_resource::<MenuMaterials>()
         .init_resource::<MenuState>()
@@ -116,6 +117,13 @@ pub fn run() {
                 .with_system(setup_menu.exclusive_system().label(Label::Setup))
                 .with_system(resize_window.exclusive_system().after(Label::Setup)),
         )
+        .add_system_set(
+            SystemSet::on_enter(AppState::SplashScreen).with_system(setup_splash_screen),
+        )
+        .add_system_set(
+            SystemSet::on_update(AppState::SplashScreen).with_system(splash_screen_update),
+        )
+        .add_system_set(SystemSet::on_exit(AppState::SplashScreen).with_system(teardown))
         .add_system_set(
             SystemSet::on_resume(AppState::MainMenu)
                 .with_system(setup_menu.exclusive_system().label(Label::Setup))
