@@ -12,7 +12,7 @@ pub struct UIComponent;
 
 pub struct Cursor;
 
-pub struct MenuOptionText;
+pub struct MenuContentBox;
 
 // game components
 

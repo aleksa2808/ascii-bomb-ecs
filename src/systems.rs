@@ -341,23 +341,11 @@ __██__
                 })
                 .insert(UIComponent)
                 .with_children(|parent| {
-                    // spawn modal fill color
+                    // spawn modal border
                     parent
-                        .spawn_bundle(NodeBundle {
-                            style: Style {
-                                size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
-                                ..Default::default()
-                            },
-                            material: menu_materials.modal_background.clone(),
-                            ..Default::default()
-                        })
-                        .insert(UIComponent)
-                        .with_children(|parent| {
-                            // spawn modal border
-                            parent
-                                .spawn_bundle(TextBundle {
-                                    text: Text::with_section(
-                                        r#"
+                        .spawn_bundle(TextBundle {
+                            text: Text::with_section(
+                                r#"
 ┌──────────────────────────────────────┐
 │                                      │
 │                                      │
@@ -379,81 +367,45 @@ __██__
 │                                      │
 └──────────────────────────────────────┘
 "#,
-                                        TextStyle {
-                                            font: fonts.mono.clone(),
-                                            font_size: 2.0 * PIXEL_SCALE as f32,
-                                            color: menu_materials.modal_background_color,
-                                        },
-                                        TextAlignment::default(),
-                                    ),
-                                    style: Style {
-                                        position_type: PositionType::Absolute,
-                                        position: Rect {
-                                            top: Val::Px(-2.0 * PIXEL_SCALE as f32),
-                                            left: Val::Px(-1.0 * PIXEL_SCALE as f32),
-                                            ..Default::default()
-                                        },
-                                        ..Default::default()
-                                    },
+                                TextStyle {
+                                    font: fonts.mono.clone(),
+                                    font_size: 2.0 * PIXEL_SCALE as f32,
+                                    color: menu_materials.modal_background_color,
+                                },
+                                TextAlignment::default(),
+                            ),
+                            style: Style {
+                                position_type: PositionType::Absolute,
+                                position: Rect {
+                                    top: Val::Px(-2.0 * PIXEL_SCALE as f32),
+                                    left: Val::Px(-1.0 * PIXEL_SCALE as f32),
                                     ..Default::default()
-                                })
-                                .insert(UIComponent);
+                                },
+                                ..Default::default()
+                            },
+                            ..Default::default()
+                        })
+                        .insert(UIComponent);
 
-                            // spawn menu options
-                            parent
-                                .spawn_bundle(TextBundle {
-                                    text: Text::with_section(
-                                        menu_state.get_option_names().join("\n\n"),
-                                        TextStyle {
-                                            font: fonts.mono.clone(),
-                                            font_size: 2.0 * PIXEL_SCALE as f32,
-                                            color: menu_materials.modal_foreground_color,
-                                        },
-                                        TextAlignment::default(),
-                                    ),
-                                    style: Style {
-                                        position_type: PositionType::Absolute,
-                                        position: Rect {
-                                            top: Val::Px(2.0 * PIXEL_SCALE as f32),
-                                            left: Val::Px(3.0 * PIXEL_SCALE as f32),
-                                            ..Default::default()
-                                        },
-                                        ..Default::default()
-                                    },
-                                    ..Default::default()
-                                })
-                                .insert(UIComponent)
-                                .insert(MenuOptionText);
-
-                            // spawn cursor
-                            parent
-                                .spawn_bundle(TextBundle {
-                                    text: Text::with_section(
-                                        "»",
-                                        TextStyle {
-                                            font: fonts.mono.clone(),
-                                            font_size: 2.0 * PIXEL_SCALE as f32,
-                                            color: menu_materials.modal_foreground_color,
-                                        },
-                                        TextAlignment::default(),
-                                    ),
-                                    style: Style {
-                                        position_type: PositionType::Absolute,
-                                        position: Rect {
-                                            top: Val::Px(
-                                                ((2 + menu_state.get_cursor_position() * 4)
-                                                    * PIXEL_SCALE)
-                                                    as f32,
-                                            ),
-                                            left: Val::Px(1.0 * PIXEL_SCALE as f32),
-                                            ..Default::default()
-                                        },
-                                        ..Default::default()
-                                    },
-                                    ..Default::default()
-                                })
-                                .insert(UIComponent)
-                                .insert(Cursor);
+                    // spawn menu type
+                    parent
+                        .spawn_bundle(NodeBundle {
+                            style: Style {
+                                size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                                ..Default::default()
+                            },
+                            material: menu_materials.modal_background.clone(),
+                            ..Default::default()
+                        })
+                        .insert(UIComponent)
+                        .insert(MenuContentBox)
+                        .with_children(|parent| {
+                            spawn_menu_type(
+                                parent,
+                                menu_state.get_current_menu(),
+                                &fonts,
+                                &menu_materials,
+                            );
                         });
                 });
         });
@@ -461,12 +413,150 @@ __██__
     commands.insert_resource(menu_background_animation_context.unwrap());
 }
 
+fn spawn_menu_type(
+    parent: &mut ChildBuilder,
+    menu_type: &MenuType,
+    fonts: &Fonts,
+    menu_materials: &MenuMaterials,
+) {
+    match menu_type {
+        MenuType::SelectableItems(selectable_items) => {
+            parent
+                .spawn_bundle(TextBundle {
+                    text: Text::with_section(
+                        selectable_items.get_option_names().join("\n\n"),
+                        TextStyle {
+                            font: fonts.mono.clone(),
+                            font_size: 2.0 * PIXEL_SCALE as f32,
+                            color: menu_materials.modal_foreground_color,
+                        },
+                        TextAlignment::default(),
+                    ),
+                    style: Style {
+                        position_type: PositionType::Absolute,
+                        position: Rect {
+                            top: Val::Px(2.0 * PIXEL_SCALE as f32),
+                            left: Val::Px(3.0 * PIXEL_SCALE as f32),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                })
+                .insert(UIComponent);
+
+            // spawn cursor
+            parent
+                .spawn_bundle(TextBundle {
+                    text: Text::with_section(
+                        "»",
+                        TextStyle {
+                            font: fonts.mono.clone(),
+                            font_size: 2.0 * PIXEL_SCALE as f32,
+                            color: menu_materials.modal_foreground_color,
+                        },
+                        TextAlignment::default(),
+                    ),
+                    style: Style {
+                        position_type: PositionType::Absolute,
+                        position: Rect {
+                            top: Val::Px(
+                                ((2 + selectable_items.get_cursor_position() * 4) * PIXEL_SCALE)
+                                    as f32,
+                            ),
+                            left: Val::Px(1.0 * PIXEL_SCALE as f32),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                })
+                .insert(UIComponent)
+                .insert(Cursor);
+        }
+        MenuType::StaticText(static_text) => {
+            parent
+                .spawn_bundle(TextBundle {
+                    text: Text::with_section(
+                        *static_text,
+                        TextStyle {
+                            font: fonts.mono.clone(),
+                            font_size: 2.0 * PIXEL_SCALE as f32,
+                            color: menu_materials.modal_foreground_color,
+                        },
+                        TextAlignment::default(),
+                    ),
+                    style: Style {
+                        position_type: PositionType::Absolute,
+                        position: Rect {
+                            top: Val::Px(2.0 * PIXEL_SCALE as f32),
+                            left: Val::Px(1.0 * PIXEL_SCALE as f32),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                })
+                .insert(UIComponent);
+
+            // continue button
+            parent
+                .spawn_bundle(NodeBundle {
+                    style: Style {
+                        size: Size::new(
+                            Val::Px(8.0 * PIXEL_SCALE as f32),
+                            Val::Px(2.0 * PIXEL_SCALE as f32),
+                        ),
+                        position_type: PositionType::Absolute,
+                        position: Rect {
+                            left: Val::Px(15.0 * PIXEL_SCALE as f32),
+                            top: Val::Px(32.0 * PIXEL_SCALE as f32),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    },
+                    material: menu_materials.modal_foreground.clone(),
+                    ..Default::default()
+                })
+                .insert(UIComponent)
+                .with_children(|parent| {
+                    parent
+                        .spawn_bundle(TextBundle {
+                            text: Text::with_section(
+                                "CONTINUE",
+                                TextStyle {
+                                    font: fonts.mono.clone(),
+                                    font_size: 2.0 * PIXEL_SCALE as f32,
+                                    color: menu_materials.modal_background_color,
+                                },
+                                TextAlignment::default(),
+                            ),
+                            style: Style {
+                                position_type: PositionType::Absolute,
+                                position: Rect {
+                                    top: Val::Px(0.0),
+                                    left: Val::Px(0.0),
+                                    ..Default::default()
+                                },
+                                ..Default::default()
+                            },
+                            ..Default::default()
+                        })
+                        .insert(UIComponent);
+                });
+        }
+    }
+}
+
 pub fn menu_navigation(
+    mut commands: Commands,
+    fonts: Res<Fonts>,
+    menu_materials: Res<MenuMaterials>,
     mut state: ResMut<State<AppState>>,
     mut menu_state: ResMut<MenuState>,
     mut keyboard_input: ResMut<Input<KeyCode>>,
-    mut query: Query<&mut Style, With<Cursor>>,
-    mut query2: Query<&mut Text, With<MenuOptionText>>,
+    mut query: Query<(Entity, &Children), With<MenuContentBox>>,
+    mut query2: Query<&mut Style, With<Cursor>>,
     mut ev_exit: EventWriter<AppExit>,
 ) {
     let mut menu_changed = false;
@@ -490,7 +580,12 @@ pub fn menu_navigation(
                 ev_exit.send(AppExit);
                 return;
             }
-            _ => (),
+            MenuAction::Back => {
+                if menu_state.back().is_ok() {
+                    menu_changed = true;
+                }
+            }
+            MenuAction::Disabled => (),
         }
     }
 
@@ -499,22 +594,38 @@ pub fn menu_navigation(
     }
 
     if menu_changed {
-        query2.single_mut().unwrap().sections[0].value = menu_state.get_option_names().join("\n\n");
+        let (entity, children) = query.single_mut().unwrap();
+
+        for child in children.iter() {
+            commands.entity(*child).despawn_recursive();
+        }
+
+        commands.entity(entity).with_children(|parent| {
+            spawn_menu_type(
+                parent,
+                menu_state.get_current_menu(),
+                &fonts,
+                &menu_materials,
+            );
+        });
     }
 
-    if let Ok(mut style) = query.single_mut() {
-        if keyboard_input.just_pressed(KeyCode::Down) {
-            menu_state.move_cursor(Direction::Down);
-            menu_changed = true;
-        }
-        if keyboard_input.just_pressed(KeyCode::Up) {
-            menu_state.move_cursor(Direction::Up);
-            menu_changed = true;
-        }
+    if let MenuType::SelectableItems(ref mut selectable_items) = menu_state.get_current_menu_mut() {
+        if let Ok(mut style) = query2.single_mut() {
+            if keyboard_input.just_pressed(KeyCode::Down) {
+                selectable_items.move_cursor(Direction::Down);
+                menu_changed = true;
+            }
+            if keyboard_input.just_pressed(KeyCode::Up) {
+                selectable_items.move_cursor(Direction::Up);
+                menu_changed = true;
+            }
 
-        if menu_changed {
-            style.position.top =
-                Val::Px(((2 + menu_state.get_cursor_position() * 4) * PIXEL_SCALE) as f32);
+            if menu_changed {
+                style.position.top = Val::Px(
+                    ((2 + selectable_items.get_cursor_position() * 4) * PIXEL_SCALE) as f32,
+                );
+            }
         }
     }
 }

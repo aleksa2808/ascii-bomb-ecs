@@ -260,57 +260,27 @@ pub enum MenuAction {
     SwitchMenu(usize),
     LaunchStoryMode,
     LaunchBattleMode,
+    Back,
     Exit,
     Disabled, // TODO: remove
 }
 
-pub struct MenuState {
-    options: Vec<Vec<(&'static str, MenuAction)>>,
-    menu_id_stack: Vec<usize>,
+#[derive(Clone)]
+pub struct SelectableItems {
+    items: Vec<(&'static str, MenuAction)>,
     cursor_position: usize,
 }
 
-impl Default for MenuState {
-    fn default() -> Self {
-        Self {
-            options: vec![
-                vec![
-                    ("PLAY", MenuAction::SwitchMenu(1)),
-                    ("OPTIONS", MenuAction::Disabled),
-                    ("HELP", MenuAction::SwitchMenu(2)),
-                    ("HALL OF FAME", MenuAction::Disabled),
-                    ("EXIT", MenuAction::Exit),
-                ],
-                vec![
-                    ("STORY MODE", MenuAction::LaunchStoryMode),
-                    ("BATTLE MODE", MenuAction::LaunchBattleMode),
-                ],
-                vec![
-                    ("ABOUT", MenuAction::Disabled),
-                    ("CONTROLS", MenuAction::Disabled),
-                    ("POWER-UPS", MenuAction::Disabled),
-                ],
-            ],
-            menu_id_stack: vec![0],
-            cursor_position: 0,
-        }
-    }
-}
-
-impl MenuState {
-    fn get_options(&self) -> &Vec<(&'static str, MenuAction)> {
-        &self.options[*self.menu_id_stack.last().unwrap()]
-    }
-
+impl SelectableItems {
     pub fn get_option_names(&self) -> Vec<&'static str> {
-        self.options[*self.menu_id_stack.last().unwrap()]
+        self.items
             .iter()
             .map(|(s, _)| *s)
             .collect::<Vec<&'static str>>()
     }
 
     pub fn get_action(&self) -> MenuAction {
-        self.options[*self.menu_id_stack.last().unwrap()][self.cursor_position].1
+        self.items[self.cursor_position].1
     }
 
     pub fn get_cursor_position(&self) -> usize {
@@ -321,13 +291,13 @@ impl MenuState {
         match direction {
             Direction::Up => {
                 if self.cursor_position == 0 {
-                    self.cursor_position = self.get_options().len() - 1;
+                    self.cursor_position = self.items.len() - 1;
                 } else {
                     self.cursor_position -= 1;
                 }
             }
             Direction::Down => {
-                if self.cursor_position == self.get_options().len() - 1 {
+                if self.cursor_position == self.items.len() - 1 {
                     self.cursor_position = 0;
                 } else {
                     self.cursor_position += 1;
@@ -336,16 +306,118 @@ impl MenuState {
             _ => (),
         }
     }
+}
+
+#[derive(Clone)]
+pub enum MenuType {
+    SelectableItems(SelectableItems),
+    StaticText(&'static str),
+}
+
+pub struct MenuState {
+    menu_types: Vec<MenuType>,
+    menu_stack: Vec<MenuType>,
+}
+
+impl Default for MenuState {
+    fn default() -> Self {
+        let initial_state = MenuType::SelectableItems(SelectableItems {
+            items: vec![
+                ("PLAY", MenuAction::SwitchMenu(1)),
+                ("OPTIONS", MenuAction::Disabled),
+                ("HELP", MenuAction::SwitchMenu(2)),
+                ("HALL OF FAME", MenuAction::Disabled),
+                ("EXIT", MenuAction::Exit),
+            ],
+            cursor_position: 0,
+        });
+
+        Self {
+            menu_types: vec![
+                initial_state.clone(),
+                MenuType::SelectableItems(SelectableItems {
+                    items: vec![
+                        ("STORY MODE", MenuAction::LaunchStoryMode),
+                        ("BATTLE MODE", MenuAction::LaunchBattleMode),
+                    ],
+                    cursor_position: 0,
+                }),
+                MenuType::SelectableItems(SelectableItems {
+                    items: vec![
+                        ("ABOUT", MenuAction::SwitchMenu(3)),
+                        ("CONTROLS", MenuAction::SwitchMenu(4)),
+                        ("POWER-UPS", MenuAction::SwitchMenu(5)),
+                    ],
+                    cursor_position: 0,
+                }),
+                MenuType::StaticText(
+                    r#"
+You are a penguin. With a top hat.
+You also have bombs.
+You also have enemies.
+Some of them also have bombs.
+Bombs can kill enemies.
+So, try to kill your enemies.
+
+Made by
+              Aleksa Pavlovic
+              Nikola Vaic
+              Dusan Mrvaljevic
+"#,
+                ),
+                MenuType::StaticText(
+                    r#"
+Arrow Keys    - P1 movement
+Space Bar     - P1 bomb set
+WASD Keys     - P2 movement
+G Key         - P2 bomb set
+Enter Key     - Pause
+ESC Key       - Back
+
+
+
+
+F Key - ???
+"#,
+                ),
+                MenuType::StaticText(
+                    r#"
+LIFE UP       - H+
+RANGE UP      - R+
+PUSHING       - Boot
+WALL CLIMB    - Ladders
+INVINCIBILITY - Top Hat
+"#,
+                ),
+            ],
+            menu_stack: vec![initial_state],
+        }
+    }
+}
+
+impl MenuState {
+    pub fn get_current_menu(&self) -> &MenuType {
+        self.menu_stack.last().unwrap()
+    }
+
+    pub fn get_current_menu_mut(&mut self) -> &mut MenuType {
+        self.menu_stack.last_mut().unwrap()
+    }
+
+    pub fn get_action(&self) -> MenuAction {
+        match self.get_current_menu() {
+            MenuType::SelectableItems(selectable_items) => selectable_items.get_action(),
+            MenuType::StaticText(_) => MenuAction::Back,
+        }
+    }
 
     pub fn switch_menu(&mut self, menu_id: usize) {
-        self.menu_id_stack.push(menu_id);
-        self.cursor_position = 0;
+        self.menu_stack.push(self.menu_types[menu_id].clone());
     }
 
     pub fn back(&mut self) -> Result<(), ()> {
-        if self.menu_id_stack.len() > 1 {
-            self.menu_id_stack.pop();
-            self.cursor_position = 0;
+        if self.menu_stack.len() > 1 {
+            self.menu_stack.pop();
             Ok(())
         } else {
             Err(())
