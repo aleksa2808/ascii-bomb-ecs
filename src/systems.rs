@@ -168,6 +168,7 @@ pub fn setup_menu(
     mut commands: Commands,
     menu_materials: Res<MenuMaterials>,
     menu_state: Res<MenuState>,
+    game_option_store: Res<GameOptionStore>,
 ) {
     commands.spawn_bundle(UiCameraBundle::default());
 
@@ -405,6 +406,7 @@ __██__
                                 menu_state.get_current_menu(),
                                 &fonts,
                                 &menu_materials,
+                                &game_option_store,
                             );
                         });
                 });
@@ -418,13 +420,14 @@ fn spawn_menu_type(
     menu_type: &MenuType,
     fonts: &Fonts,
     menu_materials: &MenuMaterials,
+    game_option_store: &GameOptionStore,
 ) {
     match menu_type {
         MenuType::SelectableItems(selectable_items) => {
             parent
                 .spawn_bundle(TextBundle {
                     text: Text::with_section(
-                        selectable_items.get_option_names().join("\n\n"),
+                        selectable_items.get_item_names().join("\n\n"),
                         TextStyle {
                             font: fonts.mono.clone(),
                             font_size: 2.0 * PIXEL_SCALE as f32,
@@ -462,6 +465,79 @@ fn spawn_menu_type(
                         position: Rect {
                             top: Val::Px(
                                 ((2 + selectable_items.get_cursor_position() * 4) * PIXEL_SCALE)
+                                    as f32,
+                            ),
+                            left: Val::Px(1.0 * PIXEL_SCALE as f32),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                })
+                .insert(UIComponent)
+                .insert(Cursor);
+        }
+        MenuType::ToggleableOptions(toggleable_options) => {
+            parent
+                .spawn_bundle(TextBundle {
+                    text: Text::with_section(
+                        toggleable_options
+                            .get_options()
+                            .iter()
+                            .map(|o| {
+                                format!(
+                                    "{: <12}-       {}",
+                                    match o {
+                                        GameOption::Sound => "SOUND",
+                                        GameOption::Demo => "DEMO",
+                                        GameOption::Transition => "TRANSITION",
+                                    },
+                                    if game_option_store.get(*o) {
+                                        "ON"
+                                    } else {
+                                        "OFF"
+                                    }
+                                )
+                            })
+                            .collect::<Vec<String>>()
+                            .join("\n\n"),
+                        TextStyle {
+                            font: fonts.mono.clone(),
+                            font_size: 2.0 * PIXEL_SCALE as f32,
+                            color: menu_materials.modal_foreground_color,
+                        },
+                        TextAlignment::default(),
+                    ),
+                    style: Style {
+                        position_type: PositionType::Absolute,
+                        position: Rect {
+                            top: Val::Px(2.0 * PIXEL_SCALE as f32),
+                            left: Val::Px(3.0 * PIXEL_SCALE as f32),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                })
+                .insert(UIComponent);
+
+            // spawn cursor
+            parent
+                .spawn_bundle(TextBundle {
+                    text: Text::with_section(
+                        "»",
+                        TextStyle {
+                            font: fonts.mono.clone(),
+                            font_size: 2.0 * PIXEL_SCALE as f32,
+                            color: menu_materials.modal_foreground_color,
+                        },
+                        TextAlignment::default(),
+                    ),
+                    style: Style {
+                        position_type: PositionType::Absolute,
+                        position: Rect {
+                            top: Val::Px(
+                                ((2 + toggleable_options.get_cursor_position() * 4) * PIXEL_SCALE)
                                     as f32,
                             ),
                             left: Val::Px(1.0 * PIXEL_SCALE as f32),
@@ -554,6 +630,7 @@ pub fn menu_navigation(
     menu_materials: Res<MenuMaterials>,
     mut state: ResMut<State<AppState>>,
     mut menu_state: ResMut<MenuState>,
+    mut game_option_store: ResMut<GameOptionStore>,
     mut keyboard_input: ResMut<Input<KeyCode>>,
     mut query: Query<(Entity, &Children), With<MenuContentBox>>,
     mut query2: Query<&mut Style, With<Cursor>>,
@@ -562,6 +639,10 @@ pub fn menu_navigation(
     let mut menu_changed = false;
     if keyboard_input.just_pressed(KeyCode::Return) {
         match menu_state.get_action() {
+            MenuAction::SwitchMenu(menu_id) => {
+                menu_state.switch_menu(menu_id);
+                menu_changed = true;
+            }
             MenuAction::LaunchStoryMode => {
                 state.push(AppState::StoryMode).unwrap();
                 keyboard_input.reset(KeyCode::Return);
@@ -572,8 +653,8 @@ pub fn menu_navigation(
                 keyboard_input.reset(KeyCode::Return);
                 return;
             }
-            MenuAction::SwitchMenu(menu_id) => {
-                menu_state.switch_menu(menu_id);
+            MenuAction::ToggleOption(option) => {
+                game_option_store.toggle(option);
                 menu_changed = true;
             }
             MenuAction::Exit => {
@@ -606,27 +687,49 @@ pub fn menu_navigation(
                 menu_state.get_current_menu(),
                 &fonts,
                 &menu_materials,
+                &game_option_store,
             );
         });
     }
 
-    if let MenuType::SelectableItems(ref mut selectable_items) = menu_state.get_current_menu_mut() {
-        if let Ok(mut style) = query2.single_mut() {
-            if keyboard_input.just_pressed(KeyCode::Down) {
-                selectable_items.move_cursor(Direction::Down);
-                menu_changed = true;
-            }
-            if keyboard_input.just_pressed(KeyCode::Up) {
-                selectable_items.move_cursor(Direction::Up);
-                menu_changed = true;
-            }
+    match menu_state.get_current_menu_mut() {
+        MenuType::SelectableItems(ref mut selectable_items) => {
+            if let Ok(mut style) = query2.single_mut() {
+                if keyboard_input.just_pressed(KeyCode::Down) {
+                    selectable_items.move_cursor(Direction::Down);
+                    menu_changed = true;
+                }
+                if keyboard_input.just_pressed(KeyCode::Up) {
+                    selectable_items.move_cursor(Direction::Up);
+                    menu_changed = true;
+                }
 
-            if menu_changed {
-                style.position.top = Val::Px(
-                    ((2 + selectable_items.get_cursor_position() * 4) * PIXEL_SCALE) as f32,
-                );
+                if menu_changed {
+                    style.position.top = Val::Px(
+                        ((2 + selectable_items.get_cursor_position() * 4) * PIXEL_SCALE) as f32,
+                    );
+                }
             }
         }
+        MenuType::ToggleableOptions(ref mut toggleable_options) => {
+            if let Ok(mut style) = query2.single_mut() {
+                if keyboard_input.just_pressed(KeyCode::Down) {
+                    toggleable_options.move_cursor(Direction::Down);
+                    menu_changed = true;
+                }
+                if keyboard_input.just_pressed(KeyCode::Up) {
+                    toggleable_options.move_cursor(Direction::Up);
+                    menu_changed = true;
+                }
+
+                if menu_changed {
+                    style.position.top = Val::Px(
+                        ((2 + toggleable_options.get_cursor_position() * 4) * PIXEL_SCALE) as f32,
+                    );
+                }
+            }
+        }
+        _ => (),
     }
 }
 

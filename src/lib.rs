@@ -100,6 +100,7 @@ pub fn run() {
         .init_resource::<BaseColorMaterials>()
         .init_resource::<MenuMaterials>()
         .init_resource::<MenuState>()
+        .init_resource::<GameOptionStore>()
         .init_resource::<Fonts>()
         .init_resource::<Textures>()
         .init_resource::<HUDMaterials>()

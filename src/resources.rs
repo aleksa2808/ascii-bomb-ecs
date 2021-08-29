@@ -1,6 +1,7 @@
-use std::{collections::HashMap, time::Duration};
+use std::{collections::HashMap, fs, time::Duration};
 
 use bevy::prelude::*;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     components::{Penguin, Position},
@@ -255,11 +256,62 @@ impl FromWorld for MenuMaterials {
     }
 }
 
+// currently unused, only their support is implemented
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum GameOption {
+    Sound,
+    Demo,
+    Transition,
+}
+
+impl GameOption {
+    const LIST: [GameOption; 3] = [GameOption::Sound, GameOption::Demo, GameOption::Transition];
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct GameOptionStore(HashMap<GameOption, bool>);
+
+impl Default for GameOptionStore {
+    fn default() -> Self {
+        let options_file_path = std::path::Path::new(Self::OPTIONS_FILE_PATH);
+        if options_file_path.exists() {
+            let content = fs::read_to_string(options_file_path).unwrap();
+            serde_json::from_str(&content).unwrap()
+        } else {
+            let new = Self(GameOption::LIST.iter().map(|o| (*o, true)).collect());
+            new.save();
+            new
+        }
+    }
+}
+
+impl GameOptionStore {
+    const OPTIONS_FILE_PATH: &'static str = "local/options";
+
+    pub fn get(&self, option: GameOption) -> bool {
+        *self.0.get(&option).unwrap()
+    }
+
+    fn save(&self) {
+        let options_file_path = std::path::Path::new(Self::OPTIONS_FILE_PATH);
+        let serialized = serde_json::to_string(self).unwrap();
+        fs::create_dir_all(options_file_path.parent().unwrap()).unwrap();
+        fs::write(options_file_path, serialized).unwrap();
+    }
+
+    pub fn toggle(&mut self, option: GameOption) {
+        let old_value = self.get(option);
+        self.0.insert(option, !old_value);
+        self.save();
+    }
+}
+
 #[derive(Clone, Copy)]
 pub enum MenuAction {
     SwitchMenu(usize),
     LaunchStoryMode,
     LaunchBattleMode,
+    ToggleOption(GameOption),
     Back,
     Exit,
     Disabled, // TODO: remove
@@ -272,7 +324,7 @@ pub struct SelectableItems {
 }
 
 impl SelectableItems {
-    pub fn get_option_names(&self) -> Vec<&'static str> {
+    pub fn get_item_names(&self) -> Vec<&'static str> {
         self.items
             .iter()
             .map(|(s, _)| *s)
@@ -309,8 +361,48 @@ impl SelectableItems {
 }
 
 #[derive(Clone)]
+pub struct ToggleableOptions {
+    cursor_position: usize,
+}
+
+impl ToggleableOptions {
+    pub fn get_options(&self) -> &[GameOption] {
+        &GameOption::LIST
+    }
+
+    pub fn get_action(&self) -> MenuAction {
+        MenuAction::ToggleOption(GameOption::LIST[self.cursor_position])
+    }
+
+    pub fn get_cursor_position(&self) -> usize {
+        self.cursor_position
+    }
+
+    pub fn move_cursor(&mut self, direction: Direction) {
+        match direction {
+            Direction::Up => {
+                if self.cursor_position == 0 {
+                    self.cursor_position = GameOption::LIST.len() - 1;
+                } else {
+                    self.cursor_position -= 1;
+                }
+            }
+            Direction::Down => {
+                if self.cursor_position == GameOption::LIST.len() - 1 {
+                    self.cursor_position = 0;
+                } else {
+                    self.cursor_position += 1;
+                }
+            }
+            _ => (),
+        }
+    }
+}
+
+#[derive(Clone)]
 pub enum MenuType {
     SelectableItems(SelectableItems),
+    ToggleableOptions(ToggleableOptions),
     StaticText(&'static str),
 }
 
@@ -324,8 +416,8 @@ impl Default for MenuState {
         let initial_state = MenuType::SelectableItems(SelectableItems {
             items: vec![
                 ("PLAY", MenuAction::SwitchMenu(1)),
-                ("OPTIONS", MenuAction::Disabled),
-                ("HELP", MenuAction::SwitchMenu(2)),
+                ("OPTIONS", MenuAction::SwitchMenu(2)),
+                ("HELP", MenuAction::SwitchMenu(3)),
                 ("HALL OF FAME", MenuAction::Disabled),
                 ("EXIT", MenuAction::Exit),
             ],
@@ -342,11 +434,12 @@ impl Default for MenuState {
                     ],
                     cursor_position: 0,
                 }),
+                MenuType::ToggleableOptions(ToggleableOptions { cursor_position: 0 }),
                 MenuType::SelectableItems(SelectableItems {
                     items: vec![
-                        ("ABOUT", MenuAction::SwitchMenu(3)),
-                        ("CONTROLS", MenuAction::SwitchMenu(4)),
-                        ("POWER-UPS", MenuAction::SwitchMenu(5)),
+                        ("ABOUT", MenuAction::SwitchMenu(4)),
+                        ("CONTROLS", MenuAction::SwitchMenu(5)),
+                        ("POWER-UPS", MenuAction::SwitchMenu(6)),
                     ],
                     cursor_position: 0,
                 }),
@@ -407,6 +500,7 @@ impl MenuState {
     pub fn get_action(&self) -> MenuAction {
         match self.get_current_menu() {
             MenuType::SelectableItems(selectable_items) => selectable_items.get_action(),
+            MenuType::ToggleableOptions(toggleable_items) => toggleable_items.get_action(),
             MenuType::StaticText(_) => MenuAction::Back,
         }
     }
