@@ -33,6 +33,15 @@ pub enum PlayerAction {
     DropBomb,
 }
 
+// TODO: remove
+#[allow(dead_code)]
+#[derive(Clone, Copy)]
+pub enum BotDifficulty {
+    Easy,
+    Medium,
+    Hard,
+}
+
 pub enum CooldownState {
     Ready,
     CoolingDown(Timer),

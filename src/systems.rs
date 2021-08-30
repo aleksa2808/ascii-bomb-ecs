@@ -415,215 +415,6 @@ __██__
     commands.insert_resource(menu_background_animation_context.unwrap());
 }
 
-fn spawn_menu_type(
-    parent: &mut ChildBuilder,
-    menu_type: &MenuType,
-    fonts: &Fonts,
-    menu_materials: &MenuMaterials,
-    game_option_store: &GameOptionStore,
-) {
-    match menu_type {
-        MenuType::SelectableItems(selectable_items) => {
-            parent
-                .spawn_bundle(TextBundle {
-                    text: Text::with_section(
-                        selectable_items.get_item_names().join("\n\n"),
-                        TextStyle {
-                            font: fonts.mono.clone(),
-                            font_size: 2.0 * PIXEL_SCALE as f32,
-                            color: menu_materials.modal_foreground_color,
-                        },
-                        TextAlignment::default(),
-                    ),
-                    style: Style {
-                        position_type: PositionType::Absolute,
-                        position: Rect {
-                            top: Val::Px(2.0 * PIXEL_SCALE as f32),
-                            left: Val::Px(3.0 * PIXEL_SCALE as f32),
-                            ..Default::default()
-                        },
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                })
-                .insert(UIComponent);
-
-            // spawn cursor
-            parent
-                .spawn_bundle(TextBundle {
-                    text: Text::with_section(
-                        "»",
-                        TextStyle {
-                            font: fonts.mono.clone(),
-                            font_size: 2.0 * PIXEL_SCALE as f32,
-                            color: menu_materials.modal_foreground_color,
-                        },
-                        TextAlignment::default(),
-                    ),
-                    style: Style {
-                        position_type: PositionType::Absolute,
-                        position: Rect {
-                            top: Val::Px(
-                                ((2 + selectable_items.get_cursor_position() * 4) * PIXEL_SCALE)
-                                    as f32,
-                            ),
-                            left: Val::Px(1.0 * PIXEL_SCALE as f32),
-                            ..Default::default()
-                        },
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                })
-                .insert(UIComponent)
-                .insert(Cursor);
-        }
-        MenuType::ToggleableOptions(toggleable_options) => {
-            parent
-                .spawn_bundle(TextBundle {
-                    text: Text::with_section(
-                        toggleable_options
-                            .get_options()
-                            .iter()
-                            .map(|o| {
-                                format!(
-                                    "{: <12}-       {}",
-                                    match o {
-                                        GameOption::Sound => "SOUND",
-                                        GameOption::Demo => "DEMO",
-                                        GameOption::Transition => "TRANSITION",
-                                    },
-                                    if game_option_store.get(*o) {
-                                        "ON"
-                                    } else {
-                                        "OFF"
-                                    }
-                                )
-                            })
-                            .collect::<Vec<String>>()
-                            .join("\n\n"),
-                        TextStyle {
-                            font: fonts.mono.clone(),
-                            font_size: 2.0 * PIXEL_SCALE as f32,
-                            color: menu_materials.modal_foreground_color,
-                        },
-                        TextAlignment::default(),
-                    ),
-                    style: Style {
-                        position_type: PositionType::Absolute,
-                        position: Rect {
-                            top: Val::Px(2.0 * PIXEL_SCALE as f32),
-                            left: Val::Px(3.0 * PIXEL_SCALE as f32),
-                            ..Default::default()
-                        },
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                })
-                .insert(UIComponent);
-
-            // spawn cursor
-            parent
-                .spawn_bundle(TextBundle {
-                    text: Text::with_section(
-                        "»",
-                        TextStyle {
-                            font: fonts.mono.clone(),
-                            font_size: 2.0 * PIXEL_SCALE as f32,
-                            color: menu_materials.modal_foreground_color,
-                        },
-                        TextAlignment::default(),
-                    ),
-                    style: Style {
-                        position_type: PositionType::Absolute,
-                        position: Rect {
-                            top: Val::Px(
-                                ((2 + toggleable_options.get_cursor_position() * 4) * PIXEL_SCALE)
-                                    as f32,
-                            ),
-                            left: Val::Px(1.0 * PIXEL_SCALE as f32),
-                            ..Default::default()
-                        },
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                })
-                .insert(UIComponent)
-                .insert(Cursor);
-        }
-        MenuType::StaticText(static_text) => {
-            parent
-                .spawn_bundle(TextBundle {
-                    text: Text::with_section(
-                        *static_text,
-                        TextStyle {
-                            font: fonts.mono.clone(),
-                            font_size: 2.0 * PIXEL_SCALE as f32,
-                            color: menu_materials.modal_foreground_color,
-                        },
-                        TextAlignment::default(),
-                    ),
-                    style: Style {
-                        position_type: PositionType::Absolute,
-                        position: Rect {
-                            top: Val::Px(2.0 * PIXEL_SCALE as f32),
-                            left: Val::Px(1.0 * PIXEL_SCALE as f32),
-                            ..Default::default()
-                        },
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                })
-                .insert(UIComponent);
-
-            // continue button
-            parent
-                .spawn_bundle(NodeBundle {
-                    style: Style {
-                        size: Size::new(
-                            Val::Px(8.0 * PIXEL_SCALE as f32),
-                            Val::Px(2.0 * PIXEL_SCALE as f32),
-                        ),
-                        position_type: PositionType::Absolute,
-                        position: Rect {
-                            left: Val::Px(15.0 * PIXEL_SCALE as f32),
-                            top: Val::Px(32.0 * PIXEL_SCALE as f32),
-                            ..Default::default()
-                        },
-                        ..Default::default()
-                    },
-                    material: menu_materials.modal_foreground.clone(),
-                    ..Default::default()
-                })
-                .insert(UIComponent)
-                .with_children(|parent| {
-                    parent
-                        .spawn_bundle(TextBundle {
-                            text: Text::with_section(
-                                "CONTINUE",
-                                TextStyle {
-                                    font: fonts.mono.clone(),
-                                    font_size: 2.0 * PIXEL_SCALE as f32,
-                                    color: menu_materials.modal_background_color,
-                                },
-                                TextAlignment::default(),
-                            ),
-                            style: Style {
-                                position_type: PositionType::Absolute,
-                                position: Rect {
-                                    top: Val::Px(0.0),
-                                    left: Val::Px(0.0),
-                                    ..Default::default()
-                                },
-                                ..Default::default()
-                            },
-                            ..Default::default()
-                        })
-                        .insert(UIComponent);
-                });
-        }
-    }
-}
-
 pub fn menu_navigation(
     mut commands: Commands,
     fonts: Res<Fonts>,
@@ -633,103 +424,170 @@ pub fn menu_navigation(
     mut game_option_store: ResMut<GameOptionStore>,
     mut keyboard_input: ResMut<Input<KeyCode>>,
     mut query: Query<(Entity, &Children), With<MenuContentBox>>,
-    mut query2: Query<&mut Style, With<Cursor>>,
+    mut query3: Query<(Entity, &Children), With<BattleModeSubMenuContentBox>>,
     mut ev_exit: EventWriter<AppExit>,
 ) {
     let mut menu_changed = false;
-    if keyboard_input.just_pressed(KeyCode::Return) {
-        match menu_state.get_action() {
-            MenuAction::SwitchMenu(menu_id) => {
-                menu_state.switch_menu(menu_id);
-                menu_changed = true;
+    if let Some(ref mut sub_menu_state) = menu_state.battle_mode_sub_menu_state {
+        if keyboard_input.just_pressed(KeyCode::Left) {
+            match sub_menu_state.step {
+                BattleModeSubMenuStep::AmountOfPlayers => {
+                    sub_menu_state.amount_of_players.decrement()
+                }
+                BattleModeSubMenuStep::AmountOfBots => sub_menu_state.amount_of_bots.decrement(),
+                BattleModeSubMenuStep::WinningScore => sub_menu_state.winning_score.decrement(),
+                BattleModeSubMenuStep::Difficulty => sub_menu_state.difficulty.decrement(),
             }
-            MenuAction::LaunchStoryMode => {
-                state.push(AppState::StoryMode).unwrap();
-                keyboard_input.reset(KeyCode::Return);
-                return;
+            menu_changed = true;
+        }
+
+        if keyboard_input.just_pressed(KeyCode::Right) {
+            match sub_menu_state.step {
+                BattleModeSubMenuStep::AmountOfPlayers => {
+                    sub_menu_state.amount_of_players.increment()
+                }
+                BattleModeSubMenuStep::AmountOfBots => sub_menu_state.amount_of_bots.increment(),
+                BattleModeSubMenuStep::WinningScore => sub_menu_state.winning_score.increment(),
+                BattleModeSubMenuStep::Difficulty => sub_menu_state.difficulty.increment(),
             }
-            MenuAction::LaunchBattleMode => {
-                state.push(AppState::BattleMode).unwrap();
-                keyboard_input.reset(KeyCode::Return);
-                return;
-            }
-            MenuAction::ToggleOption(option) => {
-                game_option_store.toggle(option);
-                menu_changed = true;
-            }
-            MenuAction::Exit => {
-                ev_exit.send(AppExit);
-                return;
-            }
-            MenuAction::Back => {
-                if menu_state.back().is_ok() {
-                    menu_changed = true;
+            menu_changed = true;
+        }
+
+        if keyboard_input.just_pressed(KeyCode::Return) {
+            match sub_menu_state.step {
+                BattleModeSubMenuStep::AmountOfPlayers => {
+                    sub_menu_state.step = BattleModeSubMenuStep::AmountOfBots
+                }
+                BattleModeSubMenuStep::AmountOfBots => {
+                    sub_menu_state.step = BattleModeSubMenuStep::WinningScore
+                }
+                BattleModeSubMenuStep::WinningScore => {
+                    sub_menu_state.step = BattleModeSubMenuStep::Difficulty
+                }
+                BattleModeSubMenuStep::Difficulty => {
+                    commands.insert_resource(BattleModeConfiguration {
+                        amount_of_players: *sub_menu_state.amount_of_players.value(),
+                        amount_of_bots: *sub_menu_state.amount_of_bots.value(),
+                        winning_score: *sub_menu_state.winning_score.value(),
+                        difficulty: *sub_menu_state.difficulty.value(),
+                    });
+
+                    menu_state.battle_mode_sub_menu_state = None;
+                    state.push(AppState::BattleMode).unwrap();
+                    keyboard_input.reset(KeyCode::Return);
+                    return;
                 }
             }
-            MenuAction::Disabled => (),
+            menu_changed = true;
         }
-    }
 
-    if keyboard_input.just_pressed(KeyCode::Escape) && menu_state.back().is_ok() {
-        menu_changed = true;
+        if keyboard_input.just_pressed(KeyCode::Escape) {
+            menu_state.battle_mode_sub_menu_state = None;
+            menu_changed = true;
+        }
+    } else {
+        if keyboard_input.just_pressed(KeyCode::Return) {
+            match menu_state.get_action() {
+                MenuAction::SwitchMenu(menu_id) => {
+                    menu_state.switch_menu(menu_id);
+                    menu_changed = true;
+                }
+                MenuAction::LaunchStoryMode => {
+                    state.push(AppState::StoryMode).unwrap();
+                    keyboard_input.reset(KeyCode::Return);
+                    return;
+                }
+                MenuAction::OpenBattleModeSubMenu => {
+                    let sub_menu_state = BattleModeSubMenuState::default();
+                    commands
+                        .entity(query.single().unwrap().0)
+                        .with_children(|parent| {
+                            spawn_battle_mode_sub_menu_modal(
+                                parent,
+                                &sub_menu_state,
+                                &fonts,
+                                &menu_materials,
+                            );
+                        });
+                    menu_state.battle_mode_sub_menu_state = Some(sub_menu_state);
+                    return;
+                }
+                MenuAction::ToggleOption(option) => {
+                    game_option_store.toggle(option);
+                    menu_changed = true;
+                }
+                MenuAction::Exit => {
+                    ev_exit.send(AppExit);
+                    return;
+                }
+                MenuAction::Back => {
+                    if menu_state.back().is_ok() {
+                        menu_changed = true;
+                    }
+                }
+                MenuAction::Disabled => (),
+            }
+        }
+
+        if keyboard_input.just_pressed(KeyCode::Escape) && menu_state.back().is_ok() {
+            menu_changed = true;
+        }
+
+        if keyboard_input.just_pressed(KeyCode::Down) {
+            match menu_state.get_current_menu_mut() {
+                MenuType::SelectableItems(selectable_items) => {
+                    selectable_items.cycle_cursor_up();
+                    menu_changed = true;
+                }
+                MenuType::ToggleableOptions(toggleable_options) => {
+                    toggleable_options.cycle_cursor_up();
+                    menu_changed = true;
+                }
+                MenuType::StaticText(_) => (),
+            }
+        }
+
+        if keyboard_input.just_pressed(KeyCode::Up) {
+            match menu_state.get_current_menu_mut() {
+                MenuType::SelectableItems(selectable_items) => {
+                    selectable_items.cycle_cursor_down();
+                    menu_changed = true;
+                }
+                MenuType::ToggleableOptions(toggleable_options) => {
+                    toggleable_options.cycle_cursor_down();
+                    menu_changed = true;
+                }
+                MenuType::StaticText(_) => (),
+            }
+        }
     }
 
     if menu_changed {
-        let (entity, children) = query.single_mut().unwrap();
-
-        for child in children.iter() {
-            commands.entity(*child).despawn_recursive();
-        }
-
-        commands.entity(entity).with_children(|parent| {
-            spawn_menu_type(
-                parent,
-                menu_state.get_current_menu(),
-                &fonts,
-                &menu_materials,
-                &game_option_store,
-            );
-        });
-    }
-
-    match menu_state.get_current_menu_mut() {
-        MenuType::SelectableItems(ref mut selectable_items) => {
-            if let Ok(mut style) = query2.single_mut() {
-                if keyboard_input.just_pressed(KeyCode::Down) {
-                    selectable_items.move_cursor(Direction::Down);
-                    menu_changed = true;
-                }
-                if keyboard_input.just_pressed(KeyCode::Up) {
-                    selectable_items.move_cursor(Direction::Up);
-                    menu_changed = true;
-                }
-
-                if menu_changed {
-                    style.position.top = Val::Px(
-                        ((2 + selectable_items.get_cursor_position() * 4) * PIXEL_SCALE) as f32,
-                    );
-                }
+        if let Some(sub_menu_state) = &menu_state.battle_mode_sub_menu_state {
+            // refresh sub menu
+            let (entity, children) = query3.single_mut().unwrap();
+            for child in children.iter() {
+                commands.entity(*child).despawn_recursive();
             }
-        }
-        MenuType::ToggleableOptions(ref mut toggleable_options) => {
-            if let Ok(mut style) = query2.single_mut() {
-                if keyboard_input.just_pressed(KeyCode::Down) {
-                    toggleable_options.move_cursor(Direction::Down);
-                    menu_changed = true;
-                }
-                if keyboard_input.just_pressed(KeyCode::Up) {
-                    toggleable_options.move_cursor(Direction::Up);
-                    menu_changed = true;
-                }
-
-                if menu_changed {
-                    style.position.top = Val::Px(
-                        ((2 + toggleable_options.get_cursor_position() * 4) * PIXEL_SCALE) as f32,
-                    );
-                }
+            commands.entity(entity).with_children(|parent| {
+                spawn_battle_mode_sub_menu_content(parent, sub_menu_state, &fonts, &menu_materials);
+            });
+        } else {
+            // refresh main menu
+            let (entity, children) = query.single_mut().unwrap();
+            for child in children.iter() {
+                commands.entity(*child).despawn_recursive();
             }
+            commands.entity(entity).with_children(|parent| {
+                spawn_menu_type(
+                    parent,
+                    menu_state.get_current_menu(),
+                    &fonts,
+                    &menu_materials,
+                    &game_option_store,
+                );
+            });
         }
-        _ => (),
     }
 }
 
@@ -903,6 +761,7 @@ pub fn setup_battle_mode(
     fonts: Res<Fonts>,
     base_color_materials: Res<BaseColorMaterials>,
     hud_materials: Res<HUDMaterials>,
+    battle_mode_configuration: Res<BattleModeConfiguration>,
 ) {
     const ROUND_DURATION_SECS: usize = 120;
 
@@ -964,7 +823,7 @@ pub fn setup_battle_mode(
     commands.insert_resource(Leaderboard {
         scores: penguin_tags.into_iter().map(|p| (p, 0)).collect(),
         last_round_winner: None,
-        winning_score: 3,
+        winning_score: battle_mode_configuration.winning_score,
     });
     commands.insert_resource(GameTimer(Timer::from_seconds(
         ROUND_DURATION_SECS as f32,
@@ -975,6 +834,8 @@ pub fn setup_battle_mode(
         false,
     )));
     commands.insert_resource(world_id);
+
+    commands.remove_resource::<BattleModeConfiguration>();
 }
 
 pub fn hud_update(
