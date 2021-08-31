@@ -10,9 +10,6 @@ pub const HUD_HEIGHT: usize = 14 * PIXEL_SCALE;
 pub const TILE_HEIGHT: usize = 8 * PIXEL_SCALE;
 pub const TILE_WIDTH: usize = 6 * PIXEL_SCALE;
 
-pub const MAP_HEIGHT: usize = 11;
-pub const MAP_WIDTH: usize = 15;
-
 pub const SPLASH_SCREEN_TEXT_LEFT: &str = "Error 404:";
 pub const SPLASH_SCREEN_TEXT_RIGHT: &str = "Name Not Found";
 

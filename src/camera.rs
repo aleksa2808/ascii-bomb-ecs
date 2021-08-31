@@ -2,8 +2,6 @@ use bevy::prelude::*;
 use bevy::render::camera::CameraProjection;
 use bevy::render::camera::DepthCalculation;
 
-use crate::constants::*;
-
 // Camera that adjusts to window size + maintains aspect ratio
 
 pub struct SimpleOrthoProjection {
@@ -12,8 +10,8 @@ pub struct SimpleOrthoProjection {
     flag: bool,
     multiplier: f32,
     perfect_aspect_ratio: f32,
-    map_pixel_width: f32,
     map_pixel_height: f32,
+    map_pixel_width: f32,
 }
 
 impl CameraProjection for SimpleOrthoProjection {
@@ -39,9 +37,9 @@ impl CameraProjection for SimpleOrthoProjection {
         self.aspect = width / height;
         self.flag = self.aspect > self.perfect_aspect_ratio;
         self.multiplier = if self.flag {
-            self.map_pixel_width
-        } else {
             self.map_pixel_height
+        } else {
+            self.map_pixel_width
         };
     }
 
@@ -51,17 +49,13 @@ impl CameraProjection for SimpleOrthoProjection {
 }
 
 impl SimpleOrthoProjection {
-    pub fn new(width: usize, height: usize) -> Self {
-        let map_pixel_height = (TILE_WIDTH * width) as f32;
-        let map_pixel_width = (TILE_HEIGHT * height) as f32;
-
-        let perfect_aspect_ratio = map_pixel_height / map_pixel_width;
-
+    pub fn new(map_pixel_height: f32, map_pixel_width: f32) -> Self {
+        let perfect_aspect_ratio = map_pixel_width / map_pixel_height;
         SimpleOrthoProjection {
             far: 1000.0,
             aspect: 1.0,
             flag: true,
-            multiplier: map_pixel_height,
+            multiplier: map_pixel_width,
             perfect_aspect_ratio,
             map_pixel_width,
             map_pixel_height,

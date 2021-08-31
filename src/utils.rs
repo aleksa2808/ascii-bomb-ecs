@@ -73,7 +73,7 @@ pub fn spawn_menu_type(
                                 ((2 + selectable_items.get_cursor_position() * 4) * PIXEL_SCALE)
                                     as f32,
                             ),
-                            left: Val::Px(1.0 * PIXEL_SCALE as f32),
+                            left: Val::Px(PIXEL_SCALE as f32),
                             ..Default::default()
                         },
                         ..Default::default()
@@ -146,7 +146,7 @@ pub fn spawn_menu_type(
                                 ((2 + toggleable_options.get_cursor_position() * 4) * PIXEL_SCALE)
                                     as f32,
                             ),
-                            left: Val::Px(1.0 * PIXEL_SCALE as f32),
+                            left: Val::Px(PIXEL_SCALE as f32),
                             ..Default::default()
                         },
                         ..Default::default()
@@ -172,7 +172,7 @@ pub fn spawn_menu_type(
                         position_type: PositionType::Absolute,
                         position: Rect {
                             top: Val::Px(2.0 * PIXEL_SCALE as f32),
-                            left: Val::Px(1.0 * PIXEL_SCALE as f32),
+                            left: Val::Px(PIXEL_SCALE as f32),
                             ..Default::default()
                         },
                         ..Default::default()
@@ -344,7 +344,7 @@ pub fn spawn_battle_mode_sub_menu_content(
                 position_type: PositionType::Absolute,
                 position: Rect {
                     top: Val::Px(2.0 * PIXEL_SCALE as f32),
-                    left: Val::Px(1.0 * PIXEL_SCALE as f32),
+                    left: Val::Px(PIXEL_SCALE as f32),
                     ..Default::default()
                 },
                 ..Default::default()
@@ -384,7 +384,7 @@ pub fn spawn_battle_mode_sub_menu_content(
                 position_type: PositionType::Absolute,
                 position: Rect {
                     top: Val::Px(4.0 * PIXEL_SCALE as f32),
-                    left: Val::Px(1.0 * PIXEL_SCALE as f32),
+                    left: Val::Px(PIXEL_SCALE as f32),
                     ..Default::default()
                 },
                 ..Default::default()
@@ -394,10 +394,11 @@ pub fn spawn_battle_mode_sub_menu_content(
         .insert(UIComponent);
 }
 
-pub fn init_hud_display(
+pub fn init_hud(
     parent: &mut ChildBuilder,
     hud_materials: &HUDMaterials,
     fonts: &Fonts,
+    width: f32,
     textures: &Textures,
     world_id: WorldID,
     penguin_tags: &[Penguin],
@@ -405,10 +406,7 @@ pub fn init_hud_display(
     parent
         .spawn_bundle(NodeBundle {
             style: Style {
-                size: Size::new(
-                    Val::Px((TILE_WIDTH * MAP_WIDTH) as f32),
-                    Val::Px(HUD_HEIGHT as f32),
-                ),
+                size: Size::new(Val::Px(width), Val::Px(HUD_HEIGHT as f32)),
                 position_type: PositionType::Absolute,
                 position: Rect {
                     left: Val::Px(0.0),
@@ -486,7 +484,7 @@ pub fn init_hud_display(
                         ),
                         position_type: PositionType::Absolute,
                         position: Rect {
-                            left: Val::Px(42.0 * PIXEL_SCALE as f32),
+                            left: Val::Px(width / 2.0 - 3.0 * PIXEL_SCALE as f32),
                             top: Val::Px(12.0 * PIXEL_SCALE as f32),
                             ..Default::default()
                         },
@@ -544,7 +542,7 @@ pub fn init_penguin_portraits(
                     position_type: PositionType::Absolute,
                     position: Rect {
                         left: Val::Px(((5 + 12 * penguin.0) * PIXEL_SCALE) as f32),
-                        top: Val::Px(1.0 * PIXEL_SCALE as f32),
+                        top: Val::Px(PIXEL_SCALE as f32),
                         ..Default::default()
                     },
                     border: Rect {
@@ -592,6 +590,7 @@ pub fn spawn_story_mode_mobs(
     textures: &Textures,
     level: Level,
     world_id: WorldID,
+    map_size: MapSize,
 ) -> Vec<Position> {
     // spawn mobs
     let mob_number = if let Level::Regular(num) = level {
@@ -602,23 +601,23 @@ pub fn spawn_story_mode_mobs(
 
     // TODO: currently hardcoded for 11x15
     let x = [
-        MAP_WIDTH - 4,
-        MAP_WIDTH - 2,
+        map_size.columns - 4,
+        map_size.columns - 2,
         11,
         5,
         1,
-        MAP_WIDTH - 6,
-        MAP_WIDTH - 6,
+        map_size.columns - 6,
+        map_size.columns - 6,
         7,
     ];
     let y = [
-        MAP_HEIGHT - 8,
+        map_size.rows - 8,
         1,
-        MAP_HEIGHT - 2,
-        MAP_HEIGHT - 6,
+        map_size.rows - 2,
+        map_size.rows - 6,
         9,
         5,
-        MAP_HEIGHT - 4,
+        map_size.rows - 4,
         7,
     ];
     let mut rng = rand::thread_rng();
@@ -697,10 +696,11 @@ pub fn spawn_story_mode_boss(
     commands: &mut Commands,
     textures: &Textures,
     world_id: WorldID,
+    map_size: MapSize,
 ) -> (Position, Penguin) {
     let boss_spawn_position = Position {
         y: 3,
-        x: MAP_WIDTH as isize / 2,
+        x: map_size.columns as isize / 2,
     };
     let boss_penguin_tag = Penguin(3 + world_id.0);
     let base_material = textures.get_penguin_texture(boss_penguin_tag).clone();
@@ -741,12 +741,32 @@ pub fn spawn_story_mode_boss(
 pub fn spawn_battle_mode_players(
     commands: &mut Commands,
     textures: &Textures,
+    map_size: MapSize,
+    amount_of_bots: usize,
 ) -> (Vec<Position>, Vec<Penguin>) {
+    let possible_player_spawn_positions = [
+        (1, 1),
+        (map_size.rows - 2, map_size.columns - 2),
+        (1, map_size.columns - 2),
+        (map_size.rows - 2, 1),
+        (3, 5),
+        (map_size.rows - 4, map_size.columns - 6),
+        (3, map_size.columns - 6),
+        (map_size.rows - 4, 5),
+    ];
+    let mut possible_player_spawn_positions =
+        possible_player_spawn_positions
+            .iter()
+            .map(|(y, x)| Position {
+                y: *y as isize,
+                x: *x as isize,
+            });
+
     let mut player_spawn_positions = vec![];
     let mut penguin_tags = vec![];
 
     // spawn player
-    let player_spawn_position = Position { y: 1, x: 1 };
+    let player_spawn_position = possible_player_spawn_positions.next().unwrap();
     let penguin_tag = Penguin(player_spawn_positions.len());
     let base_material = textures.get_penguin_texture(penguin_tag).clone();
     let immortal_material = textures.immortal_penguin.clone();
@@ -781,12 +801,8 @@ pub fn spawn_battle_mode_players(
     penguin_tags.push(penguin_tag);
 
     // spawn bots
-    for (y, x) in [
-        (MAP_HEIGHT as isize - 2, MAP_WIDTH as isize - 2),
-        (1, MAP_WIDTH as isize - 2),
-        (MAP_HEIGHT as isize - 2, 1),
-    ] {
-        let bot_spawn_position = Position { y, x };
+    for _ in 0..amount_of_bots {
+        let bot_spawn_position = possible_player_spawn_positions.next().unwrap();
         let penguin_tag = Penguin(player_spawn_positions.len());
         let base_material = textures.get_penguin_texture(penguin_tag).clone();
         let immortal_material = textures.immortal_penguin.clone();
@@ -825,19 +841,40 @@ pub fn spawn_battle_mode_players(
     (player_spawn_positions, penguin_tags)
 }
 
+pub fn get_battle_mode_map_size_fill(player_count: usize) -> (MapSize, f32) {
+    if player_count > 4 {
+        (
+            MapSize {
+                rows: 13,
+                columns: 17,
+            },
+            70.0,
+        )
+    } else {
+        (
+            MapSize {
+                rows: 11,
+                columns: 15,
+            },
+            60.0,
+        )
+    }
+}
+
 pub fn spawn_map(
     commands: &mut Commands,
     textures: &Textures,
+    map_size: MapSize,
+    percent_of_passable_positions_to_fill: f32,
     penguin_spawn_positions: &[Position],
     mob_spawn_positions: &[Position],
-    percent_of_passable_positions_to_fill: f32,
     spawn_exit: bool,
 ) {
     let mut rng = rand::thread_rng();
 
     // place empty/passable tiles
-    for j in 0..MAP_HEIGHT {
-        for i in 0..MAP_WIDTH {
+    for j in 0..map_size.rows {
+        for i in 0..map_size.columns {
             commands.spawn_bundle(SpriteBundle {
                 material: textures.get_map_textures().empty.clone(),
                 transform: Transform::from_xyz(get_x(i as isize), get_y(j as isize), 0.0),
@@ -849,7 +886,7 @@ pub fn spawn_map(
 
     // spawn walls
     let mut stone_wall_positions = HashSet::new();
-    for i in 0..MAP_WIDTH {
+    for i in 0..map_size.columns {
         // top
         stone_wall_positions.insert(Position {
             y: 0,
@@ -857,11 +894,11 @@ pub fn spawn_map(
         });
         // bottom
         stone_wall_positions.insert(Position {
-            y: (MAP_HEIGHT - 1) as isize,
+            y: (map_size.rows - 1) as isize,
             x: i as isize,
         });
     }
-    for i in 1..MAP_HEIGHT {
+    for i in 1..map_size.rows {
         // left
         stone_wall_positions.insert(Position {
             y: i as isize,
@@ -870,12 +907,12 @@ pub fn spawn_map(
         // right
         stone_wall_positions.insert(Position {
             y: i as isize,
-            x: (MAP_WIDTH - 1) as isize,
+            x: (map_size.columns - 1) as isize,
         });
     }
     // checkered middle
-    for i in (2..MAP_HEIGHT).step_by(2) {
-        for j in (2..MAP_WIDTH).step_by(2) {
+    for i in (2..map_size.rows).step_by(2) {
+        for j in (2..map_size.columns).step_by(2) {
             stone_wall_positions.insert(Position {
                 y: i as isize,
                 x: j as isize,
@@ -896,9 +933,9 @@ pub fn spawn_map(
             .insert(*position);
     }
 
-    let mut destructible_wall_potential_positions: HashSet<Position> = (0..MAP_HEIGHT)
+    let mut destructible_wall_potential_positions: HashSet<Position> = (0..map_size.rows)
         .map(|y| {
-            (0..MAP_WIDTH).map(move |x| Position {
+            (0..map_size.columns).map(move |x| Position {
                 y: y as isize,
                 x: x as isize,
             })

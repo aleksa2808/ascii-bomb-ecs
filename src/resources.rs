@@ -456,11 +456,19 @@ impl Default for BattleModeSubMenuState {
     fn default() -> Self {
         Self {
             step: BattleModeSubMenuStep::AmountOfPlayers,
-            // TODO: expand these options
+            // TODO: expand this option
             amount_of_players: ConfigurationOption::new((1..=1).collect(), 0).unwrap(),
-            amount_of_bots: ConfigurationOption::new((3..=3).collect(), 0).unwrap(),
+            amount_of_bots: ConfigurationOption::new((1..=7).collect(), 2).unwrap(),
             winning_score: ConfigurationOption::new((1..=5).collect(), 2).unwrap(),
-            difficulty: ConfigurationOption::new(vec![BotDifficulty::Medium], 0).unwrap(),
+            difficulty: ConfigurationOption::new(
+                vec![
+                    BotDifficulty::Easy,
+                    BotDifficulty::Medium,
+                    BotDifficulty::Hard,
+                ],
+                1,
+            )
+            .unwrap(),
         }
     }
 }
@@ -594,6 +602,12 @@ pub struct MenuBackgroundEntityChangeParameters {
 pub struct MenuBackgroundAnimationContext {
     pub entity_change_parameters: HashMap<Entity, MenuBackgroundEntityChangeParameters>,
     pub timer: Timer,
+}
+
+#[derive(Clone, Copy)]
+pub struct MapSize {
+    pub rows: usize,
+    pub columns: usize,
 }
 
 // pretty similar to the ECS WorldId type, maybe rename?

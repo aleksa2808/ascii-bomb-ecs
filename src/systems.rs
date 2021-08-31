@@ -621,13 +621,20 @@ pub fn animate_menu_background(
     }
 }
 
-pub fn resize_window(mut windows: ResMut<Windows>, state: Res<State<AppState>>) {
+pub fn resize_window(
+    mut windows: ResMut<Windows>,
+    state: Res<State<AppState>>,
+    map_size: Option<Res<MapSize>>,
+) {
     let window = windows.get_primary_mut().unwrap();
     match state.current() {
-        AppState::StoryMode | AppState::BattleMode => window.set_resolution(
-            (MAP_WIDTH * TILE_WIDTH) as f32,
-            (HUD_HEIGHT + MAP_HEIGHT * TILE_HEIGHT) as f32,
-        ),
+        AppState::StoryMode | AppState::BattleMode => {
+            let map_size = map_size.unwrap();
+            window.set_resolution(
+                (map_size.columns * TILE_WIDTH) as f32,
+                (HUD_HEIGHT + map_size.rows * TILE_HEIGHT) as f32,
+            );
+        }
         AppState::MainMenu => window.set_resolution(MENU_WIDTH as f32, MENU_HEIGHT as f32),
         _ => (),
     }
@@ -640,6 +647,10 @@ pub fn setup_story_mode(
     hud_materials: Res<HUDMaterials>,
     fonts: Res<Fonts>,
 ) {
+    let map_size = MapSize {
+        rows: 11,
+        columns: 15,
+    };
     let world_id = WorldID(1);
     let level = Level::Regular(1);
     const LEVEL_DURATION_SECONDS: usize = 180;
@@ -647,7 +658,10 @@ pub fn setup_story_mode(
     textures.set_map_textures(world_id);
 
     // spawn camera
-    let projection = SimpleOrthoProjection::new(MAP_WIDTH, MAP_HEIGHT);
+    let projection = SimpleOrthoProjection::new(
+        (map_size.rows * TILE_HEIGHT) as f32,
+        (map_size.columns * TILE_WIDTH) as f32,
+    );
     let cam_name = bevy::render::render_graph::base::camera::CAMERA_2D;
     let camera = Camera {
         name: Some(cam_name.to_string()),
@@ -699,18 +713,12 @@ pub fn setup_story_mode(
         })
         .insert(player_penguin_tag)
         .insert(TeamID(0));
-    let mut penguin_spawn_positions = vec![player_spawn_position];
-    let mut penguin_tags = vec![player_penguin_tag];
 
-    let mob_spawn_positions = spawn_story_mode_mobs(&mut commands, &textures, level, world_id);
+    // spawn mobs
+    let mob_spawn_positions =
+        spawn_story_mode_mobs(&mut commands, &textures, level, world_id, map_size);
 
-    if let Level::BossRoom = level {
-        let (boss_spawn_position, boss_penguin_tag) =
-            spawn_story_mode_boss(&mut commands, &textures, world_id);
-        penguin_spawn_positions.push(boss_spawn_position);
-        penguin_tags.push(boss_penguin_tag);
-    }
-
+    // spawn HUD
     commands
         .spawn_bundle(NodeBundle {
             style: Style {
@@ -723,10 +731,11 @@ pub fn setup_story_mode(
         .insert(UIRoot)
         .insert(UIComponent)
         .with_children(|parent| {
-            init_hud_display(
+            init_hud(
                 parent,
                 &hud_materials,
                 &fonts,
+                (map_size.columns * TILE_WIDTH) as f32,
                 &textures,
                 world_id,
                 &[player_penguin_tag],
@@ -736,13 +745,14 @@ pub fn setup_story_mode(
     spawn_map(
         &mut commands,
         &textures,
-        &penguin_spawn_positions,
-        &mob_spawn_positions,
+        map_size,
         if let Level::BossRoom = level {
             0.0
         } else {
             50.0
         },
+        &[player_spawn_position],
+        &mob_spawn_positions,
         matches!(level, Level::Regular(_)),
     );
 
@@ -753,6 +763,7 @@ pub fn setup_story_mode(
     )));
     commands.insert_resource(level);
     commands.insert_resource(world_id);
+    commands.insert_resource(map_size);
 }
 
 pub fn setup_battle_mode(
@@ -768,8 +779,15 @@ pub fn setup_battle_mode(
     let world_id = WorldID(rand::thread_rng().gen_range(1..=3));
     textures.set_map_textures(world_id);
 
+    let (map_size, percent_of_passable_positions_to_fill) = get_battle_mode_map_size_fill(
+        battle_mode_configuration.amount_of_players + battle_mode_configuration.amount_of_bots,
+    );
+
     // spawn camera
-    let projection = SimpleOrthoProjection::new(MAP_WIDTH, MAP_HEIGHT);
+    let projection = SimpleOrthoProjection::new(
+        (map_size.rows * TILE_HEIGHT) as f32,
+        (map_size.columns * TILE_WIDTH) as f32,
+    );
     let cam_name = bevy::render::render_graph::base::camera::CAMERA_2D;
     let camera = Camera {
         name: Some(cam_name.to_string()),
@@ -787,14 +805,19 @@ pub fn setup_battle_mode(
     commands.spawn_bundle(UiCameraBundle::default());
 
     // map generation //
-    let (player_spawn_positions, penguin_tags) =
-        spawn_battle_mode_players(&mut commands, &textures);
+    let (player_spawn_positions, penguin_tags) = spawn_battle_mode_players(
+        &mut commands,
+        &textures,
+        map_size,
+        battle_mode_configuration.amount_of_bots,
+    );
     spawn_map(
         &mut commands,
         &textures,
+        map_size,
+        percent_of_passable_positions_to_fill,
         &player_spawn_positions,
         &[],
-        50.0,
         false,
     );
 
@@ -810,10 +833,11 @@ pub fn setup_battle_mode(
         .insert(UIRoot)
         .insert(UIComponent)
         .with_children(|parent| {
-            init_hud_display(
+            init_hud(
                 parent,
                 &hud_materials,
                 &fonts,
+                (map_size.columns * TILE_WIDTH) as f32,
                 &textures,
                 world_id,
                 &penguin_tags,
@@ -834,6 +858,7 @@ pub fn setup_battle_mode(
         false,
     )));
     commands.insert_resource(world_id);
+    commands.insert_resource(map_size);
 
     commands.remove_resource::<BattleModeConfiguration>();
 }
@@ -1334,6 +1359,7 @@ pub fn finish_level(
     hud_materials: Res<HUDMaterials>,
     mut level: ResMut<Level>,
     mut world_id: ResMut<WorldID>,
+    map_size: Res<MapSize>,
     mut game_score: ResMut<GameScore>,
     mut game_timer: ResMut<GameTimer>,
     mut q: QuerySet<(
@@ -1447,8 +1473,8 @@ pub fn finish_level(
         *player_position = match *level {
             Level::Regular(_) => Position { y: 1, x: 1 },
             Level::BossRoom => Position {
-                y: MAP_HEIGHT as isize - 4,
-                x: MAP_WIDTH as isize / 2,
+                y: map_size.rows as isize - 4,
+                x: map_size.columns as isize / 2,
             },
         };
         let mut penguin_spawn_positions = vec![*player_position];
@@ -1463,11 +1489,11 @@ pub fn finish_level(
             .insert_bundle(ImmortalBundle::default());
 
         let mob_spawn_positions =
-            spawn_story_mode_mobs(&mut commands, &textures, *level, *world_id);
+            spawn_story_mode_mobs(&mut commands, &textures, *level, *world_id, *map_size);
 
         if let Level::BossRoom = *level {
             let (boss_spawn_position, boss_penguin_tag) =
-                spawn_story_mode_boss(&mut commands, &textures, *world_id);
+                spawn_story_mode_boss(&mut commands, &textures, *world_id, *map_size);
             penguin_spawn_positions.push(boss_spawn_position);
 
             // add enemy penguin portraits (the player's one is left as is)
@@ -1517,13 +1543,14 @@ pub fn finish_level(
         spawn_map(
             &mut commands,
             &textures,
-            &penguin_spawn_positions,
-            &mob_spawn_positions,
+            *map_size,
             if let Level::BossRoom = *level {
                 0.0
             } else {
                 50.0
             },
+            &penguin_spawn_positions,
+            &mob_spawn_positions,
             matches!(*level, Level::Regular(_)),
         );
 
@@ -1595,19 +1622,25 @@ pub fn finish_round(
         }
 
         // spawn players & map again
+        let amount_of_players = 1;
+        let amount_of_bots = leaderboard.scores.len() - amount_of_players;
+        let (map_size, percent_of_passable_positions_to_fill) =
+            get_battle_mode_map_size_fill(amount_of_players + amount_of_bots);
         let (player_spawn_positions, penguin_tags) =
-            spawn_battle_mode_players(&mut commands, &textures);
+            spawn_battle_mode_players(&mut commands, &textures, map_size, amount_of_bots);
         commands
             .entity(query4.single().unwrap())
             .with_children(|parent| {
                 init_penguin_portraits(parent, &penguin_tags, &hud_materials, &textures);
             });
+
         spawn_map(
             &mut commands,
             &textures,
+            map_size,
+            percent_of_passable_positions_to_fill,
             &player_spawn_positions,
             &[],
-            50.0,
             false,
         );
 
@@ -2186,55 +2219,57 @@ pub fn wall_of_death_update(
     time: Res<Time>,
     textures: Res<Textures>,
     mut wall_of_death: ResMut<WallOfDeath>,
+    map_size: Res<MapSize>,
     query: Query<&Position, (With<Wall>, Without<Destructible>)>,
     query2: Query<(Entity, &Position, Option<&Bomb>)>,
     mut query3: Query<&mut BombSatchel>,
 ) {
-    let get_next_position_direction =
-        |mut position: Position, mut direction: Direction| -> Option<(Position, Direction)> {
-            const END_POSITION: Position = Position {
-                y: MAP_HEIGHT as isize - 3,
-                x: 3,
-            };
-
-            let walls: HashSet<Position> = query.iter().copied().collect();
-            loop {
-                if position == END_POSITION {
-                    break None;
-                }
-
-                match position {
-                    Position { y: 1, x: 1 } | Position { y: 2, x: 2 } => {
-                        direction = Direction::Right;
-                    }
-                    Position { y: 1, x } if x == MAP_WIDTH as isize - 2 => {
-                        direction = Direction::Down;
-                    }
-                    Position { y, x }
-                        if y == MAP_HEIGHT as isize - 2 && x == MAP_WIDTH as isize - 2 =>
-                    {
-                        direction = Direction::Left;
-                    }
-                    Position { y, x: 2 } if y == MAP_HEIGHT as isize - 2 => {
-                        direction = Direction::Up;
-                    }
-                    Position { y: 2, x } if x == MAP_WIDTH as isize - 3 => {
-                        direction = Direction::Down;
-                    }
-                    Position { y, x }
-                        if y == MAP_HEIGHT as isize - 3 && x == MAP_WIDTH as isize - 3 =>
-                    {
-                        direction = Direction::Left;
-                    }
-                    _ => (),
-                }
-
-                position = position.offset(direction, 1);
-                if !walls.contains(&position) {
-                    break Some((position, direction));
-                }
-            }
+    let get_next_position_direction = |mut position: Position,
+                                       mut direction: Direction|
+     -> Option<(Position, Direction)> {
+        let end_position = Position {
+            y: map_size.rows as isize - 3,
+            x: 3,
         };
+
+        let walls: HashSet<Position> = query.iter().copied().collect();
+        loop {
+            if position == end_position {
+                break None;
+            }
+
+            match position {
+                Position { y: 1, x: 1 } | Position { y: 2, x: 2 } => {
+                    direction = Direction::Right;
+                }
+                Position { y: 1, x } if x == map_size.columns as isize - 2 => {
+                    direction = Direction::Down;
+                }
+                Position { y, x }
+                    if y == map_size.rows as isize - 2 && x == map_size.columns as isize - 2 =>
+                {
+                    direction = Direction::Left;
+                }
+                Position { y, x: 2 } if y == map_size.rows as isize - 2 => {
+                    direction = Direction::Up;
+                }
+                Position { y: 2, x } if x == map_size.columns as isize - 3 => {
+                    direction = Direction::Down;
+                }
+                Position { y, x }
+                    if y == map_size.rows as isize - 3 && x == map_size.columns as isize - 3 =>
+                {
+                    direction = Direction::Left;
+                }
+                _ => (),
+            }
+
+            position = position.offset(direction, 1);
+            if !walls.contains(&position) {
+                break Some((position, direction));
+            }
+        }
+    };
 
     let mut clear_position_and_spawn_wall = |position: Position| {
         for (e, _, b) in query2.iter().filter(|(_, p, _)| **p == position) {
@@ -2270,7 +2305,7 @@ pub fn wall_of_death_update(
 
                     Some(WallOfDeath::Active(ActiveWallOfDeath {
                         position: Position {
-                            y: MAP_HEIGHT as isize - 1,
+                            y: map_size.rows as isize - 1,
                             x: 1,
                         },
                         direction: Direction::Up,
@@ -2334,6 +2369,7 @@ pub fn teardown(mut commands: Commands, query: Query<Entity>) {
     commands.remove_resource::<GameTimer>();
     commands.remove_resource::<Level>();
     commands.remove_resource::<WorldID>();
+    commands.remove_resource::<MapSize>();
 
     // story mode
     commands.remove_resource::<GameScore>();
@@ -2563,9 +2599,11 @@ pub fn setup_leaderboard_display(
     textures: Res<Textures>,
     fonts: Res<Fonts>,
     leaderboard: Res<Leaderboard>,
+    windows: Res<Windows>,
     query: Query<Entity, With<UIRoot>>,
 ) {
     let mut leaderboard_display_box = None;
+    let window = windows.get_primary().unwrap();
 
     commands
         .entity(query.single().unwrap())
@@ -2574,10 +2612,7 @@ pub fn setup_leaderboard_display(
                 parent
                     .spawn_bundle(NodeBundle {
                         style: Style {
-                            size: Size::new(
-                                Val::Px((MAP_WIDTH * TILE_WIDTH) as f32),
-                                Val::Px(HUD_HEIGHT as f32 + (MAP_HEIGHT * TILE_HEIGHT) as f32),
-                            ),
+                            size: Size::new(Val::Px(window.width()), Val::Px(window.height())),
                             position_type: PositionType::Absolute,
                             position: Rect {
                                 left: Val::Px(0.0),
@@ -2616,19 +2651,19 @@ pub fn setup_leaderboard_display(
                                 .insert(UIComponent);
                         };
 
-                        const HEIGHT: usize = (HUD_HEIGHT + TILE_HEIGHT * MAP_HEIGHT) / PIXEL_SCALE;
-                        const WIDTH: usize = TILE_WIDTH * MAP_WIDTH / PIXEL_SCALE;
-                        for y in 0..HEIGHT {
+                        let height = window.height() as usize / PIXEL_SCALE;
+                        let width = window.width() as usize / PIXEL_SCALE;
+                        for y in 0..height {
                             spawn_color(y, 0);
                             spawn_color(y, 1);
-                            spawn_color(y, WIDTH - 2);
-                            spawn_color(y, WIDTH - 1);
+                            spawn_color(y, width - 2);
+                            spawn_color(y, width - 1);
                         }
-                        for x in 2..WIDTH - 2 {
+                        for x in 2..width - 2 {
                             spawn_color(0, x);
                             spawn_color(1, x);
-                            spawn_color(HEIGHT - 2, x);
-                            spawn_color(HEIGHT - 1, x);
+                            spawn_color(height - 2, x);
+                            spawn_color(height - 1, x);
                         }
 
                         for (penguin, score) in &leaderboard.scores {
