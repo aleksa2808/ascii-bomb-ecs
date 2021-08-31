@@ -9,6 +9,7 @@ use bevy::{
     prelude::*,
     render::camera::{Camera, VisibleEntities},
 };
+use bevy_kira_audio::Audio;
 use rand::{prelude::*, Rng};
 
 use crate::{
@@ -22,6 +23,14 @@ use crate::{
     utils::*,
     AppState,
 };
+
+pub fn set_volume_based_on_options(game_option_store: Res<GameOptionStore>, audio: Res<Audio>) {
+    if game_option_store.get(GameOption::Sound) {
+        audio.set_volume(1.0);
+    } else {
+        audio.set_volume(0.0);
+    }
+}
 
 pub fn setup_splash_screen(
     mut commands: Commands,
@@ -417,6 +426,8 @@ __██__
 
 pub fn menu_navigation(
     mut commands: Commands,
+    audio: Res<Audio>,
+    sounds: Res<Sounds>,
     fonts: Res<Fonts>,
     menu_materials: Res<MenuMaterials>,
     mut state: ResMut<State<AppState>>,
@@ -487,6 +498,7 @@ pub fn menu_navigation(
         }
     } else {
         if keyboard_input.just_pressed(KeyCode::Return) {
+            audio.play(sounds.confirm.clone());
             match menu_state.get_action() {
                 MenuAction::SwitchMenu(menu_id) => {
                     menu_state.switch_menu(menu_id);
@@ -513,8 +525,16 @@ pub fn menu_navigation(
                     return;
                 }
                 MenuAction::ToggleOption(option) => {
-                    game_option_store.toggle(option);
+                    let option_enabled = game_option_store.toggle(option);
                     menu_changed = true;
+
+                    if let GameOption::Sound = option {
+                        if option_enabled {
+                            audio.set_volume(1.0);
+                        } else {
+                            audio.set_volume(0.0);
+                        }
+                    }
                 }
                 MenuAction::Exit => {
                     ev_exit.send(AppExit);
@@ -536,10 +556,12 @@ pub fn menu_navigation(
         if keyboard_input.just_pressed(KeyCode::Down) {
             match menu_state.get_current_menu_mut() {
                 MenuType::SelectableItems(selectable_items) => {
+                    audio.play(sounds.select.clone());
                     selectable_items.cycle_cursor_up();
                     menu_changed = true;
                 }
                 MenuType::ToggleableOptions(toggleable_options) => {
+                    audio.play(sounds.select.clone());
                     toggleable_options.cycle_cursor_up();
                     menu_changed = true;
                 }
@@ -550,10 +572,12 @@ pub fn menu_navigation(
         if keyboard_input.just_pressed(KeyCode::Up) {
             match menu_state.get_current_menu_mut() {
                 MenuType::SelectableItems(selectable_items) => {
+                    audio.play(sounds.select.clone());
                     selectable_items.cycle_cursor_down();
                     menu_changed = true;
                 }
                 MenuType::ToggleableOptions(toggleable_options) => {
+                    audio.play(sounds.select.clone());
                     toggleable_options.cycle_cursor_down();
                     menu_changed = true;
                 }
@@ -931,6 +955,8 @@ pub fn game_timer_tick(time: Res<Time>, mut game_timer: ResMut<GameTimer>) {
 }
 
 pub fn handle_keyboard_input(
+    audio: Res<Audio>,
+    sounds: Res<Sounds>,
     mut keyboard_input: ResMut<Input<KeyCode>>,
     query: Query<(Entity, &HumanControlled), With<Player>>,
     mut ev_player_action: EventWriter<PlayerActionEvent>,
@@ -954,6 +980,8 @@ pub fn handle_keyboard_input(
     }
 
     if keyboard_input.just_pressed(KeyCode::Return) {
+        audio.stop();
+        audio.play(sounds.pause.clone());
         state.push(AppState::Paused).unwrap();
         keyboard_input.reset(KeyCode::Return);
     }
@@ -1901,6 +1929,8 @@ pub fn perishable_tick(
 pub fn handle_explosion(
     mut commands: Commands,
     textures: Res<Textures>,
+    audio: Res<Audio>,
+    sounds: Res<Sounds>,
     query: Query<&Position, Or<(With<Solid>, With<Exit>)>>,
     mut ev_explosion: EventReader<ExplosionEvent>,
     mut ev_burn: EventWriter<BurnEvent>,
@@ -1908,6 +1938,9 @@ pub fn handle_explosion(
     let fireproof_positions: HashSet<Position> = query.iter().copied().collect();
 
     for ExplosionEvent(position, range) in ev_explosion.iter().copied() {
+        audio.stop();
+        audio.play(sounds.boom.clone());
+
         let spawn_fire = |commands: &mut Commands, position: Position| {
             commands
                 .spawn_bundle(SpriteBundle {

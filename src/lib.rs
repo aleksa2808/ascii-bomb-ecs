@@ -8,7 +8,8 @@ mod systems;
 mod types;
 mod utils;
 
-use bevy::{prelude::*, window::exit_on_window_close_system};
+use bevy::{prelude::*, render::camera::camera_system, window::exit_on_window_close_system};
+use bevy_kira_audio::AudioPlugin;
 
 use crate::{camera::SimpleOrthoProjection, constants::*, events::*, resources::*, systems::*};
 
@@ -92,9 +93,8 @@ pub fn run() {
         resizable: false,
         ..Default::default()
     })
-    .add_plugins(DefaultPlugins);
-
-    use bevy::render::camera::camera_system;
+    .add_plugins(DefaultPlugins)
+    .add_plugin(AudioPlugin);
 
     app.add_state(AppState::SplashScreen)
         .init_resource::<BaseColorMaterials>()
@@ -102,6 +102,7 @@ pub fn run() {
         .init_resource::<MenuState>()
         .init_resource::<GameOptionStore>()
         .init_resource::<Fonts>()
+        .init_resource::<Sounds>()
         .init_resource::<Textures>()
         .init_resource::<HUDMaterials>()
         .add_event::<PlayerActionEvent>()
@@ -109,6 +110,7 @@ pub fn run() {
         .add_event::<BurnEvent>()
         .add_event::<DamageEvent>()
         .add_system(exit_on_window_close_system)
+        .add_startup_system(set_volume_based_on_options)
         .add_system_to_stage(
             CoreStage::PostUpdate,
             camera_system::<SimpleOrthoProjection>,

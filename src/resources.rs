@@ -1,6 +1,7 @@
 use std::{collections::HashMap, fs, time::Duration};
 
 use bevy::prelude::*;
+use bevy_kira_audio::AudioSource;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -164,6 +165,26 @@ impl FromWorld for Textures {
     }
 }
 
+pub struct Sounds {
+    pub boom: Handle<AudioSource>,
+    pub confirm: Handle<AudioSource>,
+    pub pause: Handle<AudioSource>,
+    pub select: Handle<AudioSource>,
+}
+
+impl FromWorld for Sounds {
+    fn from_world(world: &mut World) -> Self {
+        let asset_server = world.get_resource::<AssetServer>().unwrap();
+
+        Sounds {
+            boom: asset_server.load("sounds/boom.wav"),
+            confirm: asset_server.load("sounds/confirm.wav"),
+            pause: asset_server.load("sounds/pause.wav"),
+            select: asset_server.load("sounds/select.wav"),
+        }
+    }
+}
+
 pub struct Fonts {
     pub mono: Handle<Font>,
 }
@@ -299,10 +320,11 @@ impl GameOptionStore {
         fs::write(options_file_path, serialized).unwrap();
     }
 
-    pub fn toggle(&mut self, option: GameOption) {
-        let old_value = self.get(option);
-        self.0.insert(option, !old_value);
+    pub fn toggle(&mut self, option: GameOption) -> bool {
+        let new_value = !self.get(option);
+        self.0.insert(option, new_value);
         self.save();
+        new_value
     }
 }
 
