@@ -11,6 +11,7 @@ use crate::{
     constants::*,
     resources::*,
     types::{BotDifficulty, Cooldown, Direction, PlayerAction},
+    AppState,
 };
 
 pub fn get_x(x: isize) -> f32 {
@@ -156,7 +157,7 @@ pub fn spawn_menu_type(
                 .insert(UIComponent)
                 .insert(Cursor);
         }
-        MenuType::StaticText(static_text) => {
+        MenuType::StaticText(static_text) | MenuType::ControlsScreen(static_text) => {
             parent
                 .spawn_bundle(TextBundle {
                     text: Text::with_section(
@@ -402,6 +403,7 @@ pub fn init_hud(
     textures: &Textures,
     world_id: WorldID,
     penguin_tags: &[Penguin],
+    state: AppState,
 ) {
     parent
         .spawn_bundle(NodeBundle {
@@ -422,106 +424,200 @@ pub fn init_hud(
         .insert(HUDRoot)
         .insert(PenguinPortraitDisplay) // TODO: make a separate NodeBundle for this
         .with_children(|parent| {
-            // lives display
-            parent
-                .spawn_bundle(TextBundle {
-                    text: Text::with_section(
-                        "",
-                        TextStyle {
-                            font: fonts.mono.clone(),
-                            font_size: 2.0 * PIXEL_SCALE as f32,
-                            color: COLORS[0].into(),
-                        },
-                        TextAlignment::default(),
-                    ),
-                    style: Style {
-                        position_type: PositionType::Absolute,
-                        position: Rect {
-                            top: Val::Px(12.0 * PIXEL_SCALE as f32),
-                            left: Val::Px(6.0 * PIXEL_SCALE as f32),
-                            ..Default::default()
-                        },
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                })
-                .insert(UIComponent)
-                .insert(LivesDisplay);
-
-            // points display
-            parent
-                .spawn_bundle(TextBundle {
-                    text: Text::with_section(
-                        "",
-                        TextStyle {
-                            font: fonts.mono.clone(),
-                            font_size: 2.0 * PIXEL_SCALE as f32,
-                            color: COLORS[0].into(),
-                        },
-                        TextAlignment::default(),
-                    ),
-                    style: Style {
-                        position_type: PositionType::Absolute,
-                        position: Rect {
-                            top: Val::Px(12.0 * PIXEL_SCALE as f32),
-                            left: Val::Px(16.0 * PIXEL_SCALE as f32),
-                            ..Default::default()
-                        },
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                })
-                .insert(UIComponent)
-                .insert(PointsDisplay);
-
-            // clock / pause indicator
-            parent
-                .spawn_bundle(NodeBundle {
-                    style: Style {
-                        size: Size::new(
-                            Val::Px(5.0 * PIXEL_SCALE as f32),
-                            Val::Px(2.0 * PIXEL_SCALE as f32),
+            if !matches!(state, AppState::SecretMode) {
+                // lives display
+                parent
+                    .spawn_bundle(TextBundle {
+                        text: Text::with_section(
+                            "",
+                            TextStyle {
+                                font: fonts.mono.clone(),
+                                font_size: 2.0 * PIXEL_SCALE as f32,
+                                color: COLORS[0].into(),
+                            },
+                            TextAlignment::default(),
                         ),
-                        position_type: PositionType::Absolute,
-                        position: Rect {
-                            left: Val::Px(width / 2.0 - 3.0 * PIXEL_SCALE as f32),
-                            top: Val::Px(12.0 * PIXEL_SCALE as f32),
-                            ..Default::default()
-                        },
-                        ..Default::default()
-                    },
-                    material: hud_materials.black.clone(),
-                    ..Default::default()
-                })
-                .insert(UIComponent)
-                .with_children(|parent| {
-                    parent
-                        .spawn_bundle(TextBundle {
-                            text: Text::with_section(
-                                "",
-                                TextStyle {
-                                    font: fonts.mono.clone(),
-                                    font_size: 2.0 * PIXEL_SCALE as f32,
-                                    color: COLORS[15].into(),
-                                },
-                                TextAlignment::default(),
-                            ),
-                            style: Style {
-                                position_type: PositionType::Absolute,
-                                position: Rect {
-                                    top: Val::Px(0.0),
-                                    left: Val::Px(0.0),
-                                    ..Default::default()
-                                },
+                        style: Style {
+                            position_type: PositionType::Absolute,
+                            position: Rect {
+                                top: Val::Px(12.0 * PIXEL_SCALE as f32),
+                                left: Val::Px(6.0 * PIXEL_SCALE as f32),
                                 ..Default::default()
                             },
                             ..Default::default()
-                        })
-                        .insert(UIComponent)
-                        .insert(GameTimerDisplay);
-                });
+                        },
+                        ..Default::default()
+                    })
+                    .insert(UIComponent)
+                    .insert(LivesDisplay);
 
-            init_penguin_portraits(parent, penguin_tags, hud_materials, textures);
+                // points display
+                parent
+                    .spawn_bundle(TextBundle {
+                        text: Text::with_section(
+                            "",
+                            TextStyle {
+                                font: fonts.mono.clone(),
+                                font_size: 2.0 * PIXEL_SCALE as f32,
+                                color: COLORS[0].into(),
+                            },
+                            TextAlignment::default(),
+                        ),
+                        style: Style {
+                            position_type: PositionType::Absolute,
+                            position: Rect {
+                                top: Val::Px(12.0 * PIXEL_SCALE as f32),
+                                left: Val::Px(16.0 * PIXEL_SCALE as f32),
+                                ..Default::default()
+                            },
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    })
+                    .insert(UIComponent)
+                    .insert(PointsDisplay);
+
+                // clock / pause indicator
+                parent
+                    .spawn_bundle(NodeBundle {
+                        style: Style {
+                            size: Size::new(
+                                Val::Px(5.0 * PIXEL_SCALE as f32),
+                                Val::Px(2.0 * PIXEL_SCALE as f32),
+                            ),
+                            position_type: PositionType::Absolute,
+                            position: Rect {
+                                left: Val::Px(width / 2.0 - 3.0 * PIXEL_SCALE as f32),
+                                top: Val::Px(12.0 * PIXEL_SCALE as f32),
+                                ..Default::default()
+                            },
+                            ..Default::default()
+                        },
+                        material: hud_materials.black.clone(),
+                        ..Default::default()
+                    })
+                    .insert(UIComponent)
+                    .with_children(|parent| {
+                        parent
+                            .spawn_bundle(TextBundle {
+                                text: Text::with_section(
+                                    "",
+                                    TextStyle {
+                                        font: fonts.mono.clone(),
+                                        font_size: 2.0 * PIXEL_SCALE as f32,
+                                        color: COLORS[15].into(),
+                                    },
+                                    TextAlignment::default(),
+                                ),
+                                style: Style {
+                                    position_type: PositionType::Absolute,
+                                    position: Rect {
+                                        top: Val::Px(0.0),
+                                        left: Val::Px(0.0),
+                                        ..Default::default()
+                                    },
+                                    ..Default::default()
+                                },
+                                ..Default::default()
+                            })
+                            .insert(UIComponent)
+                            .insert(GameTimerDisplay);
+                    });
+
+                init_penguin_portraits(parent, penguin_tags, hud_materials, textures);
+            } else {
+                parent
+                    .spawn_bundle(NodeBundle {
+                        style: Style {
+                            size: Size::new(
+                                Val::Px(43.0 * PIXEL_SCALE as f32),
+                                Val::Px(2.0 * PIXEL_SCALE as f32),
+                            ),
+                            position_type: PositionType::Absolute,
+                            position: Rect {
+                                left: Val::Px(width / 2.0 - 20.0 * PIXEL_SCALE as f32),
+                                top: Val::Px(6.0 * PIXEL_SCALE as f32),
+                                ..Default::default()
+                            },
+                            ..Default::default()
+                        },
+                        material: hud_materials.black.clone(),
+                        ..Default::default()
+                    })
+                    .insert(UIComponent)
+                    .with_children(|parent| {
+                        parent
+                            .spawn_bundle(TextBundle {
+                                text: Text::with_section(
+                                    "Hope you had fun with this little game! ^_^",
+                                    TextStyle {
+                                        font: fonts.mono.clone(),
+                                        font_size: 2.0 * PIXEL_SCALE as f32,
+                                        color: COLORS[15].into(),
+                                    },
+                                    TextAlignment::default(),
+                                ),
+                                style: Style {
+                                    position_type: PositionType::Absolute,
+                                    position: Rect {
+                                        top: Val::Px(0.0),
+                                        left: Val::Px(0.0),
+                                        ..Default::default()
+                                    },
+                                    ..Default::default()
+                                },
+                                ..Default::default()
+                            })
+                            .insert(UIComponent)
+                            .insert(GameTimerDisplay);
+                    });
+
+                parent
+                    .spawn_bundle(NodeBundle {
+                        style: Style {
+                            size: Size::new(
+                                Val::Px(8.0 * PIXEL_SCALE as f32),
+                                Val::Px(2.0 * PIXEL_SCALE as f32),
+                            ),
+                            position_type: PositionType::Absolute,
+                            position: Rect {
+                                left: Val::Px(width / 2.0 + 10.0 * PIXEL_SCALE as f32),
+                                top: Val::Px(10.0 * PIXEL_SCALE as f32),
+                                ..Default::default()
+                            },
+                            ..Default::default()
+                        },
+                        material: hud_materials.black.clone(),
+                        ..Default::default()
+                    })
+                    .insert(UIComponent)
+                    .with_children(|parent| {
+                        parent
+                            .spawn_bundle(TextBundle {
+                                text: Text::with_section(
+                                    "Now RUN!",
+                                    TextStyle {
+                                        font: fonts.mono.clone(),
+                                        font_size: 2.0 * PIXEL_SCALE as f32,
+                                        color: COLORS[15].into(),
+                                    },
+                                    TextAlignment::default(),
+                                ),
+                                style: Style {
+                                    position_type: PositionType::Absolute,
+                                    position: Rect {
+                                        top: Val::Px(0.0),
+                                        left: Val::Px(0.0),
+                                        ..Default::default()
+                                    },
+                                    ..Default::default()
+                                },
+                                ..Default::default()
+                            })
+                            .insert(UIComponent)
+                            .insert(GameTimerDisplay);
+                    });
+            }
         });
 }
 
@@ -866,6 +962,7 @@ pub fn spawn_map(
     textures: &Textures,
     map_size: MapSize,
     percent_of_passable_positions_to_fill: f32,
+    spawn_middle_blocks: bool,
     penguin_spawn_positions: &[Position],
     mob_spawn_positions: &[Position],
     spawn_exit: bool,
@@ -911,12 +1008,14 @@ pub fn spawn_map(
         });
     }
     // checkered middle
-    for i in (2..map_size.rows).step_by(2) {
-        for j in (2..map_size.columns).step_by(2) {
-            stone_wall_positions.insert(Position {
-                y: i as isize,
-                x: j as isize,
-            });
+    if spawn_middle_blocks {
+        for i in (2..map_size.rows).step_by(2) {
+            for j in (2..map_size.columns).step_by(2) {
+                stone_wall_positions.insert(Position {
+                    y: i as isize,
+                    x: j as isize,
+                });
+            }
         }
     }
 

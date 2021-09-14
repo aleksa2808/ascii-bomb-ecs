@@ -78,7 +78,7 @@ pub struct ImmortalMaterial(pub Handle<ColorMaterial>);
 
 #[derive(Clone, Copy)]
 pub struct Bomb {
-    pub parent: Entity,
+    pub owner: Option<Entity>,
     pub range: usize,
 }
 

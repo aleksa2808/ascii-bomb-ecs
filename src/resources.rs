@@ -170,6 +170,7 @@ pub struct Sounds {
     pub confirm: Handle<AudioSource>,
     pub pause: Handle<AudioSource>,
     pub select: Handle<AudioSource>,
+    pub what_is_f: Handle<AudioSource>,
 }
 
 impl FromWorld for Sounds {
@@ -181,6 +182,7 @@ impl FromWorld for Sounds {
             confirm: asset_server.load("sounds/confirm.wav"),
             pause: asset_server.load("sounds/pause.wav"),
             select: asset_server.load("sounds/select.wav"),
+            what_is_f: asset_server.load("sounds/what_is_f.ogg"),
         }
     }
 }
@@ -418,6 +420,7 @@ pub enum MenuType {
     SelectableItems(SelectableItems),
     ToggleableOptions(ToggleableOptions),
     StaticText(&'static str),
+    ControlsScreen(&'static str),
 }
 
 pub enum BattleModeSubMenuStep {
@@ -548,7 +551,7 @@ Made by
               Dusan Mrvaljevic
 "#,
                 ),
-                MenuType::StaticText(
+                MenuType::ControlsScreen(
                     r#"
 Arrow Keys    - P1 movement
 Space Bar     - P1 bomb set
@@ -588,11 +591,11 @@ impl MenuState {
         self.menu_stack.last_mut().unwrap()
     }
 
-    pub fn get_action(&self) -> MenuAction {
+    pub fn get_enter_action(&self) -> MenuAction {
         match self.get_current_menu() {
             MenuType::SelectableItems(selectable_items) => selectable_items.get_action(),
             MenuType::ToggleableOptions(toggleable_options) => toggleable_options.get_action(),
-            MenuType::StaticText(_) => MenuAction::Back,
+            MenuType::StaticText(_) | MenuType::ControlsScreen(_) => MenuAction::Back,
         }
     }
 
@@ -750,4 +753,20 @@ pub enum WallOfDeath {
 pub struct LeaderboardDisplay {
     pub leaderboard_display_box: Entity,
     pub timer: Timer,
+}
+
+// secret mode
+pub enum SecretLevelState {
+    Initial(Timer),
+    Started {
+        move_cooldown: Cooldown,
+        round_progress: usize,
+        round: usize,
+    },
+    Stopping(Timer),
+}
+
+pub struct SecretLevelContext {
+    pub state: SecretLevelState,
+    pub pattern: &'static str,
 }
