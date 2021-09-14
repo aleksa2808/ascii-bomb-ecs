@@ -22,6 +22,7 @@ pub enum AppState {
     BattleMode,
     LeaderboardDisplay,
     Paused,
+    SecretMode,
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemLabel)]
@@ -29,6 +30,7 @@ enum Label {
     Setup,
     TimeUpdate,
     Input,
+    PlayerMovement,
     Explosion,
     Burn,
     Damage,
@@ -46,7 +48,6 @@ fn add_common_game_systems(app: &mut App, state: AppState) {
                         .label(Label::TimeUpdate)
                         .before(Label::Explosion),
                 )
-                .with_system(game_timer_tick.label(Label::TimeUpdate))
                 .with_system(immortality_tick.label(Label::TimeUpdate))
                 // handle input
                 .with_system(handle_keyboard_input.label(Label::Input))
@@ -55,7 +56,12 @@ fn add_common_game_systems(app: &mut App, state: AppState) {
                 .with_system(mob_ai.label(Label::Input))
                 .with_system(bot_ai.label(Label::Input).after(Label::TimeUpdate))
                 // handle movement
-                .with_system(player_move.after(Label::Input).after(Label::TimeUpdate))
+                .with_system(
+                    player_move
+                        .label(Label::PlayerMovement)
+                        .after(Label::Input)
+                        .after(Label::TimeUpdate),
+                )
                 .with_system(moving_object_update)
                 // handle bomb logic
                 .with_system(bomb_drop.after(Label::Input))
@@ -72,14 +78,7 @@ fn add_common_game_systems(app: &mut App, state: AppState) {
                 .with_system(player_damage.label(Label::Damage))
                 // animation
                 .with_system(animate_fuse.after(Label::TimeUpdate))
-                .with_system(animate_immortality.after(Label::TimeUpdate))
-                // display HUD
-                .with_system(
-                    hud_update
-                        .exclusive_system()
-                        .at_end()
-                        .after(Label::GameEndCheck),
-                ),
+                .with_system(animate_immortality.after(Label::TimeUpdate)),
         );
 }
 
@@ -102,9 +101,9 @@ pub fn run() {
         .init_resource::<MenuState>()
         .init_resource::<GameOptionStore>()
         .init_resource::<Fonts>()
-        .init_resource::<Sounds>()
-        .init_resource::<Textures>()
         .init_resource::<HUDMaterials>()
+        .init_resource::<Textures>()
+        .init_resource::<Sounds>()
         .add_event::<PlayerActionEvent>()
         .add_event::<ExplosionEvent>()
         .add_event::<BurnEvent>()
@@ -163,6 +162,7 @@ pub fn run() {
     )
     .add_system_set(
         SystemSet::on_update(AppState::StoryMode)
+            .with_system(game_timer_tick.label(Label::TimeUpdate))
             // game end check
             .with_system(
                 fail_level
@@ -175,6 +175,13 @@ pub fn run() {
                     .exclusive_system()
                     .at_end()
                     .label(Label::GameEndCheck),
+            )
+            // update HUD
+            .with_system(
+                hud_update
+                    .exclusive_system()
+                    .at_end()
+                    .after(Label::GameEndCheck),
             ),
     );
 
@@ -186,6 +193,7 @@ pub fn run() {
     )
     .add_system_set(
         SystemSet::on_update(AppState::BattleMode)
+            .with_system(game_timer_tick.label(Label::TimeUpdate))
             .with_system(
                 wall_of_death_update
                     .exclusive_system()
@@ -197,7 +205,33 @@ pub fn run() {
                     .exclusive_system()
                     .at_end()
                     .label(Label::GameEndCheck),
+            )
+            // update HUD
+            .with_system(
+                hud_update
+                    .exclusive_system()
+                    .at_end()
+                    .after(Label::GameEndCheck),
             ),
+    );
+
+    add_common_game_systems(&mut app, AppState::SecretMode);
+    app.add_system_set(
+        SystemSet::on_enter(AppState::SecretMode)
+            .with_system(setup_secret_mode.exclusive_system().label(Label::Setup))
+            .with_system(resize_window.exclusive_system().after(Label::Setup)),
+    )
+    .add_system_set(
+        SystemSet::on_update(AppState::SecretMode)
+            .with_system(update_secret_mode.exclusive_system().at_start())
+            .with_system(
+                finish_secret_mode
+                    .after(Label::PlayerMovement)
+                    .before(Label::Explosion),
+            ),
+    )
+    .add_system_set(
+        SystemSet::on_exit(AppState::SecretMode).with_system(stop_audio.label(Label::Setup)),
     );
 
     app.run();

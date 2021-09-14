@@ -5,7 +5,7 @@ use std::{
 };
 
 use bevy::{
-    app::AppExit,
+    app::{AppExit, Events},
     prelude::*,
     render::camera::{Camera, VisibleEntities},
 };
@@ -145,8 +145,9 @@ pub fn splash_screen_update(
                     .position
                     .left = Val::Px(splash_screen_context.left_position as f32);
 
-                splash_screen_context.right_position = (splash_screen_context.right_position
-                    - times_finished as usize * PIXEL_SCALE)
+                splash_screen_context.right_position = splash_screen_context
+                    .right_position
+                    .saturating_sub(times_finished as usize * PIXEL_SCALE)
                     .max(RIGHT_END_POSITION);
                 query
                     .get_mut(splash_screen_context.right_text)
@@ -499,7 +500,7 @@ pub fn menu_navigation(
     } else {
         if keyboard_input.just_pressed(KeyCode::Return) {
             audio.play(sounds.confirm.clone());
-            match menu_state.get_action() {
+            match menu_state.get_enter_action() {
                 MenuAction::SwitchMenu(menu_id) => {
                     menu_state.switch_menu(menu_id);
                     menu_changed = true;
@@ -565,7 +566,7 @@ pub fn menu_navigation(
                     toggleable_options.cycle_cursor_up();
                     menu_changed = true;
                 }
-                MenuType::StaticText(_) => (),
+                MenuType::StaticText(_) | MenuType::ControlsScreen(_) => (),
             }
         }
 
@@ -581,7 +582,15 @@ pub fn menu_navigation(
                     toggleable_options.cycle_cursor_down();
                     menu_changed = true;
                 }
-                MenuType::StaticText(_) => (),
+                MenuType::StaticText(_) | MenuType::ControlsScreen(_) => (),
+            }
+        }
+
+        if let MenuType::ControlsScreen(_) = menu_state.get_current_menu() {
+            if keyboard_input.just_pressed(KeyCode::F) {
+                state.push(AppState::SecretMode).unwrap();
+                keyboard_input.reset(KeyCode::F);
+                return;
             }
         }
     }
@@ -652,7 +661,7 @@ pub fn resize_window(
 ) {
     let window = windows.get_primary_mut().unwrap();
     match state.current() {
-        AppState::StoryMode | AppState::BattleMode => {
+        AppState::StoryMode | AppState::BattleMode | AppState::SecretMode => {
             let map_size = map_size.unwrap();
             window.set_resolution(
                 (map_size.columns * TILE_WIDTH) as f32,
@@ -670,6 +679,7 @@ pub fn setup_story_mode(
     base_color_materials: Res<BaseColorMaterials>,
     hud_materials: Res<HUDMaterials>,
     fonts: Res<Fonts>,
+    state: Res<State<AppState>>,
 ) {
     let map_size = MapSize {
         rows: 11,
@@ -763,6 +773,7 @@ pub fn setup_story_mode(
                 &textures,
                 world_id,
                 &[player_penguin_tag],
+                *state.current(),
             );
         });
 
@@ -775,6 +786,7 @@ pub fn setup_story_mode(
         } else {
             50.0
         },
+        true,
         &[player_spawn_position],
         &mob_spawn_positions,
         matches!(level, Level::Regular(_)),
@@ -797,6 +809,7 @@ pub fn setup_battle_mode(
     base_color_materials: Res<BaseColorMaterials>,
     hud_materials: Res<HUDMaterials>,
     battle_mode_configuration: Res<BattleModeConfiguration>,
+    state: Res<State<AppState>>,
 ) {
     const ROUND_DURATION_SECS: usize = 120;
 
@@ -840,6 +853,7 @@ pub fn setup_battle_mode(
         &textures,
         map_size,
         percent_of_passable_positions_to_fill,
+        true,
         &player_spawn_positions,
         &[],
         false,
@@ -865,6 +879,7 @@ pub fn setup_battle_mode(
                 &textures,
                 world_id,
                 &penguin_tags,
+                *state.current(),
             )
         });
 
@@ -979,7 +994,9 @@ pub fn handle_keyboard_input(
         }
     }
 
-    if keyboard_input.just_pressed(KeyCode::Return) {
+    if !matches!(state.current(), AppState::SecretMode)
+        && keyboard_input.just_pressed(KeyCode::Return)
+    {
         audio.stop();
         audio.play(sounds.pause.clone());
         state.push(AppState::Paused).unwrap();
@@ -1454,7 +1471,10 @@ pub fn finish_level(
             (Level::BossRoom, 3) => {
                 game_score.0 += 2000;
                 println!("Game completed! Final score: {}", game_score.0);
-                state.pop().unwrap();
+
+                // TODO: high score tracking
+
+                state.overwrite_set(AppState::SecretMode).unwrap();
                 return;
             }
             (Level::BossRoom, _) => {
@@ -1488,7 +1508,10 @@ pub fn finish_level(
         // reset the player's texture (clears immortality animation effects)
         *player_material = base_material.0.clone();
 
-        let unexploded_player_bombs = query5.iter().filter(|b| b.parent == player_entity).count();
+        let unexploded_player_bombs = query5
+            .iter()
+            .filter(|b| matches!(b.owner, Some(entity) if entity == player_entity))
+            .count();
 
         for entity in query4.iter() {
             commands.entity(entity).despawn_recursive();
@@ -1577,6 +1600,7 @@ pub fn finish_level(
             } else {
                 50.0
             },
+            true,
             &penguin_spawn_positions,
             &mob_spawn_positions,
             matches!(*level, Level::Regular(_)),
@@ -1667,6 +1691,7 @@ pub fn finish_round(
             &textures,
             map_size,
             percent_of_passable_positions_to_fill,
+            true,
             &player_spawn_positions,
             &[],
             false,
@@ -1709,7 +1734,7 @@ pub fn bomb_drop(
                         ..Default::default()
                     })
                     .insert(Bomb {
-                        parent: entity,
+                        owner: Some(entity),
                         range: bomb_satchel.bomb_range,
                     })
                     .insert(Solid)
@@ -1868,8 +1893,10 @@ pub fn perishable_tick(
 
             // TODO: move into separate system
             if let Some(bomb) = bomb {
-                if let Ok(mut bomb_satchel) = query2.get_mut(bomb.parent) {
-                    bomb_satchel.bombs_available += 1;
+                if let Some(owner) = bomb.owner {
+                    if let Ok(mut bomb_satchel) = query2.get_mut(owner) {
+                        bomb_satchel.bombs_available += 1;
+                    }
                 }
 
                 ev_explosion.send(ExplosionEvent(*position, bomb.range));
@@ -1937,9 +1964,14 @@ pub fn handle_explosion(
 ) {
     let fireproof_positions: HashSet<Position> = query.iter().copied().collect();
 
+    let mut sound_played = false;
+
     for ExplosionEvent(position, range) in ev_explosion.iter().copied() {
-        audio.stop();
-        audio.play(sounds.boom.clone());
+        if !sound_played {
+            audio.stop();
+            audio.play(sounds.boom.clone());
+            sound_played = true;
+        }
 
         let spawn_fire = |commands: &mut Commands, position: Position| {
             commands
@@ -2310,8 +2342,10 @@ pub fn wall_of_death_update(
 
             // TODO: this is the same logic as in perishable_tick, move into a separate system
             if let Some(bomb) = b {
-                if let Ok(mut bomb_satchel) = query3.get_mut(bomb.parent) {
-                    bomb_satchel.bombs_available += 1;
+                if let Some(owner) = bomb.owner {
+                    if let Ok(mut bomb_satchel) = query3.get_mut(owner) {
+                        bomb_satchel.bombs_available += 1;
+                    }
                 }
             }
         }
@@ -2390,11 +2424,26 @@ pub fn pop_state_on_enter(
     }
 }
 
-pub fn teardown(mut commands: Commands, query: Query<Entity>) {
+pub fn teardown(
+    mut commands: Commands,
+    query: Query<Entity>,
+    mut player_action_events: ResMut<Events<PlayerActionEvent>>,
+    mut explosion_events: ResMut<Events<ExplosionEvent>>,
+    mut burn_events: ResMut<Events<BurnEvent>>,
+    mut damage_events: ResMut<Events<DamageEvent>>,
+) {
+    // clear entities
     for entity in query.iter() {
         commands.entity(entity).despawn_recursive();
     }
 
+    // clear events
+    player_action_events.clear();
+    explosion_events.clear();
+    burn_events.clear();
+    damage_events.clear();
+
+    // clear resources
     // menu
     commands.remove_resource::<MenuBackgroundAnimationContext>();
 
@@ -2852,4 +2901,327 @@ pub fn leaderboard_display_update(
             state.pop().unwrap();
         }
     }
+}
+
+pub fn setup_secret_mode(
+    mut commands: Commands,
+    audio: Res<Audio>,
+    sounds: Res<Sounds>,
+    mut textures: ResMut<Textures>,
+    base_color_materials: Res<BaseColorMaterials>,
+    hud_materials: Res<HUDMaterials>,
+    fonts: Res<Fonts>,
+    state: Res<State<AppState>>,
+) {
+    // TODO: Audio will start playing only when the asset is loaded and decoded, which might be after
+    // the mode is finished. However, waiting for it to load is VERY slow in debug builds, so there needs
+    // to be a more granular loading wait implemented before the states that need certain assets.
+    audio.play_looped(sounds.what_is_f.clone());
+
+    const PATTERN: &str = r#"
+*              *                  *****       ********************************************
+ *             *                 *     *       *                     *       *            
+  *            *        ***     *       *       *            **               *           
+   *           *          *         *          *    *                 *                   
+         *     ***        *     *       *     *    *     **      **                       
+        *                 *      *     *          *              *         *              
+       *                  *       *****            ************************************   
+"#;
+
+    let map_size = MapSize {
+        rows: PATTERN.split('\n').count(),
+        columns: 15,
+    };
+
+    let world_id = WorldID(rand::thread_rng().gen_range(1..=3));
+    textures.set_map_textures(world_id);
+
+    // spawn camera
+    let projection = SimpleOrthoProjection::new(
+        (map_size.rows * TILE_HEIGHT) as f32,
+        (map_size.columns * TILE_WIDTH) as f32,
+    );
+    let cam_name = bevy::render::render_graph::base::camera::CAMERA_2D;
+    let camera = Camera {
+        name: Some(cam_name.to_string()),
+        ..Default::default()
+    };
+
+    commands.spawn_bundle((
+        Transform::from_translation(Vec3::new(0.0, 0.0, projection.far - 0.1)),
+        GlobalTransform::default(),
+        VisibleEntities::default(),
+        camera,
+        projection,
+    ));
+
+    commands.spawn_bundle(UiCameraBundle::default());
+
+    // map generation //
+
+    // spawn player
+    let player_spawn_position = Position {
+        y: map_size.rows as isize / 2,
+        x: 2,
+    };
+    let base_material = textures.get_penguin_texture(Penguin(0)).clone();
+    let immortal_material = textures.immortal_penguin.clone();
+    commands
+        .spawn_bundle(SpriteBundle {
+            material: base_material.clone(),
+            transform: Transform::from_xyz(
+                get_x(player_spawn_position.x),
+                get_y(player_spawn_position.y),
+                50.0,
+            ),
+            sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+            ..Default::default()
+        })
+        .insert(BaseMaterial(base_material))
+        .insert(ImmortalMaterial(immortal_material))
+        .insert(Player)
+        .insert(HumanControlled(0))
+        .insert(player_spawn_position);
+
+    // spawn HUD
+    commands
+        .spawn_bundle(NodeBundle {
+            style: Style {
+                size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                ..Default::default()
+            },
+            material: base_color_materials.none.clone(),
+            ..Default::default()
+        })
+        .insert(UIRoot)
+        .insert(UIComponent)
+        .with_children(|parent| {
+            init_hud(
+                parent,
+                &hud_materials,
+                &fonts,
+                (map_size.columns * TILE_WIDTH) as f32,
+                &textures,
+                world_id,
+                &[],
+                *state.current(),
+            );
+        });
+
+    spawn_map(
+        &mut commands,
+        &textures,
+        map_size,
+        0.0,
+        false,
+        &[player_spawn_position],
+        &[],
+        false,
+    );
+
+    commands.insert_resource(world_id);
+    commands.insert_resource(map_size);
+    commands.insert_resource(SecretLevelContext {
+        state: SecretLevelState::Initial(Timer::from_seconds(2.5, false)),
+        pattern: PATTERN,
+    });
+}
+
+pub fn update_secret_mode(
+    mut commands: Commands,
+    time: Res<Time>,
+    textures: Res<Textures>,
+    fonts: Res<Fonts>,
+    map_size: Res<MapSize>,
+    world_id: Res<WorldID>,
+    mut context: ResMut<SecretLevelContext>,
+    mut state: ResMut<State<AppState>>,
+    mut q: QuerySet<(
+        QueryState<(Entity, &mut Position, &mut Transform), With<Bomb>>,
+        QueryState<&Position, With<Wall>>,
+    )>,
+    mut query: Query<(Entity, &mut Handle<ColorMaterial>, &mut BaseMaterial), With<Player>>,
+) {
+    let pattern = context.pattern;
+
+    loop {
+        let new_state = match &mut context.state {
+            SecretLevelState::Initial(timer) => {
+                timer.tick(time.delta());
+                if timer.finished() {
+                    Some(SecretLevelState::Started {
+                        move_cooldown: Cooldown::from_seconds(0.25),
+                        round_progress: 0,
+                        round: 0,
+                    })
+                } else {
+                    None
+                }
+            }
+            SecretLevelState::Started {
+                move_cooldown,
+                round_progress,
+                round,
+            } => {
+                move_cooldown.tick(time.delta());
+                if move_cooldown.ready() {
+                    move_cooldown.trigger();
+
+                    let walls: HashSet<Position> = q.q1().iter().copied().collect();
+                    for (entity, mut position, mut transform) in q.q0().iter_mut() {
+                        let new_position = position.offset(Direction::Left, 1);
+
+                        if walls.contains(&new_position) {
+                            commands.entity(entity).despawn_recursive();
+                        } else {
+                            *position = new_position;
+
+                            let translation = &mut transform.translation;
+                            translation.x = get_x(position.x);
+                            translation.y = get_y(position.y);
+                        }
+                    }
+
+                    let b = pattern
+                        .split('\n')
+                        .skip(1)
+                        .take(7)
+                        .map(|s| s.chars().nth(*round_progress as usize).unwrap() == '*');
+
+                    for (i, b) in b.enumerate() {
+                        if b {
+                            let position = Position {
+                                y: i as isize + 1,
+                                x: map_size.columns as isize - 2,
+                            };
+                            commands
+                                .spawn_bundle(SpriteBundle {
+                                    material: textures.bomb.clone(),
+                                    transform: Transform::from_xyz(
+                                        get_x(position.x),
+                                        get_y(position.y),
+                                        25.0,
+                                    ),
+                                    sprite: Sprite::new(Vec2::new(
+                                        TILE_WIDTH as f32,
+                                        TILE_HEIGHT as f32,
+                                    )),
+                                    ..Default::default()
+                                })
+                                .insert(Bomb {
+                                    owner: None,
+                                    range: 3,
+                                })
+                                .insert(Perishable {
+                                    timer: Timer::from_seconds(9999.0, false),
+                                })
+                                .insert(position)
+                                .with_children(|parent| {
+                                    let fuse_color =
+                                        COLORS[if world_id.0 == 2 { 12 } else { 14 }].into();
+
+                                    let mut text = Text::with_section(
+                                        '*',
+                                        TextStyle {
+                                            font: fonts.mono.clone(),
+                                            font_size: 2.0 * PIXEL_SCALE as f32,
+                                            color: fuse_color,
+                                        },
+                                        TextAlignment {
+                                            vertical: VerticalAlign::Center,
+                                            horizontal: HorizontalAlign::Center,
+                                        },
+                                    );
+                                    text.sections.push(TextSection {
+                                        value: "┐\n │".into(),
+                                        style: TextStyle {
+                                            font: fonts.mono.clone(),
+                                            font_size: 2.0 * PIXEL_SCALE as f32,
+                                            color: COLORS[0].into(),
+                                        },
+                                    });
+
+                                    parent
+                                        .spawn_bundle(Text2dBundle {
+                                            text,
+                                            transform: Transform::from_xyz(
+                                                0.0,
+                                                TILE_HEIGHT as f32 / 8.0 * 2.0,
+                                                0.0,
+                                            ),
+                                            ..Default::default()
+                                        })
+                                        .insert(Fuse)
+                                        .insert(fuse_color)
+                                        .insert(Timer::from_seconds(0.1, true));
+                                });
+                        }
+                    }
+
+                    *round_progress += 1;
+                    if *round_progress >= pattern.split('\n').skip(1).take(7).next().unwrap().len()
+                    {
+                        *round += 1;
+                        *round_progress = 0;
+
+                        let new_material = textures.get_penguin_texture(Penguin(*round));
+                        let (entity, mut color, mut base_material) = query.single_mut().unwrap();
+                        *color = new_material.clone();
+                        *base_material = BaseMaterial(new_material.clone());
+
+                        commands
+                            .entity(entity)
+                            .insert_bundle(ImmortalBundle::default());
+
+                        let current_duration = move_cooldown.duration();
+                        if let Some(duration) =
+                            current_duration.checked_sub(Duration::from_millis(30))
+                        {
+                            *move_cooldown = Cooldown::from_seconds(duration.as_secs_f32());
+                        }
+                    }
+                }
+
+                None
+            }
+            SecretLevelState::Stopping(timer) => {
+                timer.tick(time.delta());
+
+                if timer.just_finished() {
+                    state.overwrite_pop().unwrap();
+                }
+
+                None
+            }
+        };
+
+        if let Some(new_state) = new_state {
+            context.state = new_state;
+        } else {
+            break;
+        }
+    }
+}
+
+pub fn finish_secret_mode(
+    mut commands: Commands,
+    mut context: ResMut<SecretLevelContext>,
+    query: Query<(Entity, &Position), With<Player>>,
+    query2: Query<(Entity, &Bomb, &Position)>,
+    mut ev_explosion: EventWriter<ExplosionEvent>,
+) {
+    let (player_entity, player_position) = query.single().unwrap();
+    if query2.iter().any(|(_, _, p)| *p == *player_position) {
+        context.state = SecretLevelState::Stopping(Timer::from_seconds(0.5, false));
+
+        commands.entity(player_entity).remove::<HumanControlled>();
+        for (entity, bomb, position) in query2.iter() {
+            commands.entity(entity).despawn_recursive();
+            ev_explosion.send(ExplosionEvent(*position, bomb.range));
+        }
+    }
+}
+
+pub fn stop_audio(audio: Res<Audio>) {
+    audio.stop();
 }

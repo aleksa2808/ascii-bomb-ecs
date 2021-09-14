@@ -17,6 +17,7 @@ bevy = { git = "https://github.com/bevyengine/bevy", rev = "f6b42b86691bdea92613
     "x11",
 ] }
 bevy_kira_audio = { git = "https://github.com/NiklasEi/bevy_kira_audio", rev = "b0a8659c7e43c2625695409152cce7b1b339be2a", features = [
+    "ogg",
     "wav",
 ] }
 rand = "0.8"

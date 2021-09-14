@@ -80,6 +80,10 @@ impl Cooldown {
             }
         };
     }
+
+    pub fn duration(&self) -> Duration {
+        self.duration
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -99,6 +103,7 @@ mod tests {
     fn test_cooldown() {
         let mut cooldown = Cooldown::from_seconds(0.5);
         assert!(cooldown.ready());
+        assert_eq!(cooldown.duration(), Duration::from_millis(500));
 
         cooldown.trigger();
         assert!(!cooldown.ready());
