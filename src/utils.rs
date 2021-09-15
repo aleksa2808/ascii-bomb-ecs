@@ -944,6 +944,7 @@ pub fn spawn_battle_mode_players(
     commands: &mut Commands,
     textures: &Textures,
     map_size: MapSize,
+    amount_of_players: usize,
     amount_of_bots: usize,
 ) -> (Vec<Position>, Vec<Penguin>) {
     let possible_player_spawn_positions = [
@@ -967,13 +968,17 @@ pub fn spawn_battle_mode_players(
     let mut player_spawn_positions = vec![];
     let mut penguin_tags = vec![];
 
-    // spawn player
-    let player_spawn_position = possible_player_spawn_positions.next().unwrap();
-    let penguin_tag = Penguin(player_spawn_positions.len());
-    let base_material = textures.get_penguin_texture(penguin_tag).clone();
-    let immortal_material = textures.immortal_penguin.clone();
-    commands
-        .spawn_bundle(SpriteBundle {
+    enum PlayerType {
+        Human(usize),
+        Bot,
+    }
+
+    let mut spawn_player = |player_type: PlayerType| {
+        let player_spawn_position = possible_player_spawn_positions.next().unwrap();
+        let penguin_tag = Penguin(player_spawn_positions.len());
+        let base_material = textures.get_penguin_texture(penguin_tag).clone();
+        let immortal_material = textures.immortal_penguin.clone();
+        let mut entity_commands = commands.spawn_bundle(SpriteBundle {
             material: base_material.clone(),
             transform: Transform::from_xyz(
                 get_x(player_spawn_position.x),
@@ -982,62 +987,44 @@ pub fn spawn_battle_mode_players(
             ),
             sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
             ..Default::default()
-        })
-        .insert(BaseMaterial(base_material))
-        .insert(ImmortalMaterial(immortal_material))
-        .insert(Player)
-        .insert(penguin_tag)
-        .insert(HumanControlled(0))
-        .insert(Health {
-            lives: 1,
-            max_health: 1,
-            health: 1,
-        })
-        .insert(player_spawn_position)
-        .insert(BombSatchel {
-            bombs_available: 3,
-            bomb_range: 2,
-        })
-        .insert(TeamID(penguin_tag.0));
-    player_spawn_positions.push(player_spawn_position);
-    penguin_tags.push(penguin_tag);
-
-    // spawn bots
-    for _ in 0..amount_of_bots {
-        let bot_spawn_position = possible_player_spawn_positions.next().unwrap();
-        let penguin_tag = Penguin(player_spawn_positions.len());
-        let base_material = textures.get_penguin_texture(penguin_tag).clone();
-        let immortal_material = textures.immortal_penguin.clone();
-        commands
-            .spawn_bundle(SpriteBundle {
-                material: base_material.clone(),
-                transform: Transform::from_xyz(
-                    get_x(bot_spawn_position.x),
-                    get_y(bot_spawn_position.y),
-                    50.0,
-                ),
-                sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
-                ..Default::default()
-            })
+        });
+        entity_commands
             .insert(BaseMaterial(base_material))
             .insert(ImmortalMaterial(immortal_material))
             .insert(Player)
             .insert(penguin_tag)
-            .insert(BotAI)
-            .insert(MoveCooldown(Cooldown::from_seconds(0.3)))
             .insert(Health {
                 lives: 1,
                 max_health: 1,
                 health: 1,
             })
-            .insert(bot_spawn_position)
+            .insert(player_spawn_position)
             .insert(BombSatchel {
                 bombs_available: 3,
                 bomb_range: 2,
             })
             .insert(TeamID(penguin_tag.0));
-        player_spawn_positions.push(bot_spawn_position);
+        match player_type {
+            PlayerType::Human(i) => {
+                entity_commands.insert(HumanControlled(i));
+            }
+            PlayerType::Bot => {
+                entity_commands
+                    .insert(BotAI)
+                    .insert(MoveCooldown(Cooldown::from_seconds(0.3)));
+            }
+        }
+
+        player_spawn_positions.push(player_spawn_position);
         penguin_tags.push(penguin_tag);
+    };
+
+    for i in 0..amount_of_players {
+        spawn_player(PlayerType::Human(i));
+    }
+
+    for _ in 0..amount_of_bots {
+        spawn_player(PlayerType::Bot);
     }
 
     (player_spawn_positions, penguin_tags)

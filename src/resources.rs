@@ -632,6 +632,8 @@ pub struct MenuBackgroundAnimationContext {
     pub timer: Timer,
 }
 
+pub struct DemoModeStartTimer(pub Timer);
+
 #[derive(Clone, Copy)]
 pub struct MapSize {
     pub rows: usize,
