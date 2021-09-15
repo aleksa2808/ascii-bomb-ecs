@@ -9,6 +9,7 @@ use rand::{
 use crate::{
     components::*,
     constants::*,
+    item::{Item, Power, Upgrade},
     resources::*,
     types::{BotDifficulty, Cooldown, Direction, PlayerAction},
     AppState,
@@ -1203,6 +1204,34 @@ pub fn spawn_map(
             *destructible_wall_positions.choose(&mut rng).unwrap(),
         ));
     }
+}
+
+pub fn generate_item_at_position(
+    position: Position,
+    commands: &mut Commands,
+    textures: &Textures,
+    state: &State<AppState>,
+) {
+    let item = Item::generate(matches!(
+        state.current(),
+        AppState::BattleMode | AppState::DemoMode
+    ));
+    commands
+        .spawn_bundle(SpriteBundle {
+            material: match item {
+                Item::Upgrade(Upgrade::BombsUp) => textures.bombs_up.clone(),
+                Item::Upgrade(Upgrade::RangeUp) => textures.range_up.clone(),
+                Item::Upgrade(Upgrade::LivesUp) => textures.lives_up.clone(),
+                Item::Power(Power::WallHack) => textures.wall_hack.clone(),
+                Item::Power(Power::BombPush) => textures.bomb_push.clone(),
+                Item::Power(Power::Immortal) => textures.immortal.clone(),
+            },
+            transform: Transform::from_xyz(get_x(position.x), get_y(position.y), 20.0),
+            sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+            ..Default::default()
+        })
+        .insert(position)
+        .insert(item);
 }
 
 fn bomb_explosions_can_reach_position(

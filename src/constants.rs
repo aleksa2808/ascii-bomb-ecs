@@ -15,6 +15,8 @@ pub const SPLASH_SCREEN_TEXT_RIGHT: &str = "Name Not Found";
 
 pub const DEMO_MODE_START_TIMER_DURATION_SECS: f32 = 15.0;
 
+pub const ITEM_SPAWN_CHANCE: f32 = 0.1;
+
 pub const COLORS: [RGBColor; 16] = [
     RGBColor(12, 12, 12),
     RGBColor(0, 55, 218),
