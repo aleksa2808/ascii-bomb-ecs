@@ -2007,33 +2007,8 @@ pub fn perishable_tick(
                         .insert(*position)
                         .insert(Exit::default());
                 } else {
-                    // generate power up
-                    const POWER_CHANCE: usize = 100;
-                    if rand::thread_rng().gen::<usize>() % 100 < POWER_CHANCE {
-                        let item = Item::generate(matches!(state.current(), AppState::BattleMode));
-                        commands
-                            .spawn_bundle(SpriteBundle {
-                                material: match item {
-                                    Item::Upgrade(Upgrade::BombsUp) => textures.bombs_up.clone(),
-                                    Item::Upgrade(Upgrade::RangeUp) => textures.range_up.clone(),
-                                    Item::Upgrade(Upgrade::LivesUp) => textures.lives_up.clone(),
-                                    Item::Power(Power::WallHack) => textures.wall_hack.clone(),
-                                    Item::Power(Power::BombPush) => textures.bomb_push.clone(),
-                                    Item::Power(Power::Immortal) => textures.immortal.clone(),
-                                },
-                                transform: Transform::from_xyz(
-                                    get_x(position.x),
-                                    get_y(position.y),
-                                    20.0,
-                                ),
-                                sprite: Sprite::new(Vec2::new(
-                                    TILE_WIDTH as f32,
-                                    TILE_HEIGHT as f32,
-                                )),
-                                ..Default::default()
-                            })
-                            .insert(*position)
-                            .insert(item);
+                    if rand::thread_rng().gen_range(0.0..1.0) < ITEM_SPAWN_CHANCE {
+                        generate_item_at_position(*position, &mut commands, &textures, &state);
                     }
                 }
             }
@@ -2177,7 +2152,9 @@ pub fn player_burn(
 
 pub fn player_damage(
     mut commands: Commands,
+    textures: Res<Textures>,
     mut game_score: Option<ResMut<GameScore>>,
+    map_size: Res<MapSize>,
     mut query: Query<
         (
             Entity,
@@ -2188,6 +2165,18 @@ pub fn player_damage(
         ),
         (With<Player>, Without<Immortal>),
     >,
+    query2: Query<
+        &Position,
+        Or<(
+            With<Player>,
+            With<Solid>,
+            With<Fire>,
+            With<BurningItem>,
+            With<Item>,
+            With<Exit>,
+        )>,
+    >,
+    state: Res<State<AppState>>,
     mut ev_damage: EventReader<DamageEvent>,
 ) {
     let mut damaged_players = HashSet::new();
@@ -2210,6 +2199,24 @@ pub fn player_damage(
                 if health.lives == 0 {
                     println!("player died: {:?}", pe);
                     commands.entity(pe).despawn_recursive();
+
+                    if let AppState::BattleMode | AppState::DemoMode = state.current() {
+                        // item pinata
+                        let invalid_positions: HashSet<Position> = query2.iter().copied().collect();
+                        let valid_positions = (0..map_size.rows)
+                            .map(|y| {
+                                (0..map_size.columns).map(move |x| Position {
+                                    y: y as isize,
+                                    x: x as isize,
+                                })
+                            })
+                            .flatten()
+                            .filter(|p| !invalid_positions.contains(p));
+                        for position in valid_positions.choose_multiple(&mut rand::thread_rng(), 3)
+                        {
+                            generate_item_at_position(position, &mut commands, &textures, &state);
+                        }
+                    }
 
                     if let Some(ref mut game_score) = game_score {
                         if let Some(point_value) = point_value {
