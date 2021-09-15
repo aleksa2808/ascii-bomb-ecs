@@ -28,6 +28,7 @@ pub fn spawn_menu_type(
     fonts: &Fonts,
     menu_materials: &MenuMaterials,
     game_option_store: &GameOptionStore,
+    high_scores: &HighScores,
 ) {
     match menu_type {
         MenuType::SelectableItems(selectable_items) => {
@@ -173,6 +174,111 @@ pub fn spawn_menu_type(
                         position_type: PositionType::Absolute,
                         position: Rect {
                             top: Val::Px(2.0 * PIXEL_SCALE as f32),
+                            left: Val::Px(PIXEL_SCALE as f32),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                })
+                .insert(UIComponent);
+
+            // continue button
+            parent
+                .spawn_bundle(NodeBundle {
+                    style: Style {
+                        size: Size::new(
+                            Val::Px(8.0 * PIXEL_SCALE as f32),
+                            Val::Px(2.0 * PIXEL_SCALE as f32),
+                        ),
+                        position_type: PositionType::Absolute,
+                        position: Rect {
+                            left: Val::Px(15.0 * PIXEL_SCALE as f32),
+                            top: Val::Px(32.0 * PIXEL_SCALE as f32),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    },
+                    material: menu_materials.modal_foreground.clone(),
+                    ..Default::default()
+                })
+                .insert(UIComponent)
+                .with_children(|parent| {
+                    parent
+                        .spawn_bundle(TextBundle {
+                            text: Text::with_section(
+                                "CONTINUE",
+                                TextStyle {
+                                    font: fonts.mono.clone(),
+                                    font_size: 2.0 * PIXEL_SCALE as f32,
+                                    color: menu_materials.modal_background_color,
+                                },
+                                TextAlignment::default(),
+                            ),
+                            style: Style {
+                                position_type: PositionType::Absolute,
+                                position: Rect {
+                                    top: Val::Px(0.0),
+                                    left: Val::Px(0.0),
+                                    ..Default::default()
+                                },
+                                ..Default::default()
+                            },
+                            ..Default::default()
+                        })
+                        .insert(UIComponent);
+                });
+        }
+        MenuType::HallOfFame => {
+            parent
+                .spawn_bundle(TextBundle {
+                    text: Text::with_section(
+                        "HIGH-SCORES",
+                        TextStyle {
+                            font: fonts.mono.clone(),
+                            font_size: 2.0 * PIXEL_SCALE as f32,
+                            color: menu_materials.modal_foreground_color,
+                        },
+                        TextAlignment::default(),
+                    ),
+                    style: Style {
+                        position_type: PositionType::Absolute,
+                        position: Rect {
+                            top: Val::Px(2.0 * PIXEL_SCALE as f32),
+                            left: Val::Px(13.0 * PIXEL_SCALE as f32),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                })
+                .insert(UIComponent);
+
+            let high_scores_text = (0..HighScores::HIGH_SCORES_MAX_SIZE)
+                .map(|i| {
+                    if let Some(score) = high_scores.0.get(i) {
+                        format!("{:>2}. {:<20}{:>10}", i + 1, score.0, score.1)
+                    } else {
+                        format!("{:>2}. -----                        0", i + 1)
+                    }
+                })
+                .collect::<Vec<String>>()
+                .join("\n");
+            parent
+                .spawn_bundle(TextBundle {
+                    text: Text::with_section(
+                        high_scores_text,
+                        TextStyle {
+                            font: fonts.mono.clone(),
+                            font_size: 2.0 * PIXEL_SCALE as f32,
+                            color: menu_materials.modal_foreground_color,
+                        },
+                        TextAlignment::default(),
+                    ),
+                    style: Style {
+                        position_type: PositionType::Absolute,
+                        position: Rect {
+                            top: Val::Px(6.0 * PIXEL_SCALE as f32),
                             left: Val::Px(PIXEL_SCALE as f32),
                             ..Default::default()
                         },

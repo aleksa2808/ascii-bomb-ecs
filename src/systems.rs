@@ -179,6 +179,7 @@ pub fn setup_menu(
     menu_materials: Res<MenuMaterials>,
     menu_state: Res<MenuState>,
     game_option_store: Res<GameOptionStore>,
+    persistent_high_scores: Res<PersistentHighScores>,
 ) {
     commands.spawn_bundle(UiCameraBundle::default());
 
@@ -417,6 +418,7 @@ __██__
                                 &fonts,
                                 &menu_materials,
                                 &game_option_store,
+                                persistent_high_scores.get_raw_scores(),
                             );
                         });
                 });
@@ -434,6 +436,7 @@ pub fn menu_navigation(
     mut state: ResMut<State<AppState>>,
     mut menu_state: ResMut<MenuState>,
     mut game_option_store: ResMut<GameOptionStore>,
+    persistent_high_scores: Res<PersistentHighScores>,
     mut keyboard_input: ResMut<Input<KeyCode>>,
     mut query: Query<(Entity, &Children), With<MenuContentBox>>,
     mut query3: Query<(Entity, &Children), With<BattleModeSubMenuContentBox>>,
@@ -546,7 +549,6 @@ pub fn menu_navigation(
                         menu_changed = true;
                     }
                 }
-                MenuAction::Disabled => (),
             }
         }
 
@@ -566,7 +568,7 @@ pub fn menu_navigation(
                     toggleable_options.cycle_cursor_up();
                     menu_changed = true;
                 }
-                MenuType::StaticText(_) | MenuType::ControlsScreen(_) => (),
+                MenuType::StaticText(_) | MenuType::ControlsScreen(_) | MenuType::HallOfFame => (),
             }
         }
 
@@ -582,7 +584,7 @@ pub fn menu_navigation(
                     toggleable_options.cycle_cursor_down();
                     menu_changed = true;
                 }
-                MenuType::StaticText(_) | MenuType::ControlsScreen(_) => (),
+                MenuType::StaticText(_) | MenuType::ControlsScreen(_) | MenuType::HallOfFame => (),
             }
         }
 
@@ -618,6 +620,7 @@ pub fn menu_navigation(
                     &fonts,
                     &menu_materials,
                     &game_option_store,
+                    persistent_high_scores.get_raw_scores(),
                 );
             });
         }
@@ -973,6 +976,8 @@ pub fn handle_keyboard_input(
     audio: Res<Audio>,
     sounds: Res<Sounds>,
     mut keyboard_input: ResMut<Input<KeyCode>>,
+    game_score: Res<GameScore>,
+    persistent_high_scores: Res<PersistentHighScores>,
     query: Query<(Entity, &HumanControlled), With<Player>>,
     mut ev_player_action: EventWriter<PlayerActionEvent>,
     mut state: ResMut<State<AppState>>,
@@ -1004,7 +1009,11 @@ pub fn handle_keyboard_input(
     }
 
     if keyboard_input.just_pressed(KeyCode::Escape) {
-        state.overwrite_pop().unwrap();
+        if game_score.0 > persistent_high_scores.entry_threshold() {
+            state.overwrite_push(AppState::HighScoreNameInput).unwrap();
+        } else {
+            state.overwrite_pop().unwrap();
+        }
         keyboard_input.reset(KeyCode::Escape);
     }
 }
@@ -1407,6 +1416,7 @@ pub fn finish_level(
     map_size: Res<MapSize>,
     mut game_score: ResMut<GameScore>,
     mut game_timer: ResMut<GameTimer>,
+    persistent_high_scores: Res<PersistentHighScores>,
     mut q: QuerySet<(
         QueryState<
             (
@@ -1467,14 +1477,19 @@ pub fn finish_level(
             println!("World {} boss defeated!", world_id.0);
         }
 
+        // add 5 points for each second left on the clock
+        game_score.0 += 5 * (game_timer.0.duration() - game_timer.0.elapsed()).as_secs() as usize;
+
         match (*level, world_id.0) {
             (Level::BossRoom, 3) => {
                 game_score.0 += 2000;
                 println!("Game completed! Final score: {}", game_score.0);
 
-                // TODO: high score tracking
-
-                state.overwrite_set(AppState::SecretMode).unwrap();
+                if game_score.0 > persistent_high_scores.entry_threshold() {
+                    state.overwrite_push(AppState::HighScoreNameInput).unwrap();
+                } else {
+                    state.overwrite_set(AppState::SecretMode).unwrap();
+                }
                 return;
             }
             (Level::BossRoom, _) => {
@@ -3224,4 +3239,161 @@ pub fn finish_secret_mode(
 
 pub fn stop_audio(audio: Res<Audio>) {
     audio.stop();
+}
+
+pub fn setup_high_score_name_input(
+    mut commands: Commands,
+    hud_materials: Res<HUDMaterials>,
+    fonts: Res<Fonts>,
+    query: Query<Entity, With<UIRoot>>,
+    map_size: Res<MapSize>,
+) {
+    let mut input_box = None;
+    let mut name_text = None;
+
+    commands
+        .entity(query.single().unwrap())
+        .with_children(|parent| {
+            input_box = Some(
+                parent
+                    .spawn_bundle(NodeBundle {
+                        style: Style {
+                            size: Size::new(
+                                Val::Px(30.0 * PIXEL_SCALE as f32),
+                                Val::Px(10.0 * PIXEL_SCALE as f32),
+                            ),
+                            position_type: PositionType::Absolute,
+                            position: Rect {
+                                left: Val::Px(
+                                    ((map_size.columns * (TILE_WIDTH / PIXEL_SCALE) / 2 - 15)
+                                        * PIXEL_SCALE) as f32,
+                                ),
+                                top: Val::Px(
+                                    // messy equation that produces the same results as the C code (integer divisions)
+                                    ((((HUD_HEIGHT + map_size.rows * TILE_HEIGHT) / PIXEL_SCALE)
+                                        / 4
+                                        * 2
+                                        - 6)
+                                        * PIXEL_SCALE) as f32,
+                                ),
+                                ..Default::default()
+                            },
+                            ..Default::default()
+                        },
+                        material: hud_materials.black.clone(),
+                        ..Default::default()
+                    })
+                    .insert(UIComponent)
+                    .with_children(|parent| {
+                        // dialog border
+                        parent
+                            .spawn_bundle(TextBundle {
+                                text: Text::with_section(
+                                    r#"
+┌────────────────────────────┐
+│                            │
+│ Name:                      │
+│                            │
+└────────────────────────────┘
+"#,
+                                    TextStyle {
+                                        font: fonts.mono.clone(),
+                                        font_size: 2.0 * PIXEL_SCALE as f32,
+                                        color: COLORS[15].into(), // TODO: is this the right color?
+                                    },
+                                    TextAlignment::default(),
+                                ),
+                                style: Style {
+                                    position_type: PositionType::Absolute,
+                                    position: Rect {
+                                        top: Val::Px(0.0),
+                                        left: Val::Px(0.0),
+                                        ..Default::default()
+                                    },
+                                    ..Default::default()
+                                },
+                                ..Default::default()
+                            })
+                            .insert(UIComponent);
+
+                        // name text
+                        name_text = Some(
+                            parent
+                                .spawn_bundle(TextBundle {
+                                    text: Text::with_section(
+                                        "",
+                                        TextStyle {
+                                            font: fonts.mono.clone(),
+                                            font_size: 2.0 * PIXEL_SCALE as f32,
+                                            color: COLORS[15].into(), // TODO: is this the right color?
+                                        },
+                                        TextAlignment::default(),
+                                    ),
+                                    style: Style {
+                                        position_type: PositionType::Absolute,
+                                        position: Rect {
+                                            top: Val::Px(4.0 * PIXEL_SCALE as f32),
+                                            left: Val::Px(8.0 * PIXEL_SCALE as f32),
+                                            ..Default::default()
+                                        },
+                                        ..Default::default()
+                                    },
+                                    ..Default::default()
+                                })
+                                .insert(UIComponent)
+                                .id(),
+                        );
+                    })
+                    .id(),
+            );
+        });
+
+    commands.insert_resource(HighScoreNameInputContext {
+        input_box: input_box.unwrap(),
+        name_text: name_text.unwrap(),
+    });
+}
+
+pub fn high_score_name_input_update(
+    mut commands: Commands,
+    context: Res<HighScoreNameInputContext>,
+    mut keyboard_input: ResMut<Input<KeyCode>>,
+    mut char_input_events: EventReader<ReceivedCharacter>,
+    mut persistent_high_scores: ResMut<PersistentHighScores>,
+    game_score: Res<GameScore>,
+    mut query: Query<&mut Text>,
+    mut state: ResMut<State<AppState>>,
+) {
+    if keyboard_input.just_pressed(KeyCode::Escape) {
+        persistent_high_scores.insert_score(String::from("<unnamed_player>"), game_score.0);
+        commands.remove_resource::<HighScoreNameInputContext>();
+        state.replace(AppState::MainMenu).unwrap();
+        keyboard_input.reset(KeyCode::Escape);
+        return;
+    }
+
+    let name = &mut query.get_mut(context.name_text).unwrap().sections[0].value;
+
+    for event in char_input_events.iter() {
+        if name.len() < 20 && (event.char == ' ' || event.char.is_ascii_graphic()) {
+            name.push(if event.char == ' ' { '_' } else { event.char });
+        }
+    }
+
+    if keyboard_input.just_pressed(KeyCode::Back) {
+        name.pop();
+    }
+
+    if keyboard_input.just_pressed(KeyCode::Return) {
+        let name = if name.len() == 0 {
+            String::from("<unnamed_player>")
+        } else {
+            name.clone()
+        };
+
+        persistent_high_scores.insert_score(name, game_score.0);
+        commands.remove_resource::<HighScoreNameInputContext>();
+        state.replace(AppState::MainMenu).unwrap();
+        keyboard_input.reset(KeyCode::Return);
+    }
 }

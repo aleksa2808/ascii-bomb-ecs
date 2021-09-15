@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs, time::Duration};
+use std::{cmp::Reverse, collections::HashMap, fs, time::Duration};
 
 use bevy::prelude::*;
 use bevy_kira_audio::AudioSource;
@@ -338,7 +338,6 @@ pub enum MenuAction {
     ToggleOption(GameOption),
     Back,
     Exit,
-    Disabled, // TODO: remove
 }
 
 #[derive(Clone)]
@@ -421,6 +420,7 @@ pub enum MenuType {
     ToggleableOptions(ToggleableOptions),
     StaticText(&'static str),
     ControlsScreen(&'static str),
+    HallOfFame,
 }
 
 pub enum BattleModeSubMenuStep {
@@ -511,7 +511,7 @@ impl Default for MenuState {
                 ("PLAY", MenuAction::SwitchMenu(1)),
                 ("OPTIONS", MenuAction::SwitchMenu(2)),
                 ("HELP", MenuAction::SwitchMenu(3)),
-                ("HALL OF FAME", MenuAction::Disabled),
+                ("HALL OF FAME", MenuAction::SwitchMenu(4)),
                 ("EXIT", MenuAction::Exit),
             ],
             cursor_position: 0,
@@ -530,12 +530,13 @@ impl Default for MenuState {
                 MenuType::ToggleableOptions(ToggleableOptions { cursor_position: 0 }),
                 MenuType::SelectableItems(SelectableItems {
                     items: vec![
-                        ("ABOUT", MenuAction::SwitchMenu(4)),
-                        ("CONTROLS", MenuAction::SwitchMenu(5)),
-                        ("POWER-UPS", MenuAction::SwitchMenu(6)),
+                        ("ABOUT", MenuAction::SwitchMenu(5)),
+                        ("CONTROLS", MenuAction::SwitchMenu(6)),
+                        ("POWER-UPS", MenuAction::SwitchMenu(7)),
                     ],
                     cursor_position: 0,
                 }),
+                MenuType::HallOfFame,
                 MenuType::StaticText(
                     r#"
 You are a penguin. With a top hat.
@@ -595,7 +596,9 @@ impl MenuState {
         match self.get_current_menu() {
             MenuType::SelectableItems(selectable_items) => selectable_items.get_action(),
             MenuType::ToggleableOptions(toggleable_options) => toggleable_options.get_action(),
-            MenuType::StaticText(_) | MenuType::ControlsScreen(_) => MenuAction::Back,
+            MenuType::StaticText(_) | MenuType::ControlsScreen(_) | MenuType::HallOfFame => {
+                MenuAction::Back
+            }
         }
     }
 
@@ -723,6 +726,122 @@ pub struct BossSpeechBoxEntities {
     pub speech_text: Entity,
 }
 
+// high scores
+#[derive(Serialize, Deserialize)]
+pub struct HighScores(pub Vec<(String, usize)>);
+
+impl HighScores {
+    pub const HIGH_SCORES_MAX_SIZE: usize = 10;
+
+    pub fn entry_threshold(&self) -> usize {
+        if let Some(score) = self.0.iter().nth(Self::HIGH_SCORES_MAX_SIZE - 1) {
+            score.1
+        } else {
+            0
+        }
+    }
+
+    fn insert_score(&mut self, name: String, score: usize) {
+        self.0.push((name, score));
+        self.0.sort_by_key(|k| Reverse(k.1));
+        self.0.truncate(Self::HIGH_SCORES_MAX_SIZE);
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct PersistentHighScores {
+    high_scores: HighScores,
+    checksum: usize,
+}
+
+impl Default for PersistentHighScores {
+    fn default() -> Self {
+        let persistent_high_scores_file_path = std::path::Path::new(Self::SERIALIZED_FILE_PATH);
+        let persistent_high_scores = if persistent_high_scores_file_path.exists() {
+            let content = fs::read_to_string(persistent_high_scores_file_path).unwrap();
+            let persistent_high_scores: PersistentHighScores =
+                serde_json::from_str(&content).unwrap();
+            if Self::calculate_checksum(&persistent_high_scores.high_scores) == persistent_high_scores.checksum
+                && persistent_high_scores.high_scores.0.len() <= HighScores::HIGH_SCORES_MAX_SIZE
+                // check if the scores are correctly sorted
+                && persistent_high_scores.high_scores.0.windows(2).all(|w| w[0].1 >= w[1].1)
+            {
+                Some(persistent_high_scores)
+            } else {
+                println!("Invalid high scores file detected, generating a new one.");
+                None
+            }
+        } else {
+            None
+        };
+
+        match persistent_high_scores {
+            Some(persistent_high_scores) => persistent_high_scores,
+            None => {
+                let persistent_high_scores = Self {
+                    high_scores: HighScores(vec![]),
+                    checksum: 0,
+                };
+                persistent_high_scores.save();
+                persistent_high_scores
+            }
+        }
+    }
+}
+
+impl PersistentHighScores {
+    const SERIALIZED_FILE_PATH: &'static str = "local/high_scores";
+
+    pub fn get_raw_scores(&self) -> &HighScores {
+        &self.high_scores
+    }
+
+    pub fn entry_threshold(&self) -> usize {
+        self.high_scores.entry_threshold()
+    }
+
+    pub fn insert_score(&mut self, name: String, score: usize) {
+        if score > self.high_scores.entry_threshold() {
+            self.high_scores.insert_score(name, score);
+            self.checksum = Self::calculate_checksum(&self.high_scores);
+            self.save();
+        }
+    }
+
+    fn save(&self) {
+        let options_file_path = std::path::Path::new(Self::SERIALIZED_FILE_PATH);
+        let serialized = serde_json::to_string(self).unwrap();
+        fs::create_dir_all(options_file_path.parent().unwrap()).unwrap();
+        fs::write(options_file_path, serialized).unwrap();
+    }
+
+    fn calculate_checksum(high_scores: &HighScores) -> usize {
+        let mut j = 1;
+        let mut sum = 0;
+
+        for score in &high_scores.0 {
+            for ch in score.0.chars() {
+                sum += j * ch as usize;
+                j += 1;
+            }
+
+            let mut val = score.1;
+            while val > 0 {
+                sum += j * val % 10;
+                j += 1;
+                val = val / 10;
+            }
+        }
+
+        sum
+    }
+}
+
+pub struct HighScoreNameInputContext {
+    pub input_box: Entity,
+    pub name_text: Entity,
+}
+
 // battle mode
 pub struct BattleModeConfiguration {
     pub amount_of_players: usize,
@@ -769,4 +888,79 @@ pub enum SecretLevelState {
 pub struct SecretLevelContext {
     pub state: SecretLevelState,
     pub pattern: &'static str,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_high_scores_insert_score() {
+        let mut high_scores = HighScores(vec![]);
+        assert!(high_scores.0.is_empty());
+
+        high_scores.insert_score(String::from("1"), 1);
+        assert_eq!(high_scores.0.len(), 1);
+
+        // if we insert more than allowed...
+        for i in 0..2 * HighScores::HIGH_SCORES_MAX_SIZE {
+            high_scores.insert_score(i.to_string(), i);
+        }
+        // ...we should not go over the allowed size
+        assert_eq!(high_scores.0.len(), HighScores::HIGH_SCORES_MAX_SIZE);
+
+        // check if the vector is still sorted after the new insertions
+        assert!(high_scores.0.windows(2).all(|w| w[0].1 >= w[1].1));
+    }
+
+    #[test]
+    fn test_high_scores_insert_score_ordering() {
+        let mut high_scores = HighScores(vec![]);
+        assert!(high_scores.0.is_empty());
+
+        // if alice and bob have the same score but alice got it first...
+        high_scores.insert_score(String::from("calvin"), 10);
+        high_scores.insert_score(String::from("alice"), 1234);
+        high_scores.insert_score(String::from("bob"), 1234);
+        // ...then alice should be ahead of bob in the list
+        assert_eq!(high_scores.0.len(), 3);
+        assert_eq!(high_scores.0[0].0, "alice");
+        assert_eq!(high_scores.0[1].0, "bob");
+        assert_eq!(high_scores.0[2].0, "calvin");
+
+        let mut high_scores = HighScores(vec![]);
+        assert!(high_scores.0.is_empty());
+
+        // if alice and bob have the same score but bob got it first...
+        high_scores.insert_score(String::from("bob"), 1234);
+        high_scores.insert_score(String::from("calvin"), 10000);
+        high_scores.insert_score(String::from("alice"), 1234);
+        // ...then bob should be ahead of alice in the list
+        assert_eq!(high_scores.0.len(), 3);
+        assert_eq!(high_scores.0[0].0, "calvin");
+        assert_eq!(high_scores.0[1].0, "bob");
+        assert_eq!(high_scores.0[2].0, "alice");
+    }
+
+    #[test]
+    fn test_high_scores_entry_threshold() {
+        let mut high_scores = HighScores(vec![]);
+        assert!(high_scores.0.is_empty());
+        assert_eq!(high_scores.entry_threshold(), 0);
+
+        // if we insert one score short of the allowed size...
+        let really_high_score = 1000000;
+        for _ in 0..HighScores::HIGH_SCORES_MAX_SIZE - 1 {
+            high_scores.insert_score(really_high_score.to_string(), really_high_score);
+        }
+        // ...there should still be room for more
+        assert_eq!(high_scores.0.len(), HighScores::HIGH_SCORES_MAX_SIZE - 1);
+        assert_eq!(high_scores.entry_threshold(), 0);
+
+        // if we insert one more...
+        high_scores.insert_score(really_high_score.to_string(), really_high_score);
+        // ...the next score will need to be higher than the lowest one
+        assert_eq!(high_scores.0.len(), HighScores::HIGH_SCORES_MAX_SIZE);
+        assert_eq!(high_scores.entry_threshold(), really_high_score);
+    }
 }
