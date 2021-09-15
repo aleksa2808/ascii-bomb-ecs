@@ -19,6 +19,7 @@ pub enum AppState {
     MainMenu,
     StoryMode,
     BossSpeech,
+    HighScoreNameInput,
     BattleMode,
     LeaderboardDisplay,
     Paused,
@@ -100,6 +101,7 @@ pub fn run() {
         .init_resource::<MenuMaterials>()
         .init_resource::<MenuState>()
         .init_resource::<GameOptionStore>()
+        .init_resource::<PersistentHighScores>()
         .init_resource::<Fonts>()
         .init_resource::<HUDMaterials>()
         .init_resource::<Textures>()
@@ -145,6 +147,14 @@ pub fn run() {
         )
         .add_system_set(SystemSet::on_enter(AppState::BossSpeech).with_system(setup_boss_speech))
         .add_system_set(SystemSet::on_update(AppState::BossSpeech).with_system(boss_speech_update))
+        .add_system_set(
+            SystemSet::on_enter(AppState::HighScoreNameInput)
+                .with_system(setup_high_score_name_input),
+        )
+        .add_system_set(
+            SystemSet::on_update(AppState::HighScoreNameInput)
+                .with_system(high_score_name_input_update),
+        )
         .add_system_set(
             SystemSet::on_enter(AppState::LeaderboardDisplay)
                 .with_system(setup_leaderboard_display),
