@@ -425,6 +425,13 @@ __██__
         });
 
     commands.insert_resource(menu_background_animation_context.unwrap());
+
+    if game_option_store.get(GameOption::Demo) {
+        commands.insert_resource(DemoModeStartTimer(Timer::from_seconds(
+            DEMO_MODE_START_TIMER_DURATION_SECS,
+            false,
+        )));
+    }
 }
 
 pub fn menu_navigation(
@@ -532,12 +539,26 @@ pub fn menu_navigation(
                     let option_enabled = game_option_store.toggle(option);
                     menu_changed = true;
 
-                    if let GameOption::Sound = option {
-                        if option_enabled {
-                            audio.set_volume(1.0);
-                        } else {
-                            audio.set_volume(0.0);
+                    match option {
+                        GameOption::Sound => {
+                            if option_enabled {
+                                audio.set_volume(1.0);
+                            } else {
+                                audio.set_volume(0.0);
+                            }
                         }
+                        GameOption::Demo => {
+                            if option_enabled {
+                                commands.insert_resource(DemoModeStartTimer(Timer::from_seconds(
+                                    DEMO_MODE_START_TIMER_DURATION_SECS,
+                                    false,
+                                )));
+                            } else {
+                                commands.remove_resource::<DemoModeStartTimer>();
+                            }
+                        }
+                        // TODO: implement
+                        GameOption::Transition => (),
                     }
                 }
                 MenuAction::Exit => {
@@ -627,6 +648,35 @@ pub fn menu_navigation(
     }
 }
 
+pub fn menu_demo_mode_trigger(
+    mut commands: Commands,
+    time: Res<Time>,
+    demo_mode_start_timer: Option<ResMut<DemoModeStartTimer>>,
+    keyboard_input: Res<Input<KeyCode>>,
+    mut state: ResMut<State<AppState>>,
+) {
+    if let Some(mut demo_mode_start_timer) = demo_mode_start_timer {
+        if keyboard_input.get_just_pressed().len() > 0 {
+            demo_mode_start_timer.0.reset();
+        } else {
+            demo_mode_start_timer.0.tick(time.delta());
+            if demo_mode_start_timer.0.finished() {
+                // state switching should fail here if there's a manually triggered state already queued
+                if state.push(AppState::DemoMode).is_ok() {
+                    println!("Starting demo mode!");
+
+                    commands.insert_resource(BattleModeConfiguration {
+                        amount_of_players: 0,
+                        amount_of_bots: 8,
+                        winning_score: 1,
+                        difficulty: BotDifficulty::Medium,
+                    });
+                }
+            }
+        }
+    }
+}
+
 pub fn animate_menu_background(
     time: Res<Time>,
     mut menu_background_animation_context: ResMut<MenuBackgroundAnimationContext>,
@@ -664,7 +714,7 @@ pub fn resize_window(
 ) {
     let window = windows.get_primary_mut().unwrap();
     match state.current() {
-        AppState::StoryMode | AppState::BattleMode | AppState::SecretMode => {
+        AppState::StoryMode | AppState::BattleMode | AppState::DemoMode | AppState::SecretMode => {
             let map_size = map_size.unwrap();
             window.set_resolution(
                 (map_size.columns * TILE_WIDTH) as f32,
@@ -672,7 +722,11 @@ pub fn resize_window(
             );
         }
         AppState::MainMenu => window.set_resolution(MENU_WIDTH as f32, MENU_HEIGHT as f32),
-        _ => (),
+        AppState::SplashScreen
+        | AppState::BossSpeech
+        | AppState::HighScoreNameInput
+        | AppState::LeaderboardDisplay
+        | AppState::Paused => (),
     }
 }
 
@@ -849,6 +903,7 @@ pub fn setup_battle_mode(
         &mut commands,
         &textures,
         map_size,
+        battle_mode_configuration.amount_of_players,
         battle_mode_configuration.amount_of_bots,
     );
     spawn_map(
@@ -976,7 +1031,7 @@ pub fn handle_keyboard_input(
     audio: Res<Audio>,
     sounds: Res<Sounds>,
     mut keyboard_input: ResMut<Input<KeyCode>>,
-    game_score: Res<GameScore>,
+    game_score: Option<Res<GameScore>>,
     persistent_high_scores: Res<PersistentHighScores>,
     query: Query<(Entity, &HumanControlled), With<Player>>,
     mut ev_player_action: EventWriter<PlayerActionEvent>,
@@ -999,7 +1054,7 @@ pub fn handle_keyboard_input(
         }
     }
 
-    if !matches!(state.current(), AppState::SecretMode)
+    if !matches!(state.current(), AppState::DemoMode | AppState::SecretMode)
         && keyboard_input.just_pressed(KeyCode::Return)
     {
         audio.stop();
@@ -1009,7 +1064,8 @@ pub fn handle_keyboard_input(
     }
 
     if keyboard_input.just_pressed(KeyCode::Escape) {
-        if game_score.0 > persistent_high_scores.entry_threshold() {
+        if matches!(game_score, Some(game_score) if game_score.0 > persistent_high_scores.entry_threshold())
+        {
             state.overwrite_push(AppState::HighScoreNameInput).unwrap();
         } else {
             state.overwrite_pop().unwrap();
@@ -1689,12 +1745,18 @@ pub fn finish_round(
         }
 
         // spawn players & map again
+        // TODO: remove hardcode
         let amount_of_players = 1;
         let amount_of_bots = leaderboard.scores.len() - amount_of_players;
         let (map_size, percent_of_passable_positions_to_fill) =
             get_battle_mode_map_size_fill(amount_of_players + amount_of_bots);
-        let (player_spawn_positions, penguin_tags) =
-            spawn_battle_mode_players(&mut commands, &textures, map_size, amount_of_bots);
+        let (player_spawn_positions, penguin_tags) = spawn_battle_mode_players(
+            &mut commands,
+            &textures,
+            map_size,
+            amount_of_players,
+            amount_of_bots,
+        );
         commands
             .entity(query4.single().unwrap())
             .with_children(|parent| {
@@ -1719,6 +1781,17 @@ pub fn finish_round(
         ));
 
         state.overwrite_push(AppState::LeaderboardDisplay).unwrap();
+    }
+}
+
+pub fn exit_demo_mode(
+    mut keyboard_input: ResMut<Input<KeyCode>>,
+    mut state: ResMut<State<AppState>>,
+) {
+    if keyboard_input.get_just_pressed().len() > 0 {
+        println!("Demo mode exited!");
+        state.overwrite_replace(AppState::MainMenu).unwrap();
+        keyboard_input.clear();
     }
 }
 
@@ -2460,6 +2533,7 @@ pub fn teardown(
 
     // clear resources
     // menu
+    commands.remove_resource::<DemoModeStartTimer>();
     commands.remove_resource::<MenuBackgroundAnimationContext>();
 
     // common

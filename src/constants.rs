@@ -13,6 +13,8 @@ pub const TILE_WIDTH: usize = 6 * PIXEL_SCALE;
 pub const SPLASH_SCREEN_TEXT_LEFT: &str = "Error 404:";
 pub const SPLASH_SCREEN_TEXT_RIGHT: &str = "Name Not Found";
 
+pub const DEMO_MODE_START_TIMER_DURATION_SECS: f32 = 15.0;
+
 pub const COLORS: [RGBColor; 16] = [
     RGBColor(12, 12, 12),
     RGBColor(0, 55, 218),

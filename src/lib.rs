@@ -22,12 +22,14 @@ pub enum AppState {
     HighScoreNameInput,
     BattleMode,
     LeaderboardDisplay,
+    DemoMode,
     Paused,
     SecretMode,
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemLabel)]
 enum Label {
+    MenuNavigation,
     Setup,
     TimeUpdate,
     Input,
@@ -137,7 +139,8 @@ pub fn run() {
         .add_system_set(SystemSet::on_exit(AppState::MainMenu).with_system(teardown))
         .add_system_set(
             SystemSet::on_update(AppState::MainMenu)
-                .with_system(menu_navigation)
+                .with_system(menu_navigation.label(Label::MenuNavigation))
+                .with_system(menu_demo_mode_trigger.after(Label::MenuNavigation))
                 .with_system(animate_menu_background),
         )
         .add_system_set(
@@ -215,6 +218,42 @@ pub fn run() {
                     .exclusive_system()
                     .at_end()
                     .label(Label::GameEndCheck),
+            )
+            // update HUD
+            .with_system(
+                hud_update
+                    .exclusive_system()
+                    .at_end()
+                    .after(Label::GameEndCheck),
+            ),
+    );
+
+    add_common_game_systems(&mut app, AppState::DemoMode);
+    app.add_system_set(
+        SystemSet::on_enter(AppState::DemoMode)
+            .with_system(setup_battle_mode.exclusive_system().label(Label::Setup))
+            .with_system(resize_window.exclusive_system().after(Label::Setup)),
+    )
+    .add_system_set(
+        SystemSet::on_update(AppState::DemoMode)
+            .with_system(game_timer_tick.label(Label::TimeUpdate))
+            .with_system(
+                wall_of_death_update
+                    .exclusive_system()
+                    .at_end()
+                    .before(Label::GameEndCheck),
+            )
+            .with_system(
+                finish_round
+                    .exclusive_system()
+                    .at_end()
+                    .label(Label::GameEndCheck),
+            )
+            .with_system(
+                exit_demo_mode
+                    .exclusive_system()
+                    .at_end()
+                    .after(Label::GameEndCheck),
             )
             // update HUD
             .with_system(
