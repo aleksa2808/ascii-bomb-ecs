@@ -141,6 +141,9 @@ pub struct PenguinPortraitDisplay;
 
 pub struct PenguinPortrait(pub Penguin);
 
+// workaround for the visibility inheritance problem (bevy #838)
+pub struct PenguinPortraitChild;
+
 // Bundles
 
 #[derive(Bundle)]
