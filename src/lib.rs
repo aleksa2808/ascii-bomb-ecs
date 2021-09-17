@@ -17,6 +17,7 @@ use crate::{camera::SimpleOrthoProjection, constants::*, events::*, resources::*
 pub enum AppState {
     SplashScreen,
     MainMenu,
+    MapTransition,
     StoryMode,
     BossSpeech,
     HighScoreNameInput,
@@ -142,6 +143,12 @@ pub fn run() {
                 .with_system(menu_navigation.label(Label::MenuNavigation))
                 .with_system(menu_demo_mode_trigger.after(Label::MenuNavigation))
                 .with_system(animate_menu_background),
+        )
+        .add_system_set(
+            SystemSet::on_enter(AppState::MapTransition).with_system(setup_map_transition),
+        )
+        .add_system_set(
+            SystemSet::on_update(AppState::MapTransition).with_system(map_transition_update),
         )
         .add_system_set(
             SystemSet::on_update(AppState::Paused)

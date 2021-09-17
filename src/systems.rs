@@ -723,6 +723,7 @@ pub fn resize_window(
         }
         AppState::MainMenu => window.set_resolution(MENU_WIDTH as f32, MENU_HEIGHT as f32),
         AppState::SplashScreen
+        | AppState::MapTransition
         | AppState::BossSpeech
         | AppState::HighScoreNameInput
         | AppState::LeaderboardDisplay
@@ -736,7 +737,8 @@ pub fn setup_story_mode(
     base_color_materials: Res<BaseColorMaterials>,
     hud_materials: Res<HUDMaterials>,
     fonts: Res<Fonts>,
-    state: Res<State<AppState>>,
+    game_option_store: Res<GameOptionStore>,
+    mut state: ResMut<State<AppState>>,
 ) {
     let map_size = MapSize {
         rows: 11,
@@ -744,6 +746,8 @@ pub fn setup_story_mode(
     };
     let world_id = WorldID(1);
     let level = Level::Regular(1);
+    let player_lives = 2;
+    let player_points = 0;
     const LEVEL_DURATION_SECONDS: usize = 180;
 
     textures.set_map_textures(world_id);
@@ -793,7 +797,7 @@ pub fn setup_story_mode(
         .insert(Protagonist)
         .insert(HumanControlled(0))
         .insert(Health {
-            lives: 2,
+            lives: player_lives,
             max_health: 1,
             health: 1,
         })
@@ -831,10 +835,13 @@ pub fn setup_story_mode(
                 world_id,
                 &[player_penguin_tag],
                 *state.current(),
+                Some(player_lives),
+                Some(player_points),
+                Some(LEVEL_DURATION_SECONDS),
             );
         });
 
-    spawn_map(
+    let wall_entity_reveal_groups = spawn_map(
         &mut commands,
         &textures,
         map_size,
@@ -849,7 +856,7 @@ pub fn setup_story_mode(
         matches!(level, Level::Regular(_)),
     );
 
-    commands.insert_resource(GameScore(0));
+    commands.insert_resource(GameScore(player_points));
     commands.insert_resource(GameTimer(Timer::from_seconds(
         LEVEL_DURATION_SECONDS as f32,
         false,
@@ -857,6 +864,13 @@ pub fn setup_story_mode(
     commands.insert_resource(level);
     commands.insert_resource(world_id);
     commands.insert_resource(map_size);
+
+    if game_option_store.get(GameOption::Transition) {
+        commands.insert_resource(MapTransitionInput {
+            wall_entity_reveal_groups,
+        });
+        state.push(AppState::MapTransition).unwrap();
+    }
 }
 
 pub fn setup_battle_mode(
@@ -866,7 +880,8 @@ pub fn setup_battle_mode(
     base_color_materials: Res<BaseColorMaterials>,
     hud_materials: Res<HUDMaterials>,
     battle_mode_configuration: Res<BattleModeConfiguration>,
-    state: Res<State<AppState>>,
+    game_option_store: Res<GameOptionStore>,
+    mut state: ResMut<State<AppState>>,
 ) {
     const ROUND_DURATION_SECS: usize = 120;
 
@@ -906,7 +921,8 @@ pub fn setup_battle_mode(
         battle_mode_configuration.amount_of_players,
         battle_mode_configuration.amount_of_bots,
     );
-    spawn_map(
+
+    let wall_entity_reveal_groups = spawn_map(
         &mut commands,
         &textures,
         map_size,
@@ -938,7 +954,10 @@ pub fn setup_battle_mode(
                 world_id,
                 &penguin_tags,
                 *state.current(),
-            )
+                None,
+                None,
+                Some(ROUND_DURATION_SECS),
+            );
         });
 
     commands.insert_resource(Leaderboard {
@@ -957,7 +976,77 @@ pub fn setup_battle_mode(
     commands.insert_resource(world_id);
     commands.insert_resource(map_size);
 
-    commands.remove_resource::<BattleModeConfiguration>();
+    if game_option_store.get(GameOption::Transition) {
+        commands.insert_resource(MapTransitionInput {
+            wall_entity_reveal_groups,
+        });
+        state.push(AppState::MapTransition).unwrap();
+    }
+}
+
+pub fn setup_map_transition(
+    mut commands: Commands,
+    mut map_spawn_input: ResMut<MapTransitionInput>,
+    mut query: Query<
+        &mut Visible,
+        Or<(
+            With<Wall>,
+            With<Player>,
+            With<PenguinPortrait>,
+            With<PenguinPortraitChild>,
+        )>,
+    >,
+) {
+    // hide wall, player and portrait entities
+    for mut visible in query.iter_mut() {
+        visible.is_visible = false;
+    }
+
+    commands.insert_resource(MapTransitionContext {
+        wall_entity_reveal_groups: map_spawn_input
+            .wall_entity_reveal_groups
+            .drain(..)
+            .collect(),
+        reveal_timer: Timer::from_seconds(0.015, true),
+    });
+    commands.remove_resource::<MapTransitionInput>();
+}
+
+pub fn map_transition_update(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut map_transition_context: ResMut<MapTransitionContext>,
+    level: Option<Res<Level>>,
+    mut state: ResMut<State<AppState>>,
+    mut query: Query<&mut Visible>,
+) {
+    let mut transition_done = false;
+    // TODO: why is the first tick much larger? it progresses the transition further than we want
+    map_transition_context.reveal_timer.tick(time.delta());
+    for _ in 0..map_transition_context.reveal_timer.times_finished() {
+        if let Some(reveal_group) = map_transition_context.wall_entity_reveal_groups.pop_front() {
+            for entity in reveal_group {
+                query.get_mut(entity).unwrap().is_visible = true;
+            }
+        } else {
+            // reveal the rest of the hidden entities
+            for mut visible in query.iter_mut() {
+                visible.is_visible = true;
+            }
+            transition_done = true;
+            break;
+        }
+    }
+
+    if transition_done {
+        // exit the map transition state
+        if let Some(Level::BossRoom) = level.map(|v| *v) {
+            state.set(AppState::BossSpeech).unwrap();
+        } else {
+            state.pop().unwrap();
+        }
+        commands.remove_resource::<MapTransitionContext>();
+    }
 }
 
 pub fn hud_update(
@@ -1002,11 +1091,7 @@ pub fn hud_update(
         let remaining_seconds = (game_timer.0.duration() - game_timer.0.elapsed())
             .as_secs_f32()
             .ceil() as usize;
-        q.q2().single_mut().unwrap().sections[0].value = format!(
-            "{:02}:{:02}",
-            remaining_seconds / 60,
-            remaining_seconds % 60
-        );
+        q.q2().single_mut().unwrap().sections[0].value = format_hud_time(remaining_seconds);
     }
 
     // remove dead penguin portraits :(
@@ -1467,6 +1552,7 @@ pub fn finish_level(
     mut commands: Commands,
     mut textures: ResMut<Textures>,
     hud_materials: Res<HUDMaterials>,
+    game_option_store: Res<GameOptionStore>,
     mut level: ResMut<Level>,
     mut world_id: ResMut<WorldID>,
     map_size: Res<MapSize>,
@@ -1492,10 +1578,13 @@ pub fn finish_level(
     )>,
     query3: Query<&TeamID, With<Player>>,
     query4: Query<Entity, (Without<Camera>, Without<UIComponent>, Without<Protagonist>)>,
-    query5: Query<&Bomb>,
-    query6: Query<Entity, With<PenguinPortraitDisplay>>,
+    // getting errors if these are split, possibly too many arguments
+    mut q2: QuerySet<(
+        QueryState<&Bomb>,
+        QueryState<Entity, With<PenguinPortraitDisplay>>,
+    )>,
     mut state: ResMut<State<AppState>>,
-    keyboard_input: Res<Input<KeyCode>>,
+    mut keyboard_input: ResMut<Input<KeyCode>>,
 ) {
     let mut level_completed = false;
     match *level {
@@ -1524,6 +1613,7 @@ pub fn finish_level(
     // TODO: used for debugging, remove
     if keyboard_input.just_pressed(KeyCode::F) {
         level_completed = true;
+        keyboard_input.reset(KeyCode::F);
     }
 
     if level_completed {
@@ -1579,7 +1669,8 @@ pub fn finish_level(
         // reset the player's texture (clears immortality animation effects)
         *player_material = base_material.0.clone();
 
-        let unexploded_player_bombs = query5
+        let unexploded_player_bombs = q2
+            .q0()
             .iter()
             .filter(|b| matches!(b.owner, Some(entity) if entity == player_entity))
             .count();
@@ -1620,7 +1711,7 @@ pub fn finish_level(
 
             // add enemy penguin portraits (the player's one is left as is)
             commands
-                .entity(query6.single().unwrap())
+                .entity(q2.q1().single().unwrap())
                 .with_children(|parent| {
                     init_penguin_portraits(parent, &[boss_penguin_tag], &hud_materials, &textures);
                 });
@@ -1658,11 +1749,9 @@ pub fn finish_level(
                 ],
                 _ => unreachable!(), // TODO: feels like world_id should be an enum
             }));
-
-            state.push(AppState::BossSpeech).unwrap();
         }
 
-        spawn_map(
+        let wall_entity_reveal_groups = spawn_map(
             &mut commands,
             &textures,
             *map_size,
@@ -1678,6 +1767,15 @@ pub fn finish_level(
         );
 
         game_timer.0.reset();
+
+        if game_option_store.get(GameOption::Transition) {
+            commands.insert_resource(MapTransitionInput {
+                wall_entity_reveal_groups,
+            });
+            state.push(AppState::MapTransition).unwrap();
+        } else if let Level::BossRoom = *level {
+            state.push(AppState::BossSpeech).unwrap();
+        }
     }
 }
 
@@ -1695,16 +1793,12 @@ pub fn fail_level(
 
 pub fn finish_round(
     mut commands: Commands,
-    hud_materials: Res<HUDMaterials>,
-    textures: Res<Textures>,
-    mut game_timer: ResMut<GameTimer>,
+    game_timer: Res<GameTimer>,
     mut leaderboard: ResMut<Leaderboard>,
-    mut wall_of_death: ResMut<WallOfDeath>,
     keyboard_input: Res<Input<KeyCode>>,
     query: Query<&Penguin, With<Player>>,
     query2: Query<Entity, (Without<Camera>, Without<UIComponent>)>,
     query3: Query<Entity, With<PenguinPortrait>>,
-    query4: Query<Entity, With<PenguinPortraitDisplay>>,
     mut state: ResMut<State<AppState>>,
 ) {
     let mut round_over = false;
@@ -1743,42 +1837,6 @@ pub fn finish_round(
         for entity in query3.iter() {
             commands.entity(entity).despawn_recursive();
         }
-
-        // spawn players & map again
-        // TODO: remove hardcode
-        let amount_of_players = 1;
-        let amount_of_bots = leaderboard.scores.len() - amount_of_players;
-        let (map_size, percent_of_passable_positions_to_fill) =
-            get_battle_mode_map_size_fill(amount_of_players + amount_of_bots);
-        let (player_spawn_positions, penguin_tags) = spawn_battle_mode_players(
-            &mut commands,
-            &textures,
-            map_size,
-            amount_of_players,
-            amount_of_bots,
-        );
-        commands
-            .entity(query4.single().unwrap())
-            .with_children(|parent| {
-                init_penguin_portraits(parent, &penguin_tags, &hud_materials, &textures);
-            });
-
-        spawn_map(
-            &mut commands,
-            &textures,
-            map_size,
-            percent_of_passable_positions_to_fill,
-            true,
-            &player_spawn_positions,
-            &[],
-            false,
-        );
-
-        game_timer.0.reset();
-        *wall_of_death = WallOfDeath::Dormant(Timer::from_seconds(
-            game_timer.0.duration().as_secs_f32() / 2.0,
-            false,
-        ));
 
         state.overwrite_push(AppState::LeaderboardDisplay).unwrap();
     }
@@ -2974,10 +3032,19 @@ pub fn setup_leaderboard_display(
 
 pub fn leaderboard_display_update(
     mut commands: Commands,
+    textures: Res<Textures>,
+    hud_materials: Res<HUDMaterials>,
     time: Res<Time>,
     mut leaderboard_display_timer: ResMut<LeaderboardDisplay>,
     leaderboard: Res<Leaderboard>,
+    map_size: Res<MapSize>,
+    battle_mode_configuration: Res<BattleModeConfiguration>,
+    game_option_store: Res<GameOptionStore>,
+    mut game_timer: ResMut<GameTimer>,
+    mut wall_of_death: ResMut<WallOfDeath>,
     mut state: ResMut<State<AppState>>,
+    query: Query<Entity, With<PenguinPortraitDisplay>>,
+    mut query2: Query<&mut Text, With<GameTimerDisplay>>,
 ) {
     leaderboard_display_timer.timer.tick(time.delta());
     if leaderboard_display_timer.timer.finished() {
@@ -2992,9 +3059,56 @@ pub fn leaderboard_display_update(
             .find(|(_, s)| **s == leaderboard.winning_score)
         {
             println!("Tournament complete! Winner: {:?}", penguin.0);
+            commands.remove_resource::<BattleModeConfiguration>();
             state.replace(AppState::MainMenu).unwrap();
         } else {
-            state.pop().unwrap();
+            // spawn players & map again
+            let amount_of_players = battle_mode_configuration.amount_of_players;
+            let amount_of_bots = battle_mode_configuration.amount_of_bots;
+            // TODO: put in setup and use as resource instead of recalculating?
+            let (_, percent_of_passable_positions_to_fill) =
+                get_battle_mode_map_size_fill(amount_of_players + amount_of_bots);
+            let (player_spawn_positions, penguin_tags) = spawn_battle_mode_players(
+                &mut commands,
+                &textures,
+                *map_size,
+                amount_of_players,
+                amount_of_bots,
+            );
+
+            commands
+                .entity(query.single().unwrap())
+                .with_children(|parent| {
+                    init_penguin_portraits(parent, &penguin_tags, &hud_materials, &textures);
+                });
+
+            let wall_entity_reveal_groups = spawn_map(
+                &mut commands,
+                &textures,
+                *map_size,
+                percent_of_passable_positions_to_fill,
+                true,
+                &player_spawn_positions,
+                &[],
+                false,
+            );
+
+            game_timer.0.reset();
+            // update HUD clock so we don't get last round time during the map transition
+            let remaining_seconds = game_timer.0.duration().as_secs_f32() as usize;
+            query2.single_mut().unwrap().sections[0].value = format_hud_time(remaining_seconds);
+
+            *wall_of_death = WallOfDeath::Dormant(Timer::from_seconds(
+                game_timer.0.duration().as_secs_f32() / 2.0,
+                false,
+            ));
+
+            if game_option_store.get(GameOption::Transition) {
+                commands.insert_resource(MapTransitionInput {
+                    wall_entity_reveal_groups,
+                });
+                state.set(AppState::MapTransition).unwrap();
+            }
         }
     }
 }
@@ -3007,7 +3121,8 @@ pub fn setup_secret_mode(
     base_color_materials: Res<BaseColorMaterials>,
     hud_materials: Res<HUDMaterials>,
     fonts: Res<Fonts>,
-    state: Res<State<AppState>>,
+    game_option_store: Res<GameOptionStore>,
+    mut state: ResMut<State<AppState>>,
 ) {
     // TODO: Audio will start playing only when the asset is loaded and decoded, which might be after
     // the mode is finished. However, waiting for it to load is VERY slow in debug builds, so there needs
@@ -3101,10 +3216,13 @@ pub fn setup_secret_mode(
                 world_id,
                 &[],
                 *state.current(),
+                None,
+                None,
+                None,
             );
         });
 
-    spawn_map(
+    let wall_entity_reveal_groups = spawn_map(
         &mut commands,
         &textures,
         map_size,
@@ -3121,6 +3239,13 @@ pub fn setup_secret_mode(
         state: SecretLevelState::Initial(Timer::from_seconds(2.5, false)),
         pattern: PATTERN,
     });
+
+    if game_option_store.get(GameOption::Transition) {
+        commands.insert_resource(MapTransitionInput {
+            wall_entity_reveal_groups,
+        });
+        state.push(AppState::MapTransition).unwrap();
+    }
 }
 
 pub fn update_secret_mode(
