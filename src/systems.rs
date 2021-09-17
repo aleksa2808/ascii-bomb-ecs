@@ -3108,6 +3108,8 @@ pub fn leaderboard_display_update(
                     wall_entity_reveal_groups,
                 });
                 state.set(AppState::MapTransition).unwrap();
+            } else {
+                state.pop().unwrap();
             }
         }
     }
