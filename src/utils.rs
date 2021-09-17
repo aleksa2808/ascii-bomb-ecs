@@ -1249,10 +1249,7 @@ pub fn generate_item_at_position(
     textures: &Textures,
     state: &State<AppState>,
 ) {
-    let item = Item::generate(matches!(
-        state.current(),
-        AppState::BattleMode | AppState::DemoMode
-    ));
+    let item = Item::generate(matches!(state.current(), AppState::BattleMode));
     commands
         .spawn_bundle(SpriteBundle {
             material: match item {

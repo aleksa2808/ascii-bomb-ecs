@@ -886,7 +886,7 @@ pub enum WallOfDeath {
 }
 
 // leaderboard display
-pub struct LeaderboardDisplay {
+pub struct LeaderboardDisplayContext {
     pub leaderboard_display_box: Entity,
     pub timer: Timer,
 }

@@ -662,7 +662,7 @@ pub fn menu_demo_mode_trigger(
             demo_mode_start_timer.0.tick(time.delta());
             if demo_mode_start_timer.0.finished() {
                 // state switching should fail here if there's a manually triggered state already queued
-                if state.push(AppState::DemoMode).is_ok() {
+                if state.push(AppState::BattleMode).is_ok() {
                     println!("Starting demo mode!");
 
                     commands.insert_resource(BattleModeConfiguration {
@@ -714,7 +714,7 @@ pub fn resize_window(
 ) {
     let window = windows.get_primary_mut().unwrap();
     match state.current() {
-        AppState::StoryMode | AppState::BattleMode | AppState::DemoMode | AppState::SecretMode => {
+        AppState::StoryMode | AppState::BattleMode | AppState::SecretMode => {
             let map_size = map_size.unwrap();
             window.set_resolution(
                 (map_size.columns * TILE_WIDTH) as f32,
@@ -1118,6 +1118,7 @@ pub fn handle_keyboard_input(
     mut keyboard_input: ResMut<Input<KeyCode>>,
     game_score: Option<Res<GameScore>>,
     persistent_high_scores: Res<PersistentHighScores>,
+    battle_mode_configuration: Option<Res<BattleModeConfiguration>>,
     query: Query<(Entity, &HumanControlled), With<Player>>,
     mut ev_player_action: EventWriter<PlayerActionEvent>,
     mut state: ResMut<State<AppState>>,
@@ -1139,8 +1140,12 @@ pub fn handle_keyboard_input(
         }
     }
 
-    if !matches!(state.current(), AppState::DemoMode | AppState::SecretMode)
-        && keyboard_input.just_pressed(KeyCode::Return)
+    if keyboard_input.just_pressed(KeyCode::Return)
+        && !matches!(state.current(), AppState::SecretMode)
+        && !matches!(
+            battle_mode_configuration,
+            Some(c) if c.amount_of_players == 0
+        )
     {
         audio.stop();
         audio.play(sounds.pause.clone());
@@ -1842,17 +1847,6 @@ pub fn finish_round(
     }
 }
 
-pub fn exit_demo_mode(
-    mut keyboard_input: ResMut<Input<KeyCode>>,
-    mut state: ResMut<State<AppState>>,
-) {
-    if keyboard_input.get_just_pressed().len() > 0 {
-        println!("Demo mode exited!");
-        state.overwrite_replace(AppState::MainMenu).unwrap();
-        keyboard_input.clear();
-    }
-}
-
 pub fn bomb_drop(
     mut commands: Commands,
     textures: Res<Textures>,
@@ -2258,7 +2252,7 @@ pub fn player_damage(
                     println!("player died: {:?}", pe);
                     commands.entity(pe).despawn_recursive();
 
-                    if let AppState::BattleMode | AppState::DemoMode = state.current() {
+                    if let AppState::BattleMode = state.current() {
                         // item pinata
                         let invalid_positions: HashSet<Position> = query2.iter().copied().collect();
                         let valid_positions = (0..map_size.rows)
@@ -3024,7 +3018,7 @@ pub fn setup_leaderboard_display(
             );
         });
 
-    commands.insert_resource(LeaderboardDisplay {
+    commands.insert_resource(LeaderboardDisplayContext {
         leaderboard_display_box: leaderboard_display_box.unwrap(),
         timer: Timer::from_seconds(1.5, false),
     });
@@ -3035,7 +3029,7 @@ pub fn leaderboard_display_update(
     textures: Res<Textures>,
     hud_materials: Res<HUDMaterials>,
     time: Res<Time>,
-    mut leaderboard_display_timer: ResMut<LeaderboardDisplay>,
+    mut leaderboard_display_context: ResMut<LeaderboardDisplayContext>,
     leaderboard: Res<Leaderboard>,
     map_size: Res<MapSize>,
     battle_mode_configuration: Res<BattleModeConfiguration>,
@@ -3046,12 +3040,12 @@ pub fn leaderboard_display_update(
     query: Query<Entity, With<PenguinPortraitDisplay>>,
     mut query2: Query<&mut Text, With<GameTimerDisplay>>,
 ) {
-    leaderboard_display_timer.timer.tick(time.delta());
-    if leaderboard_display_timer.timer.finished() {
+    leaderboard_display_context.timer.tick(time.delta());
+    if leaderboard_display_context.timer.finished() {
         commands
-            .entity(leaderboard_display_timer.leaderboard_display_box)
+            .entity(leaderboard_display_context.leaderboard_display_box)
             .despawn_recursive();
-        commands.remove_resource::<LeaderboardDisplay>();
+        commands.remove_resource::<LeaderboardDisplayContext>();
 
         if let Some((penguin, _)) = leaderboard
             .scores
