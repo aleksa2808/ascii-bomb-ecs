@@ -11,7 +11,7 @@ use crate::{
     constants::*,
     item::{Item, Power, Upgrade},
     resources::*,
-    types::{BotDifficulty, Cooldown, Direction, PlayerAction},
+    types::{BotDifficulty, Cooldown, Direction, PenguinControlType, PlayerAction},
     AppState,
 };
 
@@ -510,18 +510,23 @@ pub fn format_hud_time(remaining_seconds: usize) -> String {
     )
 }
 
+pub fn format_hud_lives(lives: usize) -> String {
+    format!("Lives:{}", lives)
+}
+
+pub fn format_hud_points(points: usize) -> String {
+    format!("Points:{}", points)
+}
+
 pub fn init_hud(
     parent: &mut ChildBuilder,
     hud_materials: &HUDMaterials,
     fonts: &Fonts,
     width: f32,
-    textures: &Textures,
     world_id: WorldID,
-    penguin_tags: &[Penguin],
     state: AppState,
-    initial_lives: Option<usize>,
-    initial_points: Option<usize>,
-    initial_remaining_seconds: Option<usize>,
+    lives: Option<usize>,
+    points: Option<usize>,
 ) {
     parent
         .spawn_bundle(NodeBundle {
@@ -543,65 +548,61 @@ pub fn init_hud(
         .insert(PenguinPortraitDisplay) // TODO: make a separate NodeBundle for this
         .with_children(|parent| {
             if !matches!(state, AppState::SecretMode) {
-                // lives display
-                parent
-                    .spawn_bundle(TextBundle {
-                        text: Text::with_section(
-                            if let Some(lives) = initial_lives {
-                                format!("Lives:{}", lives)
-                            } else {
-                                String::new()
-                            },
-                            TextStyle {
-                                font: fonts.mono.clone(),
-                                font_size: 2.0 * PIXEL_SCALE as f32,
-                                color: COLORS[0].into(),
-                            },
-                            TextAlignment::default(),
-                        ),
-                        style: Style {
-                            position_type: PositionType::Absolute,
-                            position: Rect {
-                                top: Val::Px(12.0 * PIXEL_SCALE as f32),
-                                left: Val::Px(6.0 * PIXEL_SCALE as f32),
+                if let Some(lives) = lives {
+                    // lives display
+                    parent
+                        .spawn_bundle(TextBundle {
+                            text: Text::with_section(
+                                format_hud_lives(lives),
+                                TextStyle {
+                                    font: fonts.mono.clone(),
+                                    font_size: 2.0 * PIXEL_SCALE as f32,
+                                    color: COLORS[0].into(),
+                                },
+                                TextAlignment::default(),
+                            ),
+                            style: Style {
+                                position_type: PositionType::Absolute,
+                                position: Rect {
+                                    top: Val::Px(12.0 * PIXEL_SCALE as f32),
+                                    left: Val::Px(6.0 * PIXEL_SCALE as f32),
+                                    ..Default::default()
+                                },
                                 ..Default::default()
                             },
                             ..Default::default()
-                        },
-                        ..Default::default()
-                    })
-                    .insert(UIComponent)
-                    .insert(LivesDisplay);
+                        })
+                        .insert(UIComponent)
+                        .insert(LivesDisplay);
+                }
 
-                // points display
-                parent
-                    .spawn_bundle(TextBundle {
-                        text: Text::with_section(
-                            if let Some(points) = initial_points {
-                                format!("Points:{}", points)
-                            } else {
-                                String::new()
-                            },
-                            TextStyle {
-                                font: fonts.mono.clone(),
-                                font_size: 2.0 * PIXEL_SCALE as f32,
-                                color: COLORS[0].into(),
-                            },
-                            TextAlignment::default(),
-                        ),
-                        style: Style {
-                            position_type: PositionType::Absolute,
-                            position: Rect {
-                                top: Val::Px(12.0 * PIXEL_SCALE as f32),
-                                left: Val::Px(16.0 * PIXEL_SCALE as f32),
+                if let Some(points) = points {
+                    // points display
+                    parent
+                        .spawn_bundle(TextBundle {
+                            text: Text::with_section(
+                                format_hud_points(points),
+                                TextStyle {
+                                    font: fonts.mono.clone(),
+                                    font_size: 2.0 * PIXEL_SCALE as f32,
+                                    color: COLORS[0].into(),
+                                },
+                                TextAlignment::default(),
+                            ),
+                            style: Style {
+                                position_type: PositionType::Absolute,
+                                position: Rect {
+                                    top: Val::Px(12.0 * PIXEL_SCALE as f32),
+                                    left: Val::Px(16.0 * PIXEL_SCALE as f32),
+                                    ..Default::default()
+                                },
                                 ..Default::default()
                             },
                             ..Default::default()
-                        },
-                        ..Default::default()
-                    })
-                    .insert(UIComponent)
-                    .insert(PointsDisplay);
+                        })
+                        .insert(UIComponent)
+                        .insert(PointsDisplay);
+                }
 
                 // clock / pause indicator
                 parent
@@ -627,11 +628,7 @@ pub fn init_hud(
                         parent
                             .spawn_bundle(TextBundle {
                                 text: Text::with_section(
-                                    if let Some(remaining_seconds) = initial_remaining_seconds {
-                                        format_hud_time(remaining_seconds)
-                                    } else {
-                                        String::new()
-                                    },
+                                    "",
                                     TextStyle {
                                         font: fonts.mono.clone(),
                                         font_size: 2.0 * PIXEL_SCALE as f32,
@@ -653,8 +650,6 @@ pub fn init_hud(
                             .insert(UIComponent)
                             .insert(GameTimerDisplay);
                     });
-
-                init_penguin_portraits(parent, penguin_tags, hud_materials, textures);
             } else {
                 parent
                     .spawn_bundle(NodeBundle {
@@ -970,9 +965,8 @@ pub fn spawn_battle_mode_players(
     commands: &mut Commands,
     textures: &Textures,
     map_size: MapSize,
-    amount_of_players: usize,
-    amount_of_bots: usize,
-) -> (Vec<Position>, Vec<Penguin>) {
+    players: &[(Penguin, PenguinControlType)],
+) -> Vec<Position> {
     let possible_player_spawn_positions = [
         (1, 1),
         (map_size.rows - 2, map_size.columns - 2),
@@ -992,16 +986,9 @@ pub fn spawn_battle_mode_players(
             });
 
     let mut player_spawn_positions = vec![];
-    let mut penguin_tags = vec![];
 
-    enum PlayerType {
-        Human(usize),
-        Bot,
-    }
-
-    let mut spawn_player = |player_type: PlayerType| {
+    let mut spawn_player = |penguin_tag: Penguin, penguin_control_type: PenguinControlType| {
         let player_spawn_position = possible_player_spawn_positions.next().unwrap();
-        let penguin_tag = Penguin(player_spawn_positions.len());
         let base_material = textures.get_penguin_texture(penguin_tag).clone();
         let immortal_material = textures.immortal_penguin.clone();
         let mut entity_commands = commands.spawn_bundle(SpriteBundle {
@@ -1030,11 +1017,11 @@ pub fn spawn_battle_mode_players(
                 bomb_range: 2,
             })
             .insert(TeamID(penguin_tag.0));
-        match player_type {
-            PlayerType::Human(i) => {
+        match penguin_control_type {
+            PenguinControlType::Human(i) => {
                 entity_commands.insert(HumanControlled(i));
             }
-            PlayerType::Bot => {
+            PenguinControlType::Bot => {
                 entity_commands
                     .insert(BotAI)
                     .insert(MoveCooldown(Cooldown::from_seconds(0.3)));
@@ -1042,18 +1029,13 @@ pub fn spawn_battle_mode_players(
         }
 
         player_spawn_positions.push(player_spawn_position);
-        penguin_tags.push(penguin_tag);
     };
 
-    for i in 0..amount_of_players {
-        spawn_player(PlayerType::Human(i));
+    for (penguin_tag, penguin_control_type) in players {
+        spawn_player(*penguin_tag, *penguin_control_type);
     }
 
-    for _ in 0..amount_of_bots {
-        spawn_player(PlayerType::Bot);
-    }
-
-    (player_spawn_positions, penguin_tags)
+    player_spawn_positions
 }
 
 pub fn get_battle_mode_map_size_fill(player_count: usize) -> (MapSize, f32) {

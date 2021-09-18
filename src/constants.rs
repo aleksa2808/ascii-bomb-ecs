@@ -14,6 +14,10 @@ pub const SPLASH_SCREEN_TEXT_LEFT: &str = "Error 404:";
 pub const SPLASH_SCREEN_TEXT_RIGHT: &str = "Name Not Found";
 
 pub const DEMO_MODE_START_TIMER_DURATION_SECS: f32 = 15.0;
+pub const ROUND_START_FREEZE_SECS: f32 = 0.5;
+
+pub const STORY_MODE_LEVEL_DURATION_SECS: usize = 180;
+pub const BATTLE_MODE_ROUND_DURATION_SECS: usize = 120;
 
 pub const ITEM_SPAWN_CHANCE: f32 = 0.1;
 

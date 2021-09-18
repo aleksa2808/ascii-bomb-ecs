@@ -495,7 +495,7 @@ pub fn menu_navigation(
                     });
 
                     menu_state.battle_mode_sub_menu_state = None;
-                    state.push(AppState::BattleMode).unwrap();
+                    state.replace(AppState::BattleMode).unwrap();
                     keyboard_input.reset(KeyCode::Return);
                     return;
                 }
@@ -516,7 +516,7 @@ pub fn menu_navigation(
                     menu_changed = true;
                 }
                 MenuAction::LaunchStoryMode => {
-                    state.push(AppState::StoryMode).unwrap();
+                    state.replace(AppState::StoryMode).unwrap();
                     keyboard_input.reset(KeyCode::Return);
                     return;
                 }
@@ -611,7 +611,7 @@ pub fn menu_navigation(
 
         if let MenuType::ControlsScreen(_) = menu_state.get_current_menu() {
             if keyboard_input.just_pressed(KeyCode::F) {
-                state.push(AppState::SecretMode).unwrap();
+                state.replace(AppState::SecretMode).unwrap();
                 keyboard_input.reset(KeyCode::F);
                 return;
             }
@@ -662,7 +662,7 @@ pub fn menu_demo_mode_trigger(
             demo_mode_start_timer.0.tick(time.delta());
             if demo_mode_start_timer.0.finished() {
                 // state switching should fail here if there's a manually triggered state already queued
-                if state.push(AppState::BattleMode).is_ok() {
+                if state.replace(AppState::BattleMode).is_ok() {
                     println!("Starting demo mode!");
 
                     commands.insert_resource(BattleModeConfiguration {
@@ -725,9 +725,13 @@ pub fn resize_window(
         AppState::SplashScreen
         | AppState::MapTransition
         | AppState::BossSpeech
+        | AppState::StoryModeInGame
         | AppState::HighScoreNameInput
+        | AppState::RoundStartFreeze
+        | AppState::BattleModeInGame
         | AppState::LeaderboardDisplay
-        | AppState::Paused => (),
+        | AppState::Paused
+        | AppState::SecretModeInGame => (),
     }
 }
 
@@ -737,18 +741,15 @@ pub fn setup_story_mode(
     base_color_materials: Res<BaseColorMaterials>,
     hud_materials: Res<HUDMaterials>,
     fonts: Res<Fonts>,
-    game_option_store: Res<GameOptionStore>,
-    mut state: ResMut<State<AppState>>,
+    state: Res<State<AppState>>,
 ) {
     let map_size = MapSize {
         rows: 11,
         columns: 15,
     };
     let world_id = WorldID(1);
-    let level = Level::Regular(1);
     let player_lives = 2;
     let player_points = 0;
-    const LEVEL_DURATION_SECONDS: usize = 180;
 
     textures.set_map_textures(world_id);
 
@@ -809,10 +810,6 @@ pub fn setup_story_mode(
         .insert(player_penguin_tag)
         .insert(TeamID(0));
 
-    // spawn mobs
-    let mob_spawn_positions =
-        spawn_story_mode_mobs(&mut commands, &textures, level, world_id, map_size);
-
     // spawn HUD
     commands
         .spawn_bundle(NodeBundle {
@@ -831,45 +828,308 @@ pub fn setup_story_mode(
                 &hud_materials,
                 &fonts,
                 (map_size.columns * TILE_WIDTH) as f32,
-                &textures,
                 world_id,
-                &[player_penguin_tag],
                 *state.current(),
                 Some(player_lives),
                 Some(player_points),
-                Some(LEVEL_DURATION_SECONDS),
             );
         });
 
-    let wall_entity_reveal_groups = spawn_map(
-        &mut commands,
-        &textures,
-        map_size,
-        if let Level::BossRoom = level {
-            0.0
-        } else {
-            50.0
-        },
-        true,
-        &[player_spawn_position],
-        &mob_spawn_positions,
-        matches!(level, Level::Regular(_)),
-    );
-
-    commands.insert_resource(GameScore(player_points));
+    commands.insert_resource(StoryModeContext {
+        state: StoryModeState::LevelSetup,
+        level: Level::Regular(1),
+        level_outcome: None,
+        game_score: GameScore(player_points),
+        game_completed: false,
+    });
     commands.insert_resource(GameTimer(Timer::from_seconds(
-        LEVEL_DURATION_SECONDS as f32,
+        STORY_MODE_LEVEL_DURATION_SECS as f32,
         false,
     )));
-    commands.insert_resource(level);
     commands.insert_resource(world_id);
     commands.insert_resource(map_size);
+}
 
-    if game_option_store.get(GameOption::Transition) {
-        commands.insert_resource(MapTransitionInput {
-            wall_entity_reveal_groups,
-        });
-        state.push(AppState::MapTransition).unwrap();
+pub fn story_mode_dispatch(
+    mut commands: Commands,
+    mut textures: ResMut<Textures>,
+    hud_materials: Res<HUDMaterials>,
+    mut story_mode_context: ResMut<StoryModeContext>,
+    mut game_timer: ResMut<GameTimer>,
+    mut world_id: ResMut<WorldID>,
+    map_size: Res<MapSize>,
+    game_option_store: Res<GameOptionStore>,
+    persistent_high_scores: Res<PersistentHighScores>,
+    mut state: ResMut<State<AppState>>,
+    mut q: QuerySet<(
+        QueryState<
+            (
+                Entity,
+                &mut Handle<ColorMaterial>,
+                &BaseMaterial,
+                &mut BombSatchel,
+            ),
+            (With<Player>, With<Protagonist>),
+        >,
+        // doesn't need to be in here, but putting it outside throws errors (possibly because of too many arguments)
+        QueryState<
+            (Entity, &Penguin, &mut Position, &mut Transform, &mut Sprite),
+            (With<Player>, With<Protagonist>),
+        >,
+        QueryState<&mut Handle<ColorMaterial>, With<HUDRoot>>,
+    )>,
+    mut q2: QuerySet<(
+        QueryState<&mut Text, With<PointsDisplay>>,
+        QueryState<&mut Text, With<GameTimerDisplay>>,
+    )>,
+    query: Query<Entity, With<PenguinPortrait>>,
+    query2: Query<Entity, (Without<Camera>, Without<UIComponent>, Without<Protagonist>)>,
+    query3: Query<&Bomb>,
+    query4: Query<Entity, With<PenguinPortraitDisplay>>,
+) {
+    loop {
+        match story_mode_context.state {
+            StoryModeState::LevelSetup => {
+                let mut tmp = q.q1();
+                let (
+                    player_entity,
+                    player_penguin_tag,
+                    mut player_position,
+                    mut transform,
+                    mut sprite,
+                ) = tmp.single_mut().unwrap();
+
+                // move player to spawn
+                *player_position = match story_mode_context.level {
+                    Level::Regular(_) => Position { y: 1, x: 1 },
+                    Level::BossRoom => Position {
+                        y: map_size.rows as isize - 4,
+                        x: map_size.columns as isize / 2,
+                    },
+                };
+                let mut penguin_spawn_positions = vec![*player_position];
+                let mut penguin_tags = vec![*player_penguin_tag];
+
+                let translation = &mut transform.translation;
+                translation.x = get_x(player_position.x);
+                translation.y = get_y(player_position.y);
+
+                // face the player right
+                sprite.flip_x = false;
+
+                // make the player temporarily immortal
+                commands
+                    .entity(player_entity)
+                    .insert_bundle(ImmortalBundle::default());
+
+                let mob_spawn_positions = spawn_story_mode_mobs(
+                    &mut commands,
+                    &textures,
+                    story_mode_context.level,
+                    *world_id,
+                    *map_size,
+                );
+
+                if let Level::BossRoom = story_mode_context.level {
+                    let (boss_spawn_position, boss_penguin_tag) =
+                        spawn_story_mode_boss(&mut commands, &textures, *world_id, *map_size);
+                    penguin_spawn_positions.push(boss_spawn_position);
+                    penguin_tags.push(boss_penguin_tag);
+
+                    let player = *player_penguin_tag;
+                    let boss = boss_penguin_tag;
+                    commands.insert_resource(BossSpeechScript::new(match world_id.0 {
+                                    1 => vec![
+                                        (boss, "You will never reach the north alive!"),
+                                        (player, "Penguins can talk in this game? Cooooool!"),
+                                        (boss, "Prepare to die!"),
+                                    ],
+                                    2 => vec![
+                                        (boss, "How did you manage to get here?"),
+                                        (
+                                            player,
+                                            "Dunno, killed some guys, went through some doors...",
+                                        ),
+                                        (player, "That kind of stuff..."),
+                                        (boss, "Ugh, those fools!"),
+                                        (
+                                            boss,
+                                            "Well, your journey stops here, you will never find the cloud city!",
+                                        ),
+                                        (
+                                            player,
+                                            "A cloud city? Nice, was getting kind of bored with this theme...",
+                                        ),
+                                    ],
+                                    3 => vec![
+                                        (boss, "Ah, I have been expecting you Agent P!"),
+                                        (player, "Who even wrote these stupid dialogues?"),
+                                        (boss, "nenexexedadada!"),
+                                        (player, "Let's just get this over with..."),
+                                    ],
+                                    _ => unreachable!(), // TODO: feels like world_id should be an enum
+                                }));
+                }
+
+                // add penguin portraits
+                commands
+                    .entity(query4.single().unwrap())
+                    .with_children(|parent| {
+                        init_penguin_portraits(parent, &penguin_tags, &hud_materials, &textures);
+                    });
+
+                let wall_entity_reveal_groups = spawn_map(
+                    &mut commands,
+                    &textures,
+                    *map_size,
+                    if let Level::BossRoom = story_mode_context.level {
+                        0.0
+                    } else {
+                        50.0
+                    },
+                    true,
+                    &penguin_spawn_positions,
+                    &mob_spawn_positions,
+                    matches!(story_mode_context.level, Level::Regular(_)),
+                );
+
+                game_timer.0.reset();
+                // update HUD clock
+                q2.q1().single_mut().unwrap().sections[0].value =
+                    format_hud_time(game_timer.0.duration().as_secs_f32().ceil() as usize);
+
+                story_mode_context.level_outcome = None;
+
+                if game_option_store.get(GameOption::Transition) {
+                    story_mode_context.state = StoryModeState::MapTransition;
+                    commands.insert_resource(MapTransitionInput {
+                        wall_entity_reveal_groups,
+                    });
+                    state.push(AppState::MapTransition).unwrap();
+                } else if let Level::BossRoom = story_mode_context.level {
+                    story_mode_context.state = StoryModeState::BossSpeech;
+                    state.push(AppState::BossSpeech).unwrap();
+                } else {
+                    story_mode_context.state = StoryModeState::InGame;
+                    state.push(AppState::StoryModeInGame).unwrap();
+                }
+            }
+            StoryModeState::MapTransition => {
+                if let Level::BossRoom = story_mode_context.level {
+                    story_mode_context.state = StoryModeState::BossSpeech;
+                    state.push(AppState::BossSpeech).unwrap();
+                } else {
+                    story_mode_context.state = StoryModeState::InGame;
+                    state.push(AppState::StoryModeInGame).unwrap();
+                }
+            }
+            StoryModeState::BossSpeech => {
+                story_mode_context.state = StoryModeState::InGame;
+                state.push(AppState::StoryModeInGame).unwrap();
+            }
+            StoryModeState::InGame => {
+                match story_mode_context.level_outcome {
+                    Some(LevelOutcome::Win) => {
+                        if let Level::Regular(num) = story_mode_context.level {
+                            println!("Level {}x{} completed!", world_id.0, num);
+                        } else {
+                            println!("World {} boss defeated!", world_id.0);
+                        }
+
+                        // add 5 points for each second left on the clock
+                        story_mode_context.game_score.0 += 5
+                            * (game_timer.0.duration() - game_timer.0.elapsed()).as_secs() as usize;
+                        // update HUD points
+                        q2.q0().single_mut().unwrap().sections[0].value =
+                            format_hud_points(story_mode_context.game_score.0);
+
+                        match (story_mode_context.level, world_id.0) {
+                            (Level::BossRoom, 3) => {
+                                story_mode_context.game_score.0 += 2000;
+                                story_mode_context.game_completed = true;
+                                println!(
+                                    "Game completed! Final score: {}",
+                                    story_mode_context.game_score.0
+                                );
+
+                                story_mode_context.state = StoryModeState::ScoreCheck;
+                                continue;
+                            }
+                            (Level::BossRoom, _) => {
+                                world_id.0 += 1;
+                                story_mode_context.level = Level::Regular(1);
+                                *q.q2().single_mut().unwrap() =
+                                    hud_materials.get_background_material(*world_id).clone();
+                                textures.set_map_textures(*world_id);
+                            }
+                            (Level::Regular(num), _) => {
+                                if num < 4 {
+                                    story_mode_context.level = Level::Regular(num + 1);
+                                } else {
+                                    story_mode_context.level = Level::BossRoom
+                                }
+                            }
+                        };
+
+                        let mut tmp = q.q0();
+                        let (player_entity, mut player_material, base_material, mut bomb_satchel) =
+                            tmp.single_mut().unwrap();
+
+                        // reset the player's texture (clears immortality animation effects)
+                        *player_material = base_material.0.clone();
+
+                        let unexploded_player_bombs = query3
+                            .iter()
+                            .filter(|b| matches!(b.owner, Some(entity) if entity == player_entity))
+                            .count();
+
+                        for entity in query2.iter() {
+                            commands.entity(entity).despawn_recursive();
+                        }
+
+                        // clear penguin portraits
+                        for entity in query.iter() {
+                            commands.entity(entity).despawn_recursive();
+                        }
+
+                        // bomb refill
+                        bomb_satchel.bombs_available += unexploded_player_bombs;
+
+                        story_mode_context.state = StoryModeState::LevelSetup;
+                        continue;
+                    }
+                    Some(LevelOutcome::Loss) => {
+                        println!(
+                            "Game over! Final score: {}",
+                            story_mode_context.game_score.0
+                        );
+                        story_mode_context.state = StoryModeState::ScoreCheck;
+                        continue;
+                    }
+                    None => {
+                        story_mode_context.state = StoryModeState::ScoreCheck;
+                        continue;
+                    }
+                }
+            }
+            StoryModeState::ScoreCheck => {
+                story_mode_context.state = StoryModeState::HighScoreNameInput;
+                if story_mode_context.game_score.0 > persistent_high_scores.entry_threshold() {
+                    state.push(AppState::HighScoreNameInput).unwrap();
+                } else {
+                    // skip to the step below where we choose the next state
+                    continue;
+                }
+            }
+            StoryModeState::HighScoreNameInput => {
+                if story_mode_context.game_completed {
+                    state.replace(AppState::SecretMode).unwrap();
+                } else {
+                    state.replace(AppState::MainMenu).unwrap();
+                }
+            }
+        }
+        break;
     }
 }
 
@@ -880,11 +1140,8 @@ pub fn setup_battle_mode(
     base_color_materials: Res<BaseColorMaterials>,
     hud_materials: Res<HUDMaterials>,
     battle_mode_configuration: Res<BattleModeConfiguration>,
-    game_option_store: Res<GameOptionStore>,
-    mut state: ResMut<State<AppState>>,
+    state: Res<State<AppState>>,
 ) {
-    const ROUND_DURATION_SECS: usize = 120;
-
     let world_id = WorldID(rand::thread_rng().gen_range(1..=3));
     textures.set_map_textures(world_id);
 
@@ -913,26 +1170,7 @@ pub fn setup_battle_mode(
 
     commands.spawn_bundle(UiCameraBundle::default());
 
-    // map generation //
-    let (player_spawn_positions, penguin_tags) = spawn_battle_mode_players(
-        &mut commands,
-        &textures,
-        map_size,
-        battle_mode_configuration.amount_of_players,
-        battle_mode_configuration.amount_of_bots,
-    );
-
-    let wall_entity_reveal_groups = spawn_map(
-        &mut commands,
-        &textures,
-        map_size,
-        percent_of_passable_positions_to_fill,
-        true,
-        &player_spawn_positions,
-        &[],
-        false,
-    );
-
+    // spawn HUD
     commands
         .spawn_bundle(NodeBundle {
             style: Style {
@@ -950,37 +1188,200 @@ pub fn setup_battle_mode(
                 &hud_materials,
                 &fonts,
                 (map_size.columns * TILE_WIDTH) as f32,
-                &textures,
                 world_id,
-                &penguin_tags,
                 *state.current(),
                 None,
                 None,
-                Some(ROUND_DURATION_SECS),
             );
         });
 
-    commands.insert_resource(Leaderboard {
-        scores: penguin_tags.into_iter().map(|p| (p, 0)).collect(),
-        last_round_winner: None,
+    let players: Vec<(Penguin, PenguinControlType)> =
+        (0..battle_mode_configuration.amount_of_players + battle_mode_configuration.amount_of_bots)
+            .into_iter()
+            .map(|i| {
+                (
+                    Penguin(i),
+                    if i < battle_mode_configuration.amount_of_players {
+                        PenguinControlType::Human(i)
+                    } else {
+                        PenguinControlType::Bot
+                    },
+                )
+            })
+            .collect();
+
+    let leaderboard = Leaderboard {
+        scores: players.iter().map(|(pt, _)| (*pt, 0)).collect(),
         winning_score: battle_mode_configuration.winning_score,
+    };
+    commands.insert_resource(BattleModeContext {
+        state: BattleModeState::RoundSetup,
+        players,
+        leaderboard,
+        round_outcome: None,
+        percent_of_passable_positions_to_fill,
     });
-    commands.insert_resource(GameTimer(Timer::from_seconds(
-        ROUND_DURATION_SECS as f32,
-        false,
-    )));
-    commands.insert_resource(WallOfDeath::Dormant(Timer::from_seconds(
-        ROUND_DURATION_SECS as f32 / 2.0,
-        false,
-    )));
     commands.insert_resource(world_id);
     commands.insert_resource(map_size);
 
-    if game_option_store.get(GameOption::Transition) {
-        commands.insert_resource(MapTransitionInput {
-            wall_entity_reveal_groups,
-        });
-        state.push(AppState::MapTransition).unwrap();
+    commands.remove_resource::<BattleModeConfiguration>();
+}
+
+pub fn battle_mode_dispatch(
+    mut commands: Commands,
+    textures: Res<Textures>,
+    hud_materials: Res<HUDMaterials>,
+    map_size: Res<MapSize>,
+    mut battle_mode_context: ResMut<BattleModeContext>,
+    game_option_store: Res<GameOptionStore>,
+    mut state: ResMut<State<AppState>>,
+    query: Query<Entity, With<PenguinPortraitDisplay>>,
+    query2: Query<Entity, (Without<Camera>, Without<UIComponent>)>,
+    query3: Query<Entity, With<PenguinPortrait>>,
+    mut query4: Query<&mut Text, With<GameTimerDisplay>>,
+) {
+    loop {
+        match battle_mode_context.state {
+            BattleModeState::RoundSetup => {
+                // map generation //
+                let player_spawn_positions = spawn_battle_mode_players(
+                    &mut commands,
+                    &textures,
+                    *map_size,
+                    &battle_mode_context.players,
+                );
+
+                commands
+                    .entity(query.single().unwrap())
+                    .with_children(|parent| {
+                        init_penguin_portraits(
+                            parent,
+                            &battle_mode_context
+                                .players
+                                .iter()
+                                .map(|(pt, _)| *pt)
+                                .collect::<Vec<Penguin>>(),
+                            &hud_materials,
+                            &textures,
+                        );
+                    });
+
+                let wall_entity_reveal_groups = spawn_map(
+                    &mut commands,
+                    &textures,
+                    *map_size,
+                    battle_mode_context.percent_of_passable_positions_to_fill,
+                    true,
+                    &player_spawn_positions,
+                    &[],
+                    false,
+                );
+
+                commands.insert_resource(GameTimer(Timer::from_seconds(
+                    BATTLE_MODE_ROUND_DURATION_SECS as f32,
+                    false,
+                )));
+                // update HUD clock
+                query4.single_mut().unwrap().sections[0].value =
+                    format_hud_time(BATTLE_MODE_ROUND_DURATION_SECS);
+                commands.insert_resource(WallOfDeath::Dormant(Timer::from_seconds(
+                    BATTLE_MODE_ROUND_DURATION_SECS as f32 / 2.0,
+                    false,
+                )));
+
+                battle_mode_context.round_outcome = None;
+
+                if game_option_store.get(GameOption::Transition) {
+                    battle_mode_context.state = BattleModeState::MapTransition;
+                    commands.insert_resource(MapTransitionInput {
+                        wall_entity_reveal_groups,
+                    });
+                    state.push(AppState::MapTransition).unwrap();
+                } else {
+                    battle_mode_context.state = BattleModeState::RoundStartFreezeSetup;
+                    continue;
+                }
+            }
+            BattleModeState::MapTransition => {
+                battle_mode_context.state = BattleModeState::RoundStartFreezeSetup;
+                continue;
+            }
+            BattleModeState::RoundStartFreezeSetup => {
+                battle_mode_context.state = BattleModeState::RoundStartFreeze;
+                commands.insert_resource(FreezeTimer(Timer::from_seconds(
+                    ROUND_START_FREEZE_SECS,
+                    false,
+                )));
+                state.push(AppState::RoundStartFreeze).unwrap();
+            }
+            BattleModeState::RoundStartFreeze => {
+                battle_mode_context.state = BattleModeState::InGame;
+                state.push(AppState::BattleModeInGame).unwrap();
+            }
+            BattleModeState::InGame => {
+                match battle_mode_context.round_outcome {
+                    Some(result) => {
+                        match result {
+                            RoundOutcome::Tie => {
+                                println!("Round over with no winners!");
+                            }
+                            RoundOutcome::Winner(penguin) => {
+                                println!("Player {:?} won the round!", penguin.0);
+                                *battle_mode_context
+                                    .leaderboard
+                                    .scores
+                                    .get_mut(&penguin)
+                                    .unwrap() += 1;
+                            }
+                        }
+
+                        for entity in query2.iter() {
+                            commands.entity(entity).despawn_recursive();
+                        }
+
+                        // clear penguin portraits
+                        for entity in query3.iter() {
+                            commands.entity(entity).despawn_recursive();
+                        }
+
+                        battle_mode_context.state = BattleModeState::LeaderboardDisplay;
+                        state.push(AppState::LeaderboardDisplay).unwrap();
+                    }
+                    None => {
+                        // abrupt exit
+                        state.replace(AppState::MainMenu).unwrap();
+                    }
+                }
+            }
+            BattleModeState::LeaderboardDisplay => {
+                if let Some((penguin, _)) = battle_mode_context
+                    .leaderboard
+                    .scores
+                    .iter()
+                    .find(|(_, s)| **s == battle_mode_context.leaderboard.winning_score)
+                {
+                    println!("Tournament complete! Winner: {:?}", penguin.0);
+                    state.replace(AppState::MainMenu).unwrap();
+                } else {
+                    battle_mode_context.state = BattleModeState::RoundSetup;
+                    continue;
+                }
+            }
+        }
+        break;
+    }
+}
+
+pub fn finish_freeze(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut freeze_timer: ResMut<FreezeTimer>,
+    mut state: ResMut<State<AppState>>,
+) {
+    freeze_timer.0.tick(time.delta());
+    if freeze_timer.0.finished() {
+        commands.remove_resource::<FreezeTimer>();
+        state.pop().unwrap();
     }
 }
 
@@ -1016,7 +1417,6 @@ pub fn map_transition_update(
     mut commands: Commands,
     time: Res<Time>,
     mut map_transition_context: ResMut<MapTransitionContext>,
-    level: Option<Res<Level>>,
     mut state: ResMut<State<AppState>>,
     mut query: Query<&mut Visible>,
 ) {
@@ -1039,19 +1439,14 @@ pub fn map_transition_update(
     }
 
     if transition_done {
-        // exit the map transition state
-        if let Some(Level::BossRoom) = level.map(|v| *v) {
-            state.set(AppState::BossSpeech).unwrap();
-        } else {
-            state.pop().unwrap();
-        }
         commands.remove_resource::<MapTransitionContext>();
+        state.pop().unwrap();
     }
 }
 
 pub fn hud_update(
     mut commands: Commands,
-    game_score: Option<Res<GameScore>>,
+    story_mode_context: Option<Res<StoryModeContext>>,
     game_timer: Res<GameTimer>,
     mut q: QuerySet<(
         QueryState<&mut Text, With<LivesDisplay>>,
@@ -1063,26 +1458,19 @@ pub fn hud_update(
     query5: Query<(Entity, &PenguinPortrait)>,
     state: Res<State<AppState>>,
 ) {
-    if matches!(state.current(), AppState::StoryMode)
-        || state.inactives().contains(&AppState::StoryMode)
-    {
+    if let Some(story_mode_context) = story_mode_context {
         let mut tmp = q.q0();
         let mut text = tmp.single_mut().unwrap();
-        text.sections[0].value = format!(
-            "Lives:{}",
-            if let Ok(player) = query3.single() {
-                player.lives
-            } else {
-                // if a protagonist doesn't exist in story mode, that means he's dead == has 0 lives
-                0
-            }
-        );
-    }
+        text.sections[0].value = format_hud_lives(if let Ok(player) = query3.single() {
+            player.lives
+        } else {
+            // if a protagonist doesn't exist in the story mode, that means he's dead == has 0 lives
+            0
+        });
 
-    if let Some(game_score) = game_score {
         let mut tmp = q.q1();
         let mut text = tmp.single_mut().unwrap();
-        text.sections[0].value = format!("Points:{}", game_score.0);
+        text.sections[0].value = format_hud_points(story_mode_context.game_score.0);
     }
 
     if let AppState::Paused = state.current() {
@@ -1116,9 +1504,7 @@ pub fn handle_keyboard_input(
     audio: Res<Audio>,
     sounds: Res<Sounds>,
     mut keyboard_input: ResMut<Input<KeyCode>>,
-    game_score: Option<Res<GameScore>>,
-    persistent_high_scores: Res<PersistentHighScores>,
-    battle_mode_configuration: Option<Res<BattleModeConfiguration>>,
+    battle_mode_context: Option<Res<BattleModeContext>>,
     query: Query<(Entity, &HumanControlled), With<Player>>,
     mut ev_player_action: EventWriter<PlayerActionEvent>,
     mut state: ResMut<State<AppState>>,
@@ -1142,10 +1528,7 @@ pub fn handle_keyboard_input(
 
     if keyboard_input.just_pressed(KeyCode::Return)
         && !matches!(state.current(), AppState::SecretMode)
-        && !matches!(
-            battle_mode_configuration,
-            Some(c) if c.amount_of_players == 0
-        )
+        && !matches!(battle_mode_context, Some(c) if !c.players.iter().any(|(_, ct)| matches!(ct, PenguinControlType::Human(_))))
     {
         audio.stop();
         audio.play(sounds.pause.clone());
@@ -1154,12 +1537,7 @@ pub fn handle_keyboard_input(
     }
 
     if keyboard_input.just_pressed(KeyCode::Escape) {
-        if matches!(game_score, Some(game_score) if game_score.0 > persistent_high_scores.entry_threshold())
-        {
-            state.overwrite_push(AppState::HighScoreNameInput).unwrap();
-        } else {
-            state.overwrite_pop().unwrap();
-        }
+        state.overwrite_pop().unwrap();
         keyboard_input.reset(KeyCode::Escape);
     }
 }
@@ -1554,53 +1932,28 @@ pub fn pick_up_item(
 }
 
 pub fn finish_level(
-    mut commands: Commands,
-    mut textures: ResMut<Textures>,
-    hud_materials: Res<HUDMaterials>,
-    game_option_store: Res<GameOptionStore>,
-    mut level: ResMut<Level>,
-    mut world_id: ResMut<WorldID>,
-    map_size: Res<MapSize>,
-    mut game_score: ResMut<GameScore>,
-    mut game_timer: ResMut<GameTimer>,
-    persistent_high_scores: Res<PersistentHighScores>,
+    mut story_mode_context: ResMut<StoryModeContext>,
+    game_timer: Res<GameTimer>,
     mut q: QuerySet<(
-        QueryState<
-            (
-                Entity,
-                &mut Position,
-                &mut Transform,
-                &mut Handle<ColorMaterial>,
-                &BaseMaterial,
-                &TeamID,
-                &mut BombSatchel,
-                &Penguin,
-            ),
-            (With<Player>, With<Protagonist>),
-        >,
+        QueryState<(&mut Position, &TeamID), (With<Player>, With<Protagonist>)>,
         QueryState<&Position, With<Exit>>,
-        QueryState<&mut Handle<ColorMaterial>, With<HUDRoot>>,
     )>,
-    query3: Query<&TeamID, With<Player>>,
-    query4: Query<Entity, (Without<Camera>, Without<UIComponent>, Without<Protagonist>)>,
-    // getting errors if these are split, possibly too many arguments
-    mut q2: QuerySet<(
-        QueryState<&Bomb>,
-        QueryState<Entity, With<PenguinPortraitDisplay>>,
-    )>,
+    query: Query<&Protagonist>,
+    query2: Query<&TeamID, With<Player>>,
     mut state: ResMut<State<AppState>>,
     mut keyboard_input: ResMut<Input<KeyCode>>,
 ) {
-    let mut level_completed = false;
-    match *level {
+    let mut level_outcome = None;
+
+    match story_mode_context.level {
         Level::Regular(_) => {
             // if an exit is spawned...
             if let Ok(exit_position) = q.q1().single().map(|p| *p) {
                 // ...check if a protagonist reached it when all the enemies are dead
-                if q.q0().iter_mut().any(|(_, pp, _, _, _, ptid, _, _)| {
-                    *pp == exit_position && !query3.iter().any(|tid| tid.0 != ptid.0)
+                if q.q0().iter_mut().any(|(pp, ptid)| {
+                    *pp == exit_position && !query2.iter().any(|tid| tid.0 != ptid.0)
                 }) {
-                    level_completed = true;
+                    level_outcome = Some(LevelOutcome::Win);
                 }
             }
         }
@@ -1608,242 +1961,61 @@ pub fn finish_level(
             // if a protagonist killed all the enemies
             if q.q0()
                 .iter_mut()
-                .any(|(_, _, _, _, _, ptid, _, _)| !query3.iter().any(|tid| tid.0 != ptid.0))
+                .any(|(_, ptid)| !query2.iter().any(|tid| tid.0 != ptid.0))
             {
-                level_completed = true;
+                level_outcome = Some(LevelOutcome::Win);
             }
         }
+    }
+
+    // if the timer expired or the protagonist is dead
+    if game_timer.0.finished() || query.iter().count() == 0 {
+        level_outcome = Some(LevelOutcome::Loss);
     }
 
     // TODO: used for debugging, remove
     if keyboard_input.just_pressed(KeyCode::F) {
-        level_completed = true;
+        level_outcome = Some(LevelOutcome::Win);
         keyboard_input.reset(KeyCode::F);
     }
 
-    if level_completed {
-        if let Level::Regular(num) = *level {
-            println!("Level {}x{} completed!", world_id.0, num);
-        } else {
-            println!("World {} boss defeated!", world_id.0);
-        }
-
-        // add 5 points for each second left on the clock
-        game_score.0 += 5 * (game_timer.0.duration() - game_timer.0.elapsed()).as_secs() as usize;
-
-        match (*level, world_id.0) {
-            (Level::BossRoom, 3) => {
-                game_score.0 += 2000;
-                println!("Game completed! Final score: {}", game_score.0);
-
-                if game_score.0 > persistent_high_scores.entry_threshold() {
-                    state.overwrite_push(AppState::HighScoreNameInput).unwrap();
-                } else {
-                    state.overwrite_set(AppState::SecretMode).unwrap();
-                }
-                return;
-            }
-            (Level::BossRoom, _) => {
-                world_id.0 += 1;
-                *level = Level::Regular(1);
-                *q.q2().single_mut().unwrap() =
-                    hud_materials.get_background_material(*world_id).clone();
-                textures.set_map_textures(*world_id);
-            }
-            (Level::Regular(num), _) => {
-                if num < 4 {
-                    *level = Level::Regular(num + 1);
-                } else {
-                    *level = Level::BossRoom
-                }
-            }
-        }
-
-        let mut tmp = q.q0();
-        let (
-            player_entity,
-            mut player_position,
-            mut transform,
-            mut player_material,
-            base_material,
-            _,
-            mut bomb_satchel,
-            player_penguin_tag,
-        ) = tmp.single_mut().unwrap();
-
-        // reset the player's texture (clears immortality animation effects)
-        *player_material = base_material.0.clone();
-
-        let unexploded_player_bombs = q2
-            .q0()
-            .iter()
-            .filter(|b| matches!(b.owner, Some(entity) if entity == player_entity))
-            .count();
-
-        for entity in query4.iter() {
-            commands.entity(entity).despawn_recursive();
-        }
-
-        // bomb refill
-        bomb_satchel.bombs_available += unexploded_player_bombs;
-
-        // move player to spawn
-        *player_position = match *level {
-            Level::Regular(_) => Position { y: 1, x: 1 },
-            Level::BossRoom => Position {
-                y: map_size.rows as isize - 4,
-                x: map_size.columns as isize / 2,
-            },
-        };
-        let mut penguin_spawn_positions = vec![*player_position];
-
-        let translation = &mut transform.translation;
-        translation.x = get_x(player_position.x);
-        translation.y = get_y(player_position.y);
-
-        // make temporarily immortal
-        commands
-            .entity(player_entity)
-            .insert_bundle(ImmortalBundle::default());
-
-        let mob_spawn_positions =
-            spawn_story_mode_mobs(&mut commands, &textures, *level, *world_id, *map_size);
-
-        if let Level::BossRoom = *level {
-            let (boss_spawn_position, boss_penguin_tag) =
-                spawn_story_mode_boss(&mut commands, &textures, *world_id, *map_size);
-            penguin_spawn_positions.push(boss_spawn_position);
-
-            // add enemy penguin portraits (the player's one is left as is)
-            commands
-                .entity(q2.q1().single().unwrap())
-                .with_children(|parent| {
-                    init_penguin_portraits(parent, &[boss_penguin_tag], &hud_materials, &textures);
-                });
-
-            let player = *player_penguin_tag;
-            let boss = boss_penguin_tag;
-            commands.insert_resource(BossSpeechScript::new(match world_id.0 {
-                1 => vec![
-                    (boss, "You will never reach the north alive!"),
-                    (player, "Penguins can talk in this game? Cooooool!"),
-                    (boss, "Prepare to die!"),
-                ],
-                2 => vec![
-                    (boss, "How did you manage to get here?"),
-                    (
-                        player,
-                        "Dunno, killed some guys, went through some doors...",
-                    ),
-                    (player, "That kind of stuff..."),
-                    (boss, "Ugh, those fools!"),
-                    (
-                        boss,
-                        "Well, your journey stops here, you will never find the cloud city!",
-                    ),
-                    (
-                        player,
-                        "A cloud city? Nice, was getting kind of bored with this theme...",
-                    ),
-                ],
-                3 => vec![
-                    (boss, "Ah, I have been expecting you Agent P!"),
-                    (player, "Who even wrote these stupid dialogues?"),
-                    (boss, "nenexexedadada!"),
-                    (player, "Let's just get this over with..."),
-                ],
-                _ => unreachable!(), // TODO: feels like world_id should be an enum
-            }));
-        }
-
-        let wall_entity_reveal_groups = spawn_map(
-            &mut commands,
-            &textures,
-            *map_size,
-            if let Level::BossRoom = *level {
-                0.0
-            } else {
-                50.0
-            },
-            true,
-            &penguin_spawn_positions,
-            &mob_spawn_positions,
-            matches!(*level, Level::Regular(_)),
-        );
-
-        game_timer.0.reset();
-
-        if game_option_store.get(GameOption::Transition) {
-            commands.insert_resource(MapTransitionInput {
-                wall_entity_reveal_groups,
-            });
-            state.push(AppState::MapTransition).unwrap();
-        } else if let Level::BossRoom = *level {
-            state.push(AppState::BossSpeech).unwrap();
-        }
-    }
-}
-
-pub fn fail_level(
-    game_score: Res<GameScore>,
-    game_timer: Res<GameTimer>,
-    query: Query<&Protagonist>,
-    mut state: ResMut<State<AppState>>,
-) {
-    if game_timer.0.finished() || query.iter().count() == 0 {
-        println!("Game over! Final score: {}", game_score.0);
+    if level_outcome.is_some() {
+        story_mode_context.level_outcome = level_outcome;
         state.overwrite_pop().unwrap();
     }
 }
 
 pub fn finish_round(
-    mut commands: Commands,
     game_timer: Res<GameTimer>,
-    mut leaderboard: ResMut<Leaderboard>,
     keyboard_input: Res<Input<KeyCode>>,
+    mut battle_mode_context: ResMut<BattleModeContext>,
     query: Query<&Penguin, With<Player>>,
-    query2: Query<Entity, (Without<Camera>, Without<UIComponent>)>,
-    query3: Query<Entity, With<PenguinPortrait>>,
     mut state: ResMut<State<AppState>>,
 ) {
     let mut round_over = false;
     if game_timer.0.finished() || query.iter().count() == 0 {
-        println!("Round over with no winners!");
-        leaderboard.last_round_winner = None;
+        battle_mode_context.round_outcome = Some(RoundOutcome::Tie);
         round_over = true;
     } else if let Ok(penguin) = query.single() {
-        println!("Player {:?} won the round!", penguin.0);
-        leaderboard.last_round_winner = Some(*penguin);
-        *leaderboard.scores.get_mut(penguin).unwrap() += 1;
+        battle_mode_context.round_outcome = Some(RoundOutcome::Winner(*penguin));
         round_over = true;
     }
 
     // TODO: used for debugging, remove
     if keyboard_input.just_pressed(KeyCode::F) {
-        let winner_penguin = leaderboard
+        let winner_penguin = battle_mode_context
+            .leaderboard
             .scores
             .iter()
             .choose(&mut rand::thread_rng())
             .map(|(p, _)| *p)
             .unwrap();
-
-        leaderboard.last_round_winner = Some(winner_penguin);
-        let score = leaderboard.scores.get_mut(&winner_penguin).unwrap();
-        *score += 1;
+        battle_mode_context.round_outcome = Some(RoundOutcome::Winner(winner_penguin));
         round_over = true;
     }
 
     if round_over {
-        for entity in query2.iter() {
-            commands.entity(entity).despawn_recursive();
-        }
-
-        // clear penguin portraits
-        for entity in query3.iter() {
-            commands.entity(entity).despawn_recursive();
-        }
-
-        state.overwrite_push(AppState::LeaderboardDisplay).unwrap();
+        state.overwrite_pop().unwrap();
     }
 }
 
@@ -2205,7 +2377,7 @@ pub fn player_burn(
 pub fn player_damage(
     mut commands: Commands,
     textures: Res<Textures>,
-    mut game_score: Option<ResMut<GameScore>>,
+    mut story_mode_context: Option<ResMut<StoryModeContext>>,
     map_size: Res<MapSize>,
     mut query: Query<
         (
@@ -2270,9 +2442,9 @@ pub fn player_damage(
                         }
                     }
 
-                    if let Some(ref mut game_score) = game_score {
+                    if let Some(ref mut story_mode_context) = story_mode_context {
                         if let Some(point_value) = point_value {
-                            game_score.0 += point_value.0;
+                            story_mode_context.game_score.0 += point_value.0;
                         }
                     }
                 } else {
@@ -2597,17 +2769,19 @@ pub fn teardown(
 
     // common
     commands.remove_resource::<GameTimer>();
-    commands.remove_resource::<Level>();
     commands.remove_resource::<WorldID>();
     commands.remove_resource::<MapSize>();
 
     // story mode
-    commands.remove_resource::<GameScore>();
+    commands.remove_resource::<StoryModeContext>();
     commands.remove_resource::<ExitPosition>();
 
     // battle mode
-    commands.remove_resource::<Leaderboard>();
+    commands.remove_resource::<BattleModeContext>();
     commands.remove_resource::<WallOfDeath>();
+
+    // secret mode
+    commands.remove_resource::<SecretModeContext>();
 }
 
 pub fn setup_boss_speech(
@@ -2828,7 +3002,7 @@ pub fn setup_leaderboard_display(
     base_color_materials: Res<BaseColorMaterials>,
     textures: Res<Textures>,
     fonts: Res<Fonts>,
-    leaderboard: Res<Leaderboard>,
+    battle_mode_context: Res<BattleModeContext>,
     windows: Res<Windows>,
     query: Query<Entity, With<UIRoot>>,
 ) {
@@ -2896,7 +3070,7 @@ pub fn setup_leaderboard_display(
                             spawn_color(height - 1, x);
                         }
 
-                        for (penguin, score) in &leaderboard.scores {
+                        for (penguin, score) in &battle_mode_context.leaderboard.scores {
                             // spawn penguin portrait
                             parent
                                 .spawn_bundle(NodeBundle {
@@ -2962,7 +3136,9 @@ pub fn setup_leaderboard_display(
                                     .insert(UIComponent);
                             }
 
-                            if let Some(round_winner_penguin) = leaderboard.last_round_winner {
+                            if let RoundOutcome::Winner(round_winner_penguin) =
+                                battle_mode_context.round_outcome.unwrap()
+                            {
                                 if *penguin == round_winner_penguin {
                                     let mut place_text = |y, x, str: &str, c: usize| {
                                         parent
@@ -3026,19 +3202,9 @@ pub fn setup_leaderboard_display(
 
 pub fn leaderboard_display_update(
     mut commands: Commands,
-    textures: Res<Textures>,
-    hud_materials: Res<HUDMaterials>,
     time: Res<Time>,
     mut leaderboard_display_context: ResMut<LeaderboardDisplayContext>,
-    leaderboard: Res<Leaderboard>,
-    map_size: Res<MapSize>,
-    battle_mode_configuration: Res<BattleModeConfiguration>,
-    game_option_store: Res<GameOptionStore>,
-    mut game_timer: ResMut<GameTimer>,
-    mut wall_of_death: ResMut<WallOfDeath>,
     mut state: ResMut<State<AppState>>,
-    query: Query<Entity, With<PenguinPortraitDisplay>>,
-    mut query2: Query<&mut Text, With<GameTimerDisplay>>,
 ) {
     leaderboard_display_context.timer.tick(time.delta());
     if leaderboard_display_context.timer.finished() {
@@ -3046,66 +3212,7 @@ pub fn leaderboard_display_update(
             .entity(leaderboard_display_context.leaderboard_display_box)
             .despawn_recursive();
         commands.remove_resource::<LeaderboardDisplayContext>();
-
-        if let Some((penguin, _)) = leaderboard
-            .scores
-            .iter()
-            .find(|(_, s)| **s == leaderboard.winning_score)
-        {
-            println!("Tournament complete! Winner: {:?}", penguin.0);
-            commands.remove_resource::<BattleModeConfiguration>();
-            state.replace(AppState::MainMenu).unwrap();
-        } else {
-            // spawn players & map again
-            let amount_of_players = battle_mode_configuration.amount_of_players;
-            let amount_of_bots = battle_mode_configuration.amount_of_bots;
-            // TODO: put in setup and use as resource instead of recalculating?
-            let (_, percent_of_passable_positions_to_fill) =
-                get_battle_mode_map_size_fill(amount_of_players + amount_of_bots);
-            let (player_spawn_positions, penguin_tags) = spawn_battle_mode_players(
-                &mut commands,
-                &textures,
-                *map_size,
-                amount_of_players,
-                amount_of_bots,
-            );
-
-            commands
-                .entity(query.single().unwrap())
-                .with_children(|parent| {
-                    init_penguin_portraits(parent, &penguin_tags, &hud_materials, &textures);
-                });
-
-            let wall_entity_reveal_groups = spawn_map(
-                &mut commands,
-                &textures,
-                *map_size,
-                percent_of_passable_positions_to_fill,
-                true,
-                &player_spawn_positions,
-                &[],
-                false,
-            );
-
-            game_timer.0.reset();
-            // update HUD clock so we don't get last round time during the map transition
-            let remaining_seconds = game_timer.0.duration().as_secs_f32() as usize;
-            query2.single_mut().unwrap().sections[0].value = format_hud_time(remaining_seconds);
-
-            *wall_of_death = WallOfDeath::Dormant(Timer::from_seconds(
-                game_timer.0.duration().as_secs_f32() / 2.0,
-                false,
-            ));
-
-            if game_option_store.get(GameOption::Transition) {
-                commands.insert_resource(MapTransitionInput {
-                    wall_entity_reveal_groups,
-                });
-                state.set(AppState::MapTransition).unwrap();
-            } else {
-                state.pop().unwrap();
-            }
-        }
+        state.pop().unwrap();
     }
 }
 
@@ -3117,8 +3224,7 @@ pub fn setup_secret_mode(
     base_color_materials: Res<BaseColorMaterials>,
     hud_materials: Res<HUDMaterials>,
     fonts: Res<Fonts>,
-    game_option_store: Res<GameOptionStore>,
-    mut state: ResMut<State<AppState>>,
+    state: Res<State<AppState>>,
 ) {
     // TODO: Audio will start playing only when the asset is loaded and decoded, which might be after
     // the mode is finished. However, waiting for it to load is VERY slow in debug builds, so there needs
@@ -3164,32 +3270,6 @@ pub fn setup_secret_mode(
 
     commands.spawn_bundle(UiCameraBundle::default());
 
-    // map generation //
-
-    // spawn player
-    let player_spawn_position = Position {
-        y: map_size.rows as isize / 2,
-        x: 2,
-    };
-    let base_material = textures.get_penguin_texture(Penguin(0)).clone();
-    let immortal_material = textures.immortal_penguin.clone();
-    commands
-        .spawn_bundle(SpriteBundle {
-            material: base_material.clone(),
-            transform: Transform::from_xyz(
-                get_x(player_spawn_position.x),
-                get_y(player_spawn_position.y),
-                50.0,
-            ),
-            sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
-            ..Default::default()
-        })
-        .insert(BaseMaterial(base_material))
-        .insert(ImmortalMaterial(immortal_material))
-        .insert(Player)
-        .insert(HumanControlled(0))
-        .insert(player_spawn_position);
-
     // spawn HUD
     commands
         .spawn_bundle(NodeBundle {
@@ -3208,39 +3288,89 @@ pub fn setup_secret_mode(
                 &hud_materials,
                 &fonts,
                 (map_size.columns * TILE_WIDTH) as f32,
-                &textures,
                 world_id,
-                &[],
                 *state.current(),
-                None,
                 None,
                 None,
             );
         });
 
-    let wall_entity_reveal_groups = spawn_map(
-        &mut commands,
-        &textures,
-        map_size,
-        0.0,
-        false,
-        &[player_spawn_position],
-        &[],
-        false,
-    );
-
     commands.insert_resource(world_id);
     commands.insert_resource(map_size);
-    commands.insert_resource(SecretLevelContext {
-        state: SecretLevelState::Initial(Timer::from_seconds(2.5, false)),
+
+    commands.insert_resource(SecretModeContext {
+        dispatcher_state: SecretModeDispatcherState::Setup,
+        in_game_state: SecretModeInGameState::Initial(Timer::from_seconds(2.5, false)),
         pattern: PATTERN,
     });
+}
 
-    if game_option_store.get(GameOption::Transition) {
-        commands.insert_resource(MapTransitionInput {
-            wall_entity_reveal_groups,
-        });
-        state.push(AppState::MapTransition).unwrap();
+pub fn secret_mode_dispatch(
+    mut commands: Commands,
+    textures: Res<Textures>,
+    mut secret_mode_context: ResMut<SecretModeContext>,
+    map_size: Res<MapSize>,
+    game_option_store: Res<GameOptionStore>,
+    mut state: ResMut<State<AppState>>,
+) {
+    match secret_mode_context.dispatcher_state {
+        SecretModeDispatcherState::Setup => {
+            // map generation //
+
+            // spawn player
+            let player_spawn_position = Position {
+                y: map_size.rows as isize / 2,
+                x: 2,
+            };
+            let base_material = textures.get_penguin_texture(Penguin(0)).clone();
+            let immortal_material = textures.immortal_penguin.clone();
+            commands
+                .spawn_bundle(SpriteBundle {
+                    material: base_material.clone(),
+                    transform: Transform::from_xyz(
+                        get_x(player_spawn_position.x),
+                        get_y(player_spawn_position.y),
+                        50.0,
+                    ),
+                    sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+                    ..Default::default()
+                })
+                .insert(BaseMaterial(base_material))
+                .insert(ImmortalMaterial(immortal_material))
+                .insert(Player)
+                .insert(HumanControlled(0))
+                .insert(player_spawn_position);
+
+            let wall_entity_reveal_groups = spawn_map(
+                &mut commands,
+                &textures,
+                *map_size,
+                0.0,
+                false,
+                &[player_spawn_position],
+                &[],
+                false,
+            );
+
+            if game_option_store.get(GameOption::Transition) {
+                secret_mode_context.dispatcher_state = SecretModeDispatcherState::MapTransition;
+                commands.insert_resource(MapTransitionInput {
+                    wall_entity_reveal_groups,
+                });
+                state.push(AppState::MapTransition).unwrap();
+            } else {
+                secret_mode_context.dispatcher_state = SecretModeDispatcherState::InGame;
+                state.push(AppState::SecretModeInGame).unwrap();
+            }
+        }
+        SecretModeDispatcherState::MapTransition => {
+            secret_mode_context.dispatcher_state = SecretModeDispatcherState::InGame;
+            state.push(AppState::SecretModeInGame).unwrap();
+        }
+        SecretModeDispatcherState::InGame => {
+            commands.remove_resource::<SecretModeContext>();
+            state.replace(AppState::MainMenu).unwrap();
+        }
     }
 }
 
@@ -3251,7 +3381,7 @@ pub fn update_secret_mode(
     fonts: Res<Fonts>,
     map_size: Res<MapSize>,
     world_id: Res<WorldID>,
-    mut context: ResMut<SecretLevelContext>,
+    mut secret_mode_context: ResMut<SecretModeContext>,
     mut state: ResMut<State<AppState>>,
     mut q: QuerySet<(
         QueryState<(Entity, &mut Position, &mut Transform), With<Bomb>>,
@@ -3259,14 +3389,14 @@ pub fn update_secret_mode(
     )>,
     mut query: Query<(Entity, &mut Handle<ColorMaterial>, &mut BaseMaterial), With<Player>>,
 ) {
-    let pattern = context.pattern;
+    let pattern = secret_mode_context.pattern;
 
     loop {
-        let new_state = match &mut context.state {
-            SecretLevelState::Initial(timer) => {
+        let new_state = match &mut secret_mode_context.in_game_state {
+            SecretModeInGameState::Initial(timer) => {
                 timer.tick(time.delta());
                 if timer.finished() {
-                    Some(SecretLevelState::Started {
+                    Some(SecretModeInGameState::Started {
                         move_cooldown: Cooldown::from_seconds(0.25),
                         round_progress: 0,
                         round: 0,
@@ -3275,7 +3405,7 @@ pub fn update_secret_mode(
                     None
                 }
             }
-            SecretLevelState::Started {
+            SecretModeInGameState::Started {
                 move_cooldown,
                 round_progress,
                 round,
@@ -3401,11 +3531,11 @@ pub fn update_secret_mode(
 
                 None
             }
-            SecretLevelState::Stopping(timer) => {
+            SecretModeInGameState::Stopping(timer) => {
                 timer.tick(time.delta());
 
                 if timer.just_finished() {
-                    state.overwrite_pop().unwrap();
+                    state.pop().unwrap();
                 }
 
                 None
@@ -3413,7 +3543,7 @@ pub fn update_secret_mode(
         };
 
         if let Some(new_state) = new_state {
-            context.state = new_state;
+            secret_mode_context.in_game_state = new_state;
         } else {
             break;
         }
@@ -3422,14 +3552,15 @@ pub fn update_secret_mode(
 
 pub fn finish_secret_mode(
     mut commands: Commands,
-    mut context: ResMut<SecretLevelContext>,
+    mut secret_mode_context: ResMut<SecretModeContext>,
     query: Query<(Entity, &Position), With<Player>>,
     query2: Query<(Entity, &Bomb, &Position)>,
     mut ev_explosion: EventWriter<ExplosionEvent>,
 ) {
     let (player_entity, player_position) = query.single().unwrap();
     if query2.iter().any(|(_, _, p)| *p == *player_position) {
-        context.state = SecretLevelState::Stopping(Timer::from_seconds(0.5, false));
+        secret_mode_context.in_game_state =
+            SecretModeInGameState::Stopping(Timer::from_seconds(0.5, false));
 
         commands.entity(player_entity).remove::<HumanControlled>();
         for (entity, bomb, position) in query2.iter() {
@@ -3562,14 +3693,17 @@ pub fn high_score_name_input_update(
     mut keyboard_input: ResMut<Input<KeyCode>>,
     mut char_input_events: EventReader<ReceivedCharacter>,
     mut persistent_high_scores: ResMut<PersistentHighScores>,
-    game_score: Res<GameScore>,
+    story_mode_context: Res<StoryModeContext>,
     mut query: Query<&mut Text>,
     mut state: ResMut<State<AppState>>,
 ) {
     if keyboard_input.just_pressed(KeyCode::Escape) {
-        persistent_high_scores.insert_score(String::from("<unnamed_player>"), game_score.0);
+        persistent_high_scores.insert_score(
+            String::from("<unnamed_player>"),
+            story_mode_context.game_score.0,
+        );
         commands.remove_resource::<HighScoreNameInputContext>();
-        state.replace(AppState::MainMenu).unwrap();
+        state.pop().unwrap();
         keyboard_input.reset(KeyCode::Escape);
         return;
     }
@@ -3593,9 +3727,9 @@ pub fn high_score_name_input_update(
             name.clone()
         };
 
-        persistent_high_scores.insert_score(name, game_score.0);
+        persistent_high_scores.insert_score(name, story_mode_context.game_score.0);
         commands.remove_resource::<HighScoreNameInputContext>();
-        state.replace(AppState::MainMenu).unwrap();
+        state.pop().unwrap();
         keyboard_input.reset(KeyCode::Return);
     }
 }
