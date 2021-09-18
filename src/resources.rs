@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     components::{Penguin, Position},
     constants::COLORS,
-    types::{BotDifficulty, Cooldown, Direction},
+    types::{BotDifficulty, Cooldown, Direction, PenguinControlType},
 };
 
 pub struct BaseColorMaterials {
@@ -302,13 +302,24 @@ pub struct GameOptionStore(HashMap<GameOption, bool>);
 impl Default for GameOptionStore {
     fn default() -> Self {
         let options_file_path = std::path::Path::new(Self::OPTIONS_FILE_PATH);
-        if options_file_path.exists() {
-            let content = fs::read_to_string(options_file_path).unwrap();
-            serde_json::from_str(&content).unwrap()
+        let game_option_store = if let Ok(content) = fs::read_to_string(options_file_path) {
+            if let Ok(game_option_store) = serde_json::from_str(&content) {
+                Some(game_option_store)
+            } else {
+                None
+            }
         } else {
-            let new = Self(GameOption::LIST.iter().map(|o| (*o, true)).collect());
-            new.save();
-            new
+            None
+        };
+
+        match game_option_store {
+            Some(game_option_store) => game_option_store,
+            None => {
+                println!("Missing or invalid options file detected, generating a new one.");
+                let new = Self(GameOption::LIST.iter().map(|o| (*o, true)).collect());
+                new.save();
+                new
+            }
         }
     }
 }
@@ -662,13 +673,35 @@ pub struct MapTransitionContext {
 }
 
 // story mode
+pub enum StoryModeState {
+    LevelSetup,
+    MapTransition,
+    BossSpeech,
+    InGame,
+    ScoreCheck,
+    HighScoreNameInput,
+}
+
 #[derive(Clone, Copy)]
 pub enum Level {
     Regular(usize),
     BossRoom,
 }
 
+pub enum LevelOutcome {
+    Win,
+    Loss,
+}
+
 pub struct GameScore(pub usize);
+
+pub struct StoryModeContext {
+    pub state: StoryModeState,
+    pub level: Level,
+    pub level_outcome: Option<LevelOutcome>,
+    pub game_score: GameScore,
+    pub game_completed: bool,
+}
 
 pub struct ExitPosition(pub Position);
 
@@ -774,18 +807,22 @@ pub struct PersistentHighScores {
 impl Default for PersistentHighScores {
     fn default() -> Self {
         let persistent_high_scores_file_path = std::path::Path::new(Self::SERIALIZED_FILE_PATH);
-        let persistent_high_scores = if persistent_high_scores_file_path.exists() {
-            let content = fs::read_to_string(persistent_high_scores_file_path).unwrap();
-            let persistent_high_scores: PersistentHighScores =
-                serde_json::from_str(&content).unwrap();
-            if Self::calculate_checksum(&persistent_high_scores.high_scores) == persistent_high_scores.checksum
+        let persistent_high_scores = if let Ok(content) =
+            fs::read_to_string(persistent_high_scores_file_path)
+        {
+            if let Ok(persistent_high_scores) =
+                serde_json::from_str::<PersistentHighScores>(&content)
+            {
+                if Self::calculate_checksum(&persistent_high_scores.high_scores) == persistent_high_scores.checksum
                 && persistent_high_scores.high_scores.0.len() <= HighScores::HIGH_SCORES_MAX_SIZE
                 // check if the scores are correctly sorted
                 && persistent_high_scores.high_scores.0.windows(2).all(|w| w[0].1 >= w[1].1)
-            {
-                Some(persistent_high_scores)
+                {
+                    Some(persistent_high_scores)
+                } else {
+                    None
+                }
             } else {
-                println!("Invalid high scores file detected, generating a new one.");
                 None
             }
         } else {
@@ -795,6 +832,7 @@ impl Default for PersistentHighScores {
         match persistent_high_scores {
             Some(persistent_high_scores) => persistent_high_scores,
             None => {
+                println!("Missing or invalid high scores file detected, generating a new one.");
                 let persistent_high_scores = Self {
                     high_scores: HighScores(vec![]),
                     checksum: 0,
@@ -867,10 +905,33 @@ pub struct BattleModeConfiguration {
     pub difficulty: BotDifficulty,
 }
 
+pub enum BattleModeState {
+    RoundSetup,
+    MapTransition,
+    RoundStartFreezeSetup,
+    RoundStartFreeze,
+    InGame,
+    LeaderboardDisplay,
+}
+
 pub struct Leaderboard {
     pub scores: HashMap<Penguin, usize>,
-    pub last_round_winner: Option<Penguin>,
     pub winning_score: usize,
+}
+
+#[derive(Clone, Copy)]
+pub enum RoundOutcome {
+    Winner(Penguin),
+    Tie,
+}
+
+pub struct BattleModeContext {
+    pub state: BattleModeState,
+    pub players: Vec<(Penguin, PenguinControlType)>,
+    pub leaderboard: Leaderboard,
+    pub round_outcome: Option<RoundOutcome>,
+    // cache of the map block fill ratio
+    pub percent_of_passable_positions_to_fill: f32,
 }
 
 pub struct ActiveWallOfDeath {
@@ -885,6 +946,9 @@ pub enum WallOfDeath {
     Done,
 }
 
+// round start freeze
+pub struct FreezeTimer(pub Timer);
+
 // leaderboard display
 pub struct LeaderboardDisplayContext {
     pub leaderboard_display_box: Entity,
@@ -892,7 +956,13 @@ pub struct LeaderboardDisplayContext {
 }
 
 // secret mode
-pub enum SecretLevelState {
+pub enum SecretModeDispatcherState {
+    Setup,
+    MapTransition,
+    InGame,
+}
+
+pub enum SecretModeInGameState {
     Initial(Timer),
     Started {
         move_cooldown: Cooldown,
@@ -902,8 +972,9 @@ pub enum SecretLevelState {
     Stopping(Timer),
 }
 
-pub struct SecretLevelContext {
-    pub state: SecretLevelState,
+pub struct SecretModeContext {
+    pub dispatcher_state: SecretModeDispatcherState,
+    pub in_game_state: SecretModeInGameState,
     pub pattern: &'static str,
 }
 

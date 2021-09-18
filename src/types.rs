@@ -33,6 +33,12 @@ pub enum PlayerAction {
     DropBomb,
 }
 
+#[derive(Clone, Copy)]
+pub enum PenguinControlType {
+    Human(usize),
+    Bot,
+}
+
 // TODO: remove
 #[allow(dead_code)]
 #[derive(Clone, Copy)]
