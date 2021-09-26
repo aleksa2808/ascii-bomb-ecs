@@ -4,6 +4,7 @@ mod constants;
 mod events;
 mod item;
 mod resources;
+mod splash_screen;
 mod systems;
 mod types;
 mod utils;
@@ -11,7 +12,10 @@ mod utils;
 use bevy::{prelude::*, render::camera::camera_system, window::exit_on_window_close_system};
 use bevy_kira_audio::AudioPlugin;
 
-use crate::{camera::SimpleOrthoProjection, constants::*, events::*, resources::*, systems::*};
+use crate::{
+    camera::SimpleOrthoProjection, constants::*, events::*, resources::*,
+    splash_screen::SplashScreenPlugin, systems::*,
+};
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum AppState {
@@ -102,6 +106,7 @@ pub fn run() {
     .add_plugin(AudioPlugin);
 
     app.add_state(AppState::SplashScreen)
+        .add_plugin(SplashScreenPlugin)
         .init_resource::<BaseColorMaterials>()
         .init_resource::<MenuMaterials>()
         .init_resource::<MenuState>()
@@ -121,13 +126,6 @@ pub fn run() {
             CoreStage::PostUpdate,
             camera_system::<SimpleOrthoProjection>,
         )
-        .add_system_set(
-            SystemSet::on_enter(AppState::SplashScreen).with_system(setup_splash_screen),
-        )
-        .add_system_set(
-            SystemSet::on_update(AppState::SplashScreen).with_system(splash_screen_update),
-        )
-        .add_system_set(SystemSet::on_exit(AppState::SplashScreen).with_system(teardown))
         .add_system_set(
             SystemSet::on_enter(AppState::MainMenu)
                 .with_system(setup_menu.exclusive_system().label(Label::Setup))

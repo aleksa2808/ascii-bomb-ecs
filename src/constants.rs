@@ -10,9 +10,6 @@ pub const HUD_HEIGHT: usize = 14 * PIXEL_SCALE;
 pub const TILE_HEIGHT: usize = 8 * PIXEL_SCALE;
 pub const TILE_WIDTH: usize = 6 * PIXEL_SCALE;
 
-pub const SPLASH_SCREEN_TEXT_LEFT: &str = "Error 404:";
-pub const SPLASH_SCREEN_TEXT_RIGHT: &str = "Name Not Found";
-
 pub const DEMO_MODE_START_TIMER_DURATION_SECS: f32 = 15.0;
 pub const ROUND_START_FREEZE_SECS: f32 = 0.5;
 

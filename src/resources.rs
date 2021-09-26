@@ -243,20 +243,6 @@ impl FromWorld for HUDMaterials {
     }
 }
 
-// splash screen
-pub enum SplashScreenTextState {
-    Moving(Timer),
-    Holding(Timer),
-}
-
-pub struct SplashScreenContext {
-    pub left_text: Entity,
-    pub right_text: Entity,
-    pub left_position: usize,
-    pub right_position: usize,
-    pub text_state: SplashScreenTextState,
-}
-
 // menu
 pub struct MenuMaterials {
     pub background_color: Color,
@@ -784,7 +770,7 @@ impl HighScores {
     pub const HIGH_SCORES_MAX_SIZE: usize = 10;
 
     pub fn entry_threshold(&self) -> usize {
-        if let Some(score) = self.0.iter().nth(Self::HIGH_SCORES_MAX_SIZE - 1) {
+        if let Some(score) = self.0.get(Self::HIGH_SCORES_MAX_SIZE - 1) {
             score.1
         } else {
             0
@@ -884,7 +870,7 @@ impl PersistentHighScores {
             while val > 0 {
                 sum += j * val % 10;
                 j += 1;
-                val = val / 10;
+                val /= 10;
             }
         }
 
