@@ -2,15 +2,11 @@ use crate::types::RGBColor;
 
 pub const PIXEL_SCALE: usize = 8;
 
-pub const MENU_HEIGHT: usize = 100 * PIXEL_SCALE;
-pub const MENU_WIDTH: usize = 100 * PIXEL_SCALE;
-
 pub const HUD_HEIGHT: usize = 14 * PIXEL_SCALE;
 
 pub const TILE_HEIGHT: usize = 8 * PIXEL_SCALE;
 pub const TILE_WIDTH: usize = 6 * PIXEL_SCALE;
 
-pub const DEMO_MODE_START_TIMER_DURATION_SECS: f32 = 15.0;
 pub const ROUND_START_FREEZE_SECS: f32 = 0.5;
 
 pub const STORY_MODE_LEVEL_DURATION_SECS: usize = 180;

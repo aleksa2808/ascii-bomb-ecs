@@ -8,14 +8,6 @@ pub struct UIRoot;
 
 pub struct UIComponent;
 
-// menu components
-
-pub struct Cursor;
-
-pub struct MenuContentBox;
-
-pub struct BattleModeSubMenuContentBox;
-
 // game components
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

@@ -3,6 +3,7 @@ mod components;
 mod constants;
 mod events;
 mod item;
+mod main_menu;
 mod resources;
 mod splash_screen;
 mod systems;
@@ -13,8 +14,12 @@ use bevy::{prelude::*, render::camera::camera_system, window::exit_on_window_clo
 use bevy_kira_audio::AudioPlugin;
 
 use crate::{
-    camera::SimpleOrthoProjection, constants::*, events::*, resources::*,
-    splash_screen::SplashScreenPlugin, systems::*,
+    camera::SimpleOrthoProjection,
+    events::*,
+    main_menu::{MainMenuPlugin, MENU_HEIGHT, MENU_WIDTH},
+    resources::*,
+    splash_screen::SplashScreenPlugin,
+    systems::*,
 };
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
@@ -37,7 +42,6 @@ pub enum AppState {
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemLabel)]
 enum Label {
-    MenuNavigation,
     Setup,
     TimeUpdate,
     Input,
@@ -107,9 +111,8 @@ pub fn run() {
 
     app.add_state(AppState::SplashScreen)
         .add_plugin(SplashScreenPlugin)
+        .add_plugin(MainMenuPlugin)
         .init_resource::<BaseColorMaterials>()
-        .init_resource::<MenuMaterials>()
-        .init_resource::<MenuState>()
         .init_resource::<GameOptionStore>()
         .init_resource::<PersistentHighScores>()
         .init_resource::<Fonts>()
@@ -125,24 +128,6 @@ pub fn run() {
         .add_system_to_stage(
             CoreStage::PostUpdate,
             camera_system::<SimpleOrthoProjection>,
-        )
-        .add_system_set(
-            SystemSet::on_enter(AppState::MainMenu)
-                .with_system(setup_menu.exclusive_system().label(Label::Setup))
-                .with_system(resize_window.exclusive_system().after(Label::Setup)),
-        )
-        .add_system_set(
-            SystemSet::on_resume(AppState::MainMenu)
-                .with_system(setup_menu.exclusive_system().label(Label::Setup))
-                .with_system(resize_window.exclusive_system().after(Label::Setup)),
-        )
-        .add_system_set(SystemSet::on_pause(AppState::MainMenu).with_system(teardown))
-        .add_system_set(SystemSet::on_exit(AppState::MainMenu).with_system(teardown))
-        .add_system_set(
-            SystemSet::on_update(AppState::MainMenu)
-                .with_system(menu_navigation.label(Label::MenuNavigation))
-                .with_system(menu_demo_mode_trigger.after(Label::MenuNavigation))
-                .with_system(animate_menu_background),
         )
         .add_system_set(
             SystemSet::on_enter(AppState::MapTransition).with_system(setup_map_transition),

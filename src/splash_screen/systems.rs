@@ -1,7 +1,8 @@
 use bevy::prelude::*;
 
 use crate::{
-    constants::{COLORS, MENU_HEIGHT, MENU_WIDTH, PIXEL_SCALE},
+    constants::{COLORS, PIXEL_SCALE},
+    main_menu::{MENU_HEIGHT, MENU_WIDTH},
     resources::{BaseColorMaterials, Fonts},
     AppState,
 };
