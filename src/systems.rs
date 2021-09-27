@@ -69,7 +69,6 @@ pub fn setup_story_mode(
     base_color_materials: Res<BaseColorMaterials>,
     hud_materials: Res<HUDMaterials>,
     fonts: Res<Fonts>,
-    state: Res<State<AppState>>,
 ) {
     let map_size = MapSize {
         rows: 11,
@@ -136,9 +135,61 @@ pub fn setup_story_mode(
                 &fonts,
                 (map_size.columns * TILE_WIDTH) as f32,
                 world_id,
-                *state.current(),
-                Some(player_lives),
-                Some(player_points),
+                true,
+                true,
+                Some(&|parent: &mut ChildBuilder| {
+                    // lives display
+                    parent
+                        .spawn_bundle(TextBundle {
+                            text: Text::with_section(
+                                format_hud_lives(player_lives),
+                                TextStyle {
+                                    font: fonts.mono.clone(),
+                                    font_size: 2.0 * PIXEL_SCALE as f32,
+                                    color: COLORS[0].into(),
+                                },
+                                TextAlignment::default(),
+                            ),
+                            style: Style {
+                                position_type: PositionType::Absolute,
+                                position: Rect {
+                                    top: Val::Px(12.0 * PIXEL_SCALE as f32),
+                                    left: Val::Px(6.0 * PIXEL_SCALE as f32),
+                                    ..Default::default()
+                                },
+                                ..Default::default()
+                            },
+                            ..Default::default()
+                        })
+                        .insert(UIComponent)
+                        .insert(LivesDisplay);
+
+                    // points display
+                    parent
+                        .spawn_bundle(TextBundle {
+                            text: Text::with_section(
+                                format_hud_points(player_points),
+                                TextStyle {
+                                    font: fonts.mono.clone(),
+                                    font_size: 2.0 * PIXEL_SCALE as f32,
+                                    color: COLORS[0].into(),
+                                },
+                                TextAlignment::default(),
+                            ),
+                            style: Style {
+                                position_type: PositionType::Absolute,
+                                position: Rect {
+                                    top: Val::Px(12.0 * PIXEL_SCALE as f32),
+                                    left: Val::Px(16.0 * PIXEL_SCALE as f32),
+                                    ..Default::default()
+                                },
+                                ..Default::default()
+                            },
+                            ..Default::default()
+                        })
+                        .insert(UIComponent)
+                        .insert(PointsDisplay);
+                }),
             );
         });
 
@@ -439,7 +490,6 @@ pub fn setup_battle_mode(
     base_color_materials: Res<BaseColorMaterials>,
     hud_materials: Res<HUDMaterials>,
     battle_mode_configuration: Res<BattleModeConfiguration>,
-    state: Res<State<AppState>>,
 ) {
     let world_id = WorldID(rand::thread_rng().gen_range(1..=3));
     textures.set_map_textures(world_id);
@@ -467,8 +517,8 @@ pub fn setup_battle_mode(
                 &fonts,
                 (map_size.columns * TILE_WIDTH) as f32,
                 world_id,
-                *state.current(),
-                None,
+                true,
+                true,
                 None,
             );
         });
@@ -2431,7 +2481,6 @@ pub fn setup_secret_mode(
     base_color_materials: Res<BaseColorMaterials>,
     hud_materials: Res<HUDMaterials>,
     fonts: Res<Fonts>,
-    state: Res<State<AppState>>,
 ) {
     // TODO: Audio will start playing only when the asset is loaded and decoded, which might be after
     // the mode is finished. However, waiting for it to load is VERY slow in debug builds, so there needs
@@ -2469,15 +2518,108 @@ pub fn setup_secret_mode(
         .insert(UIRoot)
         .insert(UIComponent)
         .with_children(|parent| {
+            let hud_width = (map_size.columns * TILE_WIDTH) as f32;
             init_hud(
                 parent,
                 &hud_materials,
                 &fonts,
-                (map_size.columns * TILE_WIDTH) as f32,
+                hud_width,
                 world_id,
-                *state.current(),
-                None,
-                None,
+                false,
+                false,
+                Some(&|parent: &mut ChildBuilder| {
+                    parent
+                        .spawn_bundle(NodeBundle {
+                            style: Style {
+                                size: Size::new(
+                                    Val::Px(43.0 * PIXEL_SCALE as f32),
+                                    Val::Px(2.0 * PIXEL_SCALE as f32),
+                                ),
+                                position_type: PositionType::Absolute,
+                                position: Rect {
+                                    left: Val::Px(hud_width / 2.0 - 20.0 * PIXEL_SCALE as f32),
+                                    top: Val::Px(6.0 * PIXEL_SCALE as f32),
+                                    ..Default::default()
+                                },
+                                ..Default::default()
+                            },
+                            material: hud_materials.black.clone(),
+                            ..Default::default()
+                        })
+                        .insert(UIComponent)
+                        .with_children(|parent| {
+                            parent
+                                .spawn_bundle(TextBundle {
+                                    text: Text::with_section(
+                                        "Hope you had fun with this little game! ^_^",
+                                        TextStyle {
+                                            font: fonts.mono.clone(),
+                                            font_size: 2.0 * PIXEL_SCALE as f32,
+                                            color: COLORS[15].into(),
+                                        },
+                                        TextAlignment::default(),
+                                    ),
+                                    style: Style {
+                                        position_type: PositionType::Absolute,
+                                        position: Rect {
+                                            top: Val::Px(0.0),
+                                            left: Val::Px(0.0),
+                                            ..Default::default()
+                                        },
+                                        ..Default::default()
+                                    },
+                                    ..Default::default()
+                                })
+                                .insert(UIComponent)
+                                .insert(GameTimerDisplay);
+                        });
+
+                    parent
+                        .spawn_bundle(NodeBundle {
+                            style: Style {
+                                size: Size::new(
+                                    Val::Px(8.0 * PIXEL_SCALE as f32),
+                                    Val::Px(2.0 * PIXEL_SCALE as f32),
+                                ),
+                                position_type: PositionType::Absolute,
+                                position: Rect {
+                                    left: Val::Px(hud_width / 2.0 + 10.0 * PIXEL_SCALE as f32),
+                                    top: Val::Px(10.0 * PIXEL_SCALE as f32),
+                                    ..Default::default()
+                                },
+                                ..Default::default()
+                            },
+                            material: hud_materials.black.clone(),
+                            ..Default::default()
+                        })
+                        .insert(UIComponent)
+                        .with_children(|parent| {
+                            parent
+                                .spawn_bundle(TextBundle {
+                                    text: Text::with_section(
+                                        "Now RUN!",
+                                        TextStyle {
+                                            font: fonts.mono.clone(),
+                                            font_size: 2.0 * PIXEL_SCALE as f32,
+                                            color: COLORS[15].into(),
+                                        },
+                                        TextAlignment::default(),
+                                    ),
+                                    style: Style {
+                                        position_type: PositionType::Absolute,
+                                        position: Rect {
+                                            top: Val::Px(0.0),
+                                            left: Val::Px(0.0),
+                                            ..Default::default()
+                                        },
+                                        ..Default::default()
+                                    },
+                                    ..Default::default()
+                                })
+                                .insert(UIComponent)
+                                .insert(GameTimerDisplay);
+                        });
+                }),
             );
         });
 

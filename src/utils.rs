@@ -45,86 +45,33 @@ pub fn init_hud(
     fonts: &Fonts,
     width: f32,
     world_id: WorldID,
-    state: AppState,
-    lives: Option<usize>,
-    points: Option<usize>,
+    with_penguin_portrait_display: bool,
+    with_clock: bool,
+    extra_item_fn: Option<&dyn Fn(&mut ChildBuilder)>,
 ) {
-    parent
-        .spawn_bundle(NodeBundle {
-            style: Style {
-                size: Size::new(Val::Px(width), Val::Px(HUD_HEIGHT as f32)),
-                position_type: PositionType::Absolute,
-                position: Rect {
-                    left: Val::Px(0.0),
-                    top: Val::Px(0.0),
-                    ..Default::default()
-                },
+    let mut ec = parent.spawn_bundle(NodeBundle {
+        style: Style {
+            size: Size::new(Val::Px(width), Val::Px(HUD_HEIGHT as f32)),
+            position_type: PositionType::Absolute,
+            position: Rect {
+                left: Val::Px(0.0),
+                top: Val::Px(0.0),
                 ..Default::default()
             },
-            material: hud_materials.get_background_material(world_id).clone(),
             ..Default::default()
-        })
-        .insert(UIComponent)
+        },
+        material: hud_materials.get_background_material(world_id).clone(),
+        ..Default::default()
+    });
+
+    ec.insert(UIComponent)
         .insert(HUDRoot)
-        .insert(PenguinPortraitDisplay) // TODO: make a separate NodeBundle for this
         .with_children(|parent| {
-            if !matches!(state, AppState::SecretMode) {
-                if let Some(lives) = lives {
-                    // lives display
-                    parent
-                        .spawn_bundle(TextBundle {
-                            text: Text::with_section(
-                                format_hud_lives(lives),
-                                TextStyle {
-                                    font: fonts.mono.clone(),
-                                    font_size: 2.0 * PIXEL_SCALE as f32,
-                                    color: COLORS[0].into(),
-                                },
-                                TextAlignment::default(),
-                            ),
-                            style: Style {
-                                position_type: PositionType::Absolute,
-                                position: Rect {
-                                    top: Val::Px(12.0 * PIXEL_SCALE as f32),
-                                    left: Val::Px(6.0 * PIXEL_SCALE as f32),
-                                    ..Default::default()
-                                },
-                                ..Default::default()
-                            },
-                            ..Default::default()
-                        })
-                        .insert(UIComponent)
-                        .insert(LivesDisplay);
-                }
+            if let Some(extra_item_fn) = extra_item_fn {
+                extra_item_fn(parent);
+            }
 
-                if let Some(points) = points {
-                    // points display
-                    parent
-                        .spawn_bundle(TextBundle {
-                            text: Text::with_section(
-                                format_hud_points(points),
-                                TextStyle {
-                                    font: fonts.mono.clone(),
-                                    font_size: 2.0 * PIXEL_SCALE as f32,
-                                    color: COLORS[0].into(),
-                                },
-                                TextAlignment::default(),
-                            ),
-                            style: Style {
-                                position_type: PositionType::Absolute,
-                                position: Rect {
-                                    top: Val::Px(12.0 * PIXEL_SCALE as f32),
-                                    left: Val::Px(16.0 * PIXEL_SCALE as f32),
-                                    ..Default::default()
-                                },
-                                ..Default::default()
-                            },
-                            ..Default::default()
-                        })
-                        .insert(UIComponent)
-                        .insert(PointsDisplay);
-                }
-
+            if with_clock {
                 // clock / pause indicator
                 parent
                     .spawn_bundle(NodeBundle {
@@ -171,100 +118,12 @@ pub fn init_hud(
                             .insert(UIComponent)
                             .insert(GameTimerDisplay);
                     });
-            } else {
-                parent
-                    .spawn_bundle(NodeBundle {
-                        style: Style {
-                            size: Size::new(
-                                Val::Px(43.0 * PIXEL_SCALE as f32),
-                                Val::Px(2.0 * PIXEL_SCALE as f32),
-                            ),
-                            position_type: PositionType::Absolute,
-                            position: Rect {
-                                left: Val::Px(width / 2.0 - 20.0 * PIXEL_SCALE as f32),
-                                top: Val::Px(6.0 * PIXEL_SCALE as f32),
-                                ..Default::default()
-                            },
-                            ..Default::default()
-                        },
-                        material: hud_materials.black.clone(),
-                        ..Default::default()
-                    })
-                    .insert(UIComponent)
-                    .with_children(|parent| {
-                        parent
-                            .spawn_bundle(TextBundle {
-                                text: Text::with_section(
-                                    "Hope you had fun with this little game! ^_^",
-                                    TextStyle {
-                                        font: fonts.mono.clone(),
-                                        font_size: 2.0 * PIXEL_SCALE as f32,
-                                        color: COLORS[15].into(),
-                                    },
-                                    TextAlignment::default(),
-                                ),
-                                style: Style {
-                                    position_type: PositionType::Absolute,
-                                    position: Rect {
-                                        top: Val::Px(0.0),
-                                        left: Val::Px(0.0),
-                                        ..Default::default()
-                                    },
-                                    ..Default::default()
-                                },
-                                ..Default::default()
-                            })
-                            .insert(UIComponent)
-                            .insert(GameTimerDisplay);
-                    });
-
-                parent
-                    .spawn_bundle(NodeBundle {
-                        style: Style {
-                            size: Size::new(
-                                Val::Px(8.0 * PIXEL_SCALE as f32),
-                                Val::Px(2.0 * PIXEL_SCALE as f32),
-                            ),
-                            position_type: PositionType::Absolute,
-                            position: Rect {
-                                left: Val::Px(width / 2.0 + 10.0 * PIXEL_SCALE as f32),
-                                top: Val::Px(10.0 * PIXEL_SCALE as f32),
-                                ..Default::default()
-                            },
-                            ..Default::default()
-                        },
-                        material: hud_materials.black.clone(),
-                        ..Default::default()
-                    })
-                    .insert(UIComponent)
-                    .with_children(|parent| {
-                        parent
-                            .spawn_bundle(TextBundle {
-                                text: Text::with_section(
-                                    "Now RUN!",
-                                    TextStyle {
-                                        font: fonts.mono.clone(),
-                                        font_size: 2.0 * PIXEL_SCALE as f32,
-                                        color: COLORS[15].into(),
-                                    },
-                                    TextAlignment::default(),
-                                ),
-                                style: Style {
-                                    position_type: PositionType::Absolute,
-                                    position: Rect {
-                                        top: Val::Px(0.0),
-                                        left: Val::Px(0.0),
-                                        ..Default::default()
-                                    },
-                                    ..Default::default()
-                                },
-                                ..Default::default()
-                            })
-                            .insert(UIComponent)
-                            .insert(GameTimerDisplay);
-                    });
             }
         });
+
+    if with_penguin_portrait_display {
+        ec.insert(PenguinPortraitDisplay);
+    }
 }
 
 pub fn init_penguin_portraits(
