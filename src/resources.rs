@@ -1,9 +1,4 @@
-use std::{
-    cmp::Reverse,
-    collections::{HashMap, VecDeque},
-    fs,
-    time::Duration,
-};
+use std::{cmp::Reverse, collections::HashMap, fs, time::Duration};
 
 use bevy::prelude::*;
 use bevy_kira_audio::AudioSource;
@@ -312,16 +307,6 @@ pub struct WorldID(pub usize);
 
 pub struct GameTimer(pub Timer);
 
-// map transition
-pub struct MapTransitionInput {
-    pub wall_entity_reveal_groups: Vec<Vec<Entity>>,
-}
-
-pub struct MapTransitionContext {
-    pub wall_entity_reveal_groups: VecDeque<Vec<Entity>>,
-    pub reveal_timer: Timer,
-}
-
 // story mode
 pub enum StoryModeState {
     LevelSetup,
@@ -558,8 +543,6 @@ pub struct BattleModeConfiguration {
 pub enum BattleModeState {
     RoundSetup,
     MapTransition,
-    RoundStartFreezeSetup,
-    RoundStartFreeze,
     InGame,
     LeaderboardDisplay,
 }

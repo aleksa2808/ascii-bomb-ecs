@@ -4,6 +4,7 @@ mod constants;
 mod events;
 mod item;
 mod main_menu;
+mod map_transition;
 mod resources;
 mod splash_screen;
 mod systems;
@@ -17,6 +18,7 @@ use crate::{
     camera::SimpleOrthoProjection,
     events::*,
     main_menu::{MainMenuPlugin, MENU_HEIGHT, MENU_WIDTH},
+    map_transition::MapTransitionPlugin,
     resources::*,
     splash_screen::SplashScreenPlugin,
     systems::*,
@@ -53,47 +55,48 @@ enum Label {
 }
 
 fn add_common_game_systems(app: &mut App, state: AppState) {
-    app.add_system_set(
-        SystemSet::on_update(state)
-            // time effect update
-            .with_system(move_cooldown_tick.label(Label::TimeUpdate))
-            .with_system(
-                perishable_tick
-                    .label(Label::TimeUpdate)
-                    .before(Label::Explosion),
-            )
-            .with_system(immortality_tick.label(Label::TimeUpdate))
-            // handle input
-            .with_system(handle_keyboard_input.label(Label::Input))
-            .with_system(handle_mouse_input.label(Label::Input))
-            // handle AI
-            .with_system(mob_ai.label(Label::Input))
-            .with_system(bot_ai.label(Label::Input).after(Label::TimeUpdate))
-            // handle movement
-            .with_system(
-                player_move
-                    .label(Label::PlayerMovement)
-                    .after(Label::Input)
-                    .after(Label::TimeUpdate),
-            )
-            .with_system(moving_object_update)
-            // handle bomb logic
-            .with_system(bomb_drop.after(Label::Input))
-            .with_system(handle_explosion.label(Label::Explosion))
-            .with_system(fire_effect.after(Label::Explosion).before(Label::Burn))
-            .with_system(player_burn.label(Label::Burn).before(Label::Damage))
-            .with_system(bomb_burn.label(Label::Burn))
-            .with_system(destructible_wall_burn.label(Label::Burn))
-            .with_system(item_burn.label(Label::Burn))
-            .with_system(exit_burn.label(Label::Burn))
-            // player specifics
-            .with_system(pick_up_item)
-            .with_system(melee_attack.before(Label::Damage))
-            .with_system(player_damage.label(Label::Damage))
-            // animation
-            .with_system(animate_fuse.after(Label::TimeUpdate))
-            .with_system(animate_immortality.after(Label::TimeUpdate)),
-    );
+    app.add_system_set(SystemSet::on_enter(state).with_system(setup_penguin_portraits))
+        .add_system_set(
+            SystemSet::on_update(state)
+                // time effect update
+                .with_system(move_cooldown_tick.label(Label::TimeUpdate))
+                .with_system(
+                    perishable_tick
+                        .label(Label::TimeUpdate)
+                        .before(Label::Explosion),
+                )
+                .with_system(immortality_tick.label(Label::TimeUpdate))
+                // handle input
+                .with_system(handle_keyboard_input.label(Label::Input))
+                .with_system(handle_mouse_input.label(Label::Input))
+                // handle AI
+                .with_system(mob_ai.label(Label::Input))
+                .with_system(bot_ai.label(Label::Input).after(Label::TimeUpdate))
+                // handle movement
+                .with_system(
+                    player_move
+                        .label(Label::PlayerMovement)
+                        .after(Label::Input)
+                        .after(Label::TimeUpdate),
+                )
+                .with_system(moving_object_update)
+                // handle bomb logic
+                .with_system(bomb_drop.after(Label::Input))
+                .with_system(handle_explosion.label(Label::Explosion))
+                .with_system(fire_effect.after(Label::Explosion).before(Label::Burn))
+                .with_system(player_burn.label(Label::Burn).before(Label::Damage))
+                .with_system(bomb_burn.label(Label::Burn))
+                .with_system(destructible_wall_burn.label(Label::Burn))
+                .with_system(item_burn.label(Label::Burn))
+                .with_system(exit_burn.label(Label::Burn))
+                // player specifics
+                .with_system(pick_up_item)
+                .with_system(melee_attack.before(Label::Damage))
+                .with_system(player_damage.label(Label::Damage))
+                // animation
+                .with_system(animate_fuse.after(Label::TimeUpdate))
+                .with_system(animate_immortality.after(Label::TimeUpdate)),
+        );
 }
 
 pub fn run() {
@@ -112,6 +115,7 @@ pub fn run() {
     app.add_state(AppState::SplashScreen)
         .add_plugin(SplashScreenPlugin)
         .add_plugin(MainMenuPlugin)
+        .add_plugin(MapTransitionPlugin)
         .init_resource::<BaseColorMaterials>()
         .init_resource::<GameOptionStore>()
         .init_resource::<PersistentHighScores>()
@@ -128,12 +132,6 @@ pub fn run() {
         .add_system_to_stage(
             CoreStage::PostUpdate,
             camera_system::<SimpleOrthoProjection>,
-        )
-        .add_system_set(
-            SystemSet::on_enter(AppState::MapTransition).with_system(setup_map_transition),
-        )
-        .add_system_set(
-            SystemSet::on_update(AppState::MapTransition).with_system(map_transition_update),
         )
         .add_system_set(
             SystemSet::on_update(AppState::Paused)
@@ -195,6 +193,9 @@ pub fn run() {
 
     add_common_game_systems(&mut app, AppState::BattleModeInGame);
     app.add_system_set(
+        SystemSet::on_enter(AppState::BattleModeInGame).with_system(trigger_round_start_freeze),
+    )
+    .add_system_set(
         SystemSet::on_update(AppState::BattleModeInGame)
             .with_system(game_timer_tick.label(Label::TimeUpdate))
             .with_system(

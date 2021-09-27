@@ -18,6 +18,7 @@ use crate::{
     constants::*,
     events::*,
     item::*,
+    map_transition::MapTransitionInput,
     resources::*,
     types::{Direction, *},
     utils::*,
@@ -191,7 +192,6 @@ pub fn story_mode_dispatch(
     query: Query<Entity, With<PenguinPortrait>>,
     query2: Query<Entity, (Without<Camera>, Without<UIComponent>, Without<Protagonist>)>,
     query3: Query<&Bomb>,
-    query4: Query<Entity, With<PenguinPortraitDisplay>>,
 ) {
     loop {
         match story_mode_context.state {
@@ -276,13 +276,6 @@ pub fn story_mode_dispatch(
                                     _ => unreachable!(), // TODO: feels like world_id should be an enum
                                 }));
                 }
-
-                // add penguin portraits
-                commands
-                    .entity(query4.single().unwrap())
-                    .with_children(|parent| {
-                        init_penguin_portraits(parent, &penguin_tags, &hud_materials, &textures);
-                    });
 
                 let wall_entity_reveal_groups = spawn_map(
                     &mut commands,
@@ -536,14 +529,12 @@ pub fn setup_battle_mode(
 pub fn battle_mode_dispatch(
     mut commands: Commands,
     textures: Res<Textures>,
-    hud_materials: Res<HUDMaterials>,
     map_size: Res<MapSize>,
     mut battle_mode_context: ResMut<BattleModeContext>,
     game_option_store: Res<GameOptionStore>,
     mut state: ResMut<State<AppState>>,
-    query: Query<Entity, With<PenguinPortraitDisplay>>,
-    query2: Query<Entity, (Without<Camera>, Without<UIComponent>)>,
-    query3: Query<Entity, With<PenguinPortrait>>,
+    query: Query<Entity, (Without<Camera>, Without<UIComponent>)>,
+    query2: Query<Entity, With<PenguinPortrait>>,
     mut query4: Query<&mut Text, With<GameTimerDisplay>>,
 ) {
     loop {
@@ -556,21 +547,6 @@ pub fn battle_mode_dispatch(
                     *map_size,
                     &battle_mode_context.players,
                 );
-
-                commands
-                    .entity(query.single().unwrap())
-                    .with_children(|parent| {
-                        init_penguin_portraits(
-                            parent,
-                            &battle_mode_context
-                                .players
-                                .iter()
-                                .map(|(pt, _)| *pt)
-                                .collect::<Vec<Penguin>>(),
-                            &hud_materials,
-                            &textures,
-                        );
-                    });
 
                 let wall_entity_reveal_groups = spawn_map(
                     &mut commands,
@@ -604,23 +580,11 @@ pub fn battle_mode_dispatch(
                     });
                     state.push(AppState::MapTransition).unwrap();
                 } else {
-                    battle_mode_context.state = BattleModeState::RoundStartFreezeSetup;
-                    continue;
+                    battle_mode_context.state = BattleModeState::InGame;
+                    state.push(AppState::BattleModeInGame).unwrap();
                 }
             }
             BattleModeState::MapTransition => {
-                battle_mode_context.state = BattleModeState::RoundStartFreezeSetup;
-                continue;
-            }
-            BattleModeState::RoundStartFreezeSetup => {
-                battle_mode_context.state = BattleModeState::RoundStartFreeze;
-                commands.insert_resource(FreezeTimer(Timer::from_seconds(
-                    ROUND_START_FREEZE_SECS,
-                    false,
-                )));
-                state.push(AppState::RoundStartFreeze).unwrap();
-            }
-            BattleModeState::RoundStartFreeze => {
                 battle_mode_context.state = BattleModeState::InGame;
                 state.push(AppState::BattleModeInGame).unwrap();
             }
@@ -641,12 +605,12 @@ pub fn battle_mode_dispatch(
                             }
                         }
 
-                        for entity in query2.iter() {
+                        for entity in query.iter() {
                             commands.entity(entity).despawn_recursive();
                         }
 
                         // clear penguin portraits
-                        for entity in query3.iter() {
+                        for entity in query2.iter() {
                             commands.entity(entity).despawn_recursive();
                         }
 
@@ -678,6 +642,14 @@ pub fn battle_mode_dispatch(
     }
 }
 
+pub fn trigger_round_start_freeze(mut commands: Commands, mut state: ResMut<State<AppState>>) {
+    commands.insert_resource(FreezeTimer(Timer::from_seconds(
+        ROUND_START_FREEZE_SECS,
+        false,
+    )));
+    state.push(AppState::RoundStartFreeze).unwrap();
+}
+
 pub fn finish_freeze(
     mut commands: Commands,
     time: Res<Time>,
@@ -691,62 +663,18 @@ pub fn finish_freeze(
     }
 }
 
-pub fn setup_map_transition(
+pub fn setup_penguin_portraits(
     mut commands: Commands,
-    mut map_spawn_input: ResMut<MapTransitionInput>,
-    mut query: Query<
-        &mut Visible,
-        Or<(
-            With<Wall>,
-            With<Player>,
-            With<PenguinPortrait>,
-            With<PenguinPortraitChild>,
-        )>,
-    >,
+    textures: Res<Textures>,
+    hud_materials: Res<HUDMaterials>,
+    query: Query<Entity, With<PenguinPortraitDisplay>>,
+    query2: Query<&Penguin>,
 ) {
-    // hide wall, player and portrait entities
-    for mut visible in query.iter_mut() {
-        visible.is_visible = false;
-    }
-
-    commands.insert_resource(MapTransitionContext {
-        wall_entity_reveal_groups: map_spawn_input
-            .wall_entity_reveal_groups
-            .drain(..)
-            .collect(),
-        reveal_timer: Timer::from_seconds(0.015, true),
-    });
-    commands.remove_resource::<MapTransitionInput>();
-}
-
-pub fn map_transition_update(
-    mut commands: Commands,
-    time: Res<Time>,
-    mut map_transition_context: ResMut<MapTransitionContext>,
-    mut state: ResMut<State<AppState>>,
-    mut query: Query<&mut Visible>,
-) {
-    let mut transition_done = false;
-    // TODO: why is the first tick much larger? it progresses the transition further than we want
-    map_transition_context.reveal_timer.tick(time.delta());
-    for _ in 0..map_transition_context.reveal_timer.times_finished() {
-        if let Some(reveal_group) = map_transition_context.wall_entity_reveal_groups.pop_front() {
-            for entity in reveal_group {
-                query.get_mut(entity).unwrap().is_visible = true;
-            }
-        } else {
-            // reveal the rest of the hidden entities
-            for mut visible in query.iter_mut() {
-                visible.is_visible = true;
-            }
-            transition_done = true;
-            break;
-        }
-    }
-
-    if transition_done {
-        commands.remove_resource::<MapTransitionContext>();
-        state.pop().unwrap();
+    if let Ok(e) = query.single() {
+        let penguin_tags = query2.iter().copied().collect::<Vec<Penguin>>();
+        commands.entity(e).with_children(|parent| {
+            init_penguin_portraits(parent, &penguin_tags, &hud_materials, &textures);
+        });
     }
 }
 

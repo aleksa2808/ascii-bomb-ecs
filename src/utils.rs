@@ -311,7 +311,6 @@ pub fn init_penguin_portraits(
                         ..Default::default()
                     })
                     .insert(UIComponent)
-                    .insert(PenguinPortraitChild)
                     .with_children(|parent| {
                         parent
                             .spawn_bundle(ImageBundle {
@@ -322,8 +321,7 @@ pub fn init_penguin_portraits(
                                 material: textures.get_penguin_texture(*penguin).clone(),
                                 ..Default::default()
                             })
-                            .insert(UIComponent)
-                            .insert(PenguinPortraitChild);
+                            .insert(UIComponent);
                     });
             });
     }
