@@ -33,34 +33,15 @@ pub fn set_volume_based_on_options(game_option_store: Res<GameOptionStore>, audi
     }
 }
 
-pub fn resize_window(mut windows: ResMut<Windows>, map_size: Option<Res<MapSize>>) {
+pub fn resize_window(mut windows: ResMut<Windows>, map_size: Res<MapSize>) {
     let window = windows.get_primary_mut().unwrap();
-    let map_size = map_size.unwrap();
     window.set_resolution(
         (map_size.columns * TILE_WIDTH) as f32,
         (HUD_HEIGHT + map_size.rows * TILE_HEIGHT) as f32,
     );
 }
 
-pub fn setup_story_mode(
-    mut commands: Commands,
-    mut textures: ResMut<Textures>,
-    base_color_materials: Res<BaseColorMaterials>,
-    hud_materials: Res<HUDMaterials>,
-    fonts: Res<Fonts>,
-    state: Res<State<AppState>>,
-) {
-    let map_size = MapSize {
-        rows: 11,
-        columns: 15,
-    };
-    let world_id = WorldID(1);
-    let player_lives = 2;
-    let player_points = 0;
-
-    textures.set_map_textures(world_id);
-
-    // spawn camera
+pub fn spawn_cameras(mut commands: Commands, map_size: Res<MapSize>) {
     let projection = SimpleOrthoProjection::new(
         (map_size.rows * TILE_HEIGHT) as f32,
         (map_size.columns * TILE_WIDTH) as f32,
@@ -80,6 +61,25 @@ pub fn setup_story_mode(
     ));
 
     commands.spawn_bundle(UiCameraBundle::default());
+}
+
+pub fn setup_story_mode(
+    mut commands: Commands,
+    mut textures: ResMut<Textures>,
+    base_color_materials: Res<BaseColorMaterials>,
+    hud_materials: Res<HUDMaterials>,
+    fonts: Res<Fonts>,
+    state: Res<State<AppState>>,
+) {
+    let map_size = MapSize {
+        rows: 11,
+        columns: 15,
+    };
+    let world_id = WorldID(1);
+    let player_lives = 2;
+    let player_points = 0;
+
+    textures.set_map_textures(world_id);
 
     // map generation //
 
@@ -447,27 +447,6 @@ pub fn setup_battle_mode(
     let (map_size, percent_of_passable_positions_to_fill) = get_battle_mode_map_size_fill(
         battle_mode_configuration.amount_of_players + battle_mode_configuration.amount_of_bots,
     );
-
-    // spawn camera
-    let projection = SimpleOrthoProjection::new(
-        (map_size.rows * TILE_HEIGHT) as f32,
-        (map_size.columns * TILE_WIDTH) as f32,
-    );
-    let cam_name = bevy::render::render_graph::base::camera::CAMERA_2D;
-    let camera = Camera {
-        name: Some(cam_name.to_string()),
-        ..Default::default()
-    };
-
-    commands.spawn_bundle((
-        Transform::from_translation(Vec3::new(0.0, 0.0, projection.far - 0.1)),
-        GlobalTransform::default(),
-        VisibleEntities::default(),
-        camera,
-        projection,
-    ));
-
-    commands.spawn_bundle(UiCameraBundle::default());
 
     // spawn HUD
     commands
@@ -2476,27 +2455,6 @@ pub fn setup_secret_mode(
 
     let world_id = WorldID(rand::thread_rng().gen_range(1..=3));
     textures.set_map_textures(world_id);
-
-    // spawn camera
-    let projection = SimpleOrthoProjection::new(
-        (map_size.rows * TILE_HEIGHT) as f32,
-        (map_size.columns * TILE_WIDTH) as f32,
-    );
-    let cam_name = bevy::render::render_graph::base::camera::CAMERA_2D;
-    let camera = Camera {
-        name: Some(cam_name.to_string()),
-        ..Default::default()
-    };
-
-    commands.spawn_bundle((
-        Transform::from_translation(Vec3::new(0.0, 0.0, projection.far - 0.1)),
-        GlobalTransform::default(),
-        VisibleEntities::default(),
-        camera,
-        projection,
-    ));
-
-    commands.spawn_bundle(UiCameraBundle::default());
 
     // spawn HUD
     commands

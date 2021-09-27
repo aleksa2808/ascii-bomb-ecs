@@ -142,7 +142,8 @@ pub fn run() {
     app.add_system_set(
         SystemSet::on_enter(AppState::StoryMode)
             .with_system(setup_story_mode.exclusive_system().label(Label::Setup))
-            .with_system(resize_window.exclusive_system().after(Label::Setup)),
+            .with_system(resize_window.exclusive_system().after(Label::Setup))
+            .with_system(spawn_cameras.exclusive_system().after(Label::Setup)),
     )
     .add_system_set(SystemSet::on_exit(AppState::StoryMode).with_system(teardown))
     .add_system_set(SystemSet::on_update(AppState::StoryMode).with_system(story_mode_dispatch))
@@ -179,7 +180,8 @@ pub fn run() {
     app.add_system_set(
         SystemSet::on_enter(AppState::BattleMode)
             .with_system(setup_battle_mode.exclusive_system().label(Label::Setup))
-            .with_system(resize_window.exclusive_system().after(Label::Setup)),
+            .with_system(resize_window.exclusive_system().after(Label::Setup))
+            .with_system(spawn_cameras.exclusive_system().after(Label::Setup)),
     )
     .add_system_set(SystemSet::on_exit(AppState::BattleMode).with_system(teardown))
     .add_system_set(SystemSet::on_update(AppState::BattleMode).with_system(battle_mode_dispatch))
@@ -222,7 +224,8 @@ pub fn run() {
     app.add_system_set(
         SystemSet::on_enter(AppState::SecretMode)
             .with_system(setup_secret_mode.exclusive_system().label(Label::Setup))
-            .with_system(resize_window.exclusive_system().after(Label::Setup)),
+            .with_system(resize_window.exclusive_system().after(Label::Setup))
+            .with_system(spawn_cameras.exclusive_system().after(Label::Setup)),
     )
     .add_system_set(SystemSet::on_update(AppState::SecretMode).with_system(secret_mode_dispatch))
     .add_system_set(
