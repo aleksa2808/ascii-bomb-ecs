@@ -197,9 +197,13 @@ pub fn setup_story_mode(
         state: StoryModeState::LevelSetup,
         level: Level::Regular(1),
         level_outcome: None,
-        game_score: GameScore(player_points),
         game_completed: false,
     });
+    commands.insert_resource(GameContext {
+        pausable: true,
+        reduced_loot: false,
+    });
+    commands.insert_resource(GameScore(player_points));
     commands.insert_resource(GameTimer(Timer::from_seconds(
         STORY_MODE_LEVEL_DURATION_SECS as f32,
         false,
@@ -213,6 +217,7 @@ pub fn story_mode_dispatch(
     mut textures: ResMut<Textures>,
     hud_materials: Res<HUDMaterials>,
     mut story_mode_context: ResMut<StoryModeContext>,
+    mut game_score: ResMut<GameScore>,
     mut game_timer: ResMut<GameTimer>,
     mut world_id: ResMut<WorldID>,
     map_size: Res<MapSize>,
@@ -387,20 +392,17 @@ pub fn story_mode_dispatch(
                         }
 
                         // add 5 points for each second left on the clock
-                        story_mode_context.game_score.0 += 5
+                        game_score.0 += 5
                             * (game_timer.0.duration() - game_timer.0.elapsed()).as_secs() as usize;
                         // update HUD points
                         q2.q0().single_mut().unwrap().sections[0].value =
-                            format_hud_points(story_mode_context.game_score.0);
+                            format_hud_points(game_score.0);
 
                         match (story_mode_context.level, world_id.0) {
                             (Level::BossRoom, 3) => {
-                                story_mode_context.game_score.0 += 2000;
+                                game_score.0 += 2000;
                                 story_mode_context.game_completed = true;
-                                println!(
-                                    "Game completed! Final score: {}",
-                                    story_mode_context.game_score.0
-                                );
+                                println!("Game completed! Final score: {}", game_score.0);
 
                                 story_mode_context.state = StoryModeState::ScoreCheck;
                                 continue;
@@ -449,10 +451,7 @@ pub fn story_mode_dispatch(
                         continue;
                     }
                     Some(LevelOutcome::Loss) => {
-                        println!(
-                            "Game over! Final score: {}",
-                            story_mode_context.game_score.0
-                        );
+                        println!("Game over! Final score: {}", game_score.0);
                         story_mode_context.state = StoryModeState::ScoreCheck;
                         continue;
                     }
@@ -464,7 +463,7 @@ pub fn story_mode_dispatch(
             }
             StoryModeState::ScoreCheck => {
                 story_mode_context.state = StoryModeState::HighScoreNameInput;
-                if story_mode_context.game_score.0 > persistent_high_scores.entry_threshold() {
+                if game_score.0 > persistent_high_scores.entry_threshold() {
                     state.push(AppState::HighScoreNameInput).unwrap();
                 } else {
                     // skip to the step below where we choose the next state
@@ -548,6 +547,10 @@ pub fn setup_battle_mode(
         leaderboard,
         round_outcome: None,
         percent_of_passable_positions_to_fill,
+    });
+    commands.insert_resource(GameContext {
+        pausable: battle_mode_configuration.amount_of_players > 0,
+        reduced_loot: true,
     });
     commands.insert_resource(world_id);
     commands.insert_resource(map_size);
@@ -709,48 +712,45 @@ pub fn setup_penguin_portraits(
 
 pub fn hud_update(
     mut commands: Commands,
-    story_mode_context: Option<Res<StoryModeContext>>,
     game_timer: Res<GameTimer>,
-    mut q: QuerySet<(
-        QueryState<&mut Text, With<LivesDisplay>>,
-        QueryState<&mut Text, With<PointsDisplay>>,
-        QueryState<&mut Text, With<GameTimerDisplay>>,
-    )>,
-    query3: Query<&Health, With<Protagonist>>,
-    query4: Query<&Penguin>,
-    query5: Query<(Entity, &PenguinPortrait)>,
-    state: Res<State<AppState>>,
+    mut query: Query<&mut Text, With<GameTimerDisplay>>,
+    query2: Query<&Penguin>,
+    query3: Query<(Entity, &PenguinPortrait)>,
 ) {
-    if let Some(story_mode_context) = story_mode_context {
-        let mut tmp = q.q0();
-        let mut text = tmp.single_mut().unwrap();
-        text.sections[0].value = format_hud_lives(if let Ok(player) = query3.single() {
-            player.lives
-        } else {
-            // if a protagonist doesn't exist in the story mode, that means he's dead == has 0 lives
-            0
-        });
-
-        let mut tmp = q.q1();
-        let mut text = tmp.single_mut().unwrap();
-        text.sections[0].value = format_hud_points(story_mode_context.game_score.0);
-    }
-
-    if let AppState::Paused = state.current() {
-        q.q2().single_mut().unwrap().sections[0].value = String::from("PAUSE");
-    } else {
-        let remaining_seconds = (game_timer.0.duration() - game_timer.0.elapsed())
-            .as_secs_f32()
-            .ceil() as usize;
-        q.q2().single_mut().unwrap().sections[0].value = format_hud_time(remaining_seconds);
-    }
+    let remaining_seconds = (game_timer.0.duration() - game_timer.0.elapsed())
+        .as_secs_f32()
+        .ceil() as usize;
+    query.single_mut().unwrap().sections[0].value = format_hud_time(remaining_seconds);
 
     // remove dead penguin portraits :(
-    for (entity, PenguinPortrait(penguin)) in query5.iter() {
-        if !query4.iter().any(|p| p.0 == penguin.0) {
+    for (entity, PenguinPortrait(penguin)) in query3.iter() {
+        if !query2.iter().any(|p| p.0 == penguin.0) {
             commands.entity(entity).despawn_recursive();
         }
     }
+}
+
+pub fn hud_lives_indicator_update(
+    mut query: Query<&mut Text, With<LivesDisplay>>,
+    query2: Query<&Health, (With<Protagonist>, Changed<Health>)>,
+) {
+    // need to be careful around death edge cases here
+    if let Ok(player) = query2.single() {
+        query.single_mut().unwrap().sections[0].value = format_hud_lives(player.lives);
+    }
+}
+
+pub fn hud_points_indicator_update(
+    game_score: Res<GameScore>,
+    mut query: Query<&mut Text, With<PointsDisplay>>,
+) {
+    if game_score.is_changed() {
+        query.single_mut().unwrap().sections[0].value = format_hud_points(game_score.0);
+    }
+}
+
+pub fn hud_indicate_pause(mut query: Query<&mut Text, With<GameTimerDisplay>>) {
+    query.single_mut().unwrap().sections[0].value = String::from("PAUSE");
 }
 
 pub fn move_cooldown_tick(time: Res<Time>, mut query: Query<&mut MoveCooldown>) {
@@ -767,7 +767,7 @@ pub fn handle_keyboard_input(
     audio: Res<Audio>,
     sounds: Res<Sounds>,
     mut keyboard_input: ResMut<Input<KeyCode>>,
-    battle_mode_context: Option<Res<BattleModeContext>>,
+    game_context: Res<GameContext>,
     query: Query<(Entity, &HumanControlled), With<Player>>,
     mut ev_player_action: EventWriter<PlayerActionEvent>,
     mut state: ResMut<State<AppState>>,
@@ -789,10 +789,7 @@ pub fn handle_keyboard_input(
         }
     }
 
-    if keyboard_input.just_pressed(KeyCode::Return)
-        && !matches!(state.current(), AppState::SecretMode)
-        && !matches!(battle_mode_context, Some(c) if !c.players.iter().any(|(_, ct)| matches!(ct, PenguinControlType::Human(_))))
-    {
+    if keyboard_input.just_pressed(KeyCode::Return) && game_context.pausable {
         audio.stop();
         audio.play(sounds.pause.clone());
         state.push(AppState::Paused).unwrap();
@@ -1449,6 +1446,7 @@ pub fn perishable_tick(
     exit_position: Option<Res<ExitPosition>>,
     mut commands: Commands,
     textures: Res<Textures>,
+    game_context: Res<GameContext>,
     mut query: Query<(
         Entity,
         &mut Perishable,
@@ -1458,7 +1456,6 @@ pub fn perishable_tick(
     )>,
     mut query2: Query<&mut BombSatchel>,
     mut ev_explosion: EventWriter<ExplosionEvent>,
-    state: Res<State<AppState>>,
 ) {
     for (entity, mut perishable, position, bomb, wall) in query.iter_mut() {
         perishable.timer.tick(time.delta());
@@ -1494,7 +1491,12 @@ pub fn perishable_tick(
                         .insert(*position)
                         .insert(Exit::default());
                 } else if rand::thread_rng().gen_range(0.0..1.0) < ITEM_SPAWN_CHANCE {
-                    generate_item_at_position(*position, &mut commands, &textures, &state);
+                    generate_item_at_position(
+                        *position,
+                        &mut commands,
+                        &textures,
+                        game_context.reduced_loot,
+                    );
                 }
             }
         }
@@ -1638,8 +1640,9 @@ pub fn player_burn(
 pub fn player_damage(
     mut commands: Commands,
     textures: Res<Textures>,
-    mut story_mode_context: Option<ResMut<StoryModeContext>>,
     map_size: Res<MapSize>,
+    game_context: Res<GameContext>,
+    mut game_score: Option<ResMut<GameScore>>,
     mut query: Query<
         (
             Entity,
@@ -1699,13 +1702,18 @@ pub fn player_damage(
                             .filter(|p| !invalid_positions.contains(p));
                         for position in valid_positions.choose_multiple(&mut rand::thread_rng(), 3)
                         {
-                            generate_item_at_position(position, &mut commands, &textures, &state);
+                            generate_item_at_position(
+                                position,
+                                &mut commands,
+                                &textures,
+                                game_context.reduced_loot,
+                            );
                         }
                     }
 
-                    if let Some(ref mut story_mode_context) = story_mode_context {
+                    if let Some(ref mut game_score) = game_score {
                         if let Some(point_value) = point_value {
-                            story_mode_context.game_score.0 += point_value.0;
+                            game_score.0 += point_value.0;
                         }
                     }
                 } else {
@@ -2025,12 +2033,14 @@ pub fn teardown(
 
     // clear resources
     // common
+    commands.remove_resource::<GameContext>();
     commands.remove_resource::<GameTimer>();
     commands.remove_resource::<WorldID>();
     commands.remove_resource::<MapSize>();
 
     // story mode
     commands.remove_resource::<StoryModeContext>();
+    commands.remove_resource::<GameScore>();
     commands.remove_resource::<ExitPosition>();
 
     // battle mode
@@ -2631,6 +2641,11 @@ pub fn setup_secret_mode(
         in_game_state: SecretModeInGameState::Initial(Timer::from_seconds(2.5, false)),
         pattern: PATTERN,
     });
+    commands.insert_resource(GameContext {
+        pausable: false,
+        // irrelevant in this mode
+        reduced_loot: false,
+    });
 }
 
 pub fn secret_mode_dispatch(
@@ -3021,15 +3036,12 @@ pub fn high_score_name_input_update(
     mut keyboard_input: ResMut<Input<KeyCode>>,
     mut char_input_events: EventReader<ReceivedCharacter>,
     mut persistent_high_scores: ResMut<PersistentHighScores>,
-    story_mode_context: Res<StoryModeContext>,
+    game_score: Res<GameScore>,
     mut query: Query<&mut Text>,
     mut state: ResMut<State<AppState>>,
 ) {
     if keyboard_input.just_pressed(KeyCode::Escape) {
-        persistent_high_scores.insert_score(
-            String::from("<unnamed_player>"),
-            story_mode_context.game_score.0,
-        );
+        persistent_high_scores.insert_score(String::from("<unnamed_player>"), game_score.0);
         commands.remove_resource::<HighScoreNameInputContext>();
         state.pop().unwrap();
         keyboard_input.reset(KeyCode::Escape);
@@ -3055,7 +3067,7 @@ pub fn high_score_name_input_update(
             name.clone()
         };
 
-        persistent_high_scores.insert_score(name, story_mode_context.game_score.0);
+        persistent_high_scores.insert_score(name, game_score.0);
         commands.remove_resource::<HighScoreNameInputContext>();
         state.pop().unwrap();
         keyboard_input.reset(KeyCode::Return);

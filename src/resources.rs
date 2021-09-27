@@ -307,6 +307,11 @@ pub struct WorldID(pub usize);
 
 pub struct GameTimer(pub Timer);
 
+pub struct GameContext {
+    pub pausable: bool,
+    pub reduced_loot: bool,
+}
+
 // story mode
 pub enum StoryModeState {
     LevelSetup,
@@ -334,7 +339,6 @@ pub struct StoryModeContext {
     pub state: StoryModeState,
     pub level: Level,
     pub level_outcome: Option<LevelOutcome>,
-    pub game_score: GameScore,
     pub game_completed: bool,
 }
 

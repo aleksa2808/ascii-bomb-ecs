@@ -12,7 +12,6 @@ use crate::{
     item::{Item, Power, Upgrade},
     resources::*,
     types::{Cooldown, Direction, PenguinControlType, PlayerAction},
-    AppState,
 };
 
 pub fn get_x(x: isize) -> f32 {
@@ -607,9 +606,9 @@ pub fn generate_item_at_position(
     position: Position,
     commands: &mut Commands,
     textures: &Textures,
-    state: &State<AppState>,
+    reduced_loot: bool,
 ) {
-    let item = Item::generate(matches!(state.current(), AppState::BattleMode));
+    let item = Item::generate(reduced_loot);
     commands
         .spawn_bundle(SpriteBundle {
             material: match item {
