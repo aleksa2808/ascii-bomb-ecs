@@ -5,6 +5,7 @@ mod events;
 mod main_menu;
 mod map_transition;
 mod resources;
+mod secret_mode;
 mod splash_screen;
 mod systems;
 mod types;
@@ -19,6 +20,7 @@ use crate::{
     main_menu::{MainMenuPlugin, MENU_HEIGHT, MENU_WIDTH},
     map_transition::MapTransitionPlugin,
     resources::*,
+    secret_mode::SecretModePlugin,
     splash_screen::SplashScreenPlugin,
     systems::*,
 };
@@ -115,6 +117,7 @@ pub fn run() {
         .add_plugin(SplashScreenPlugin)
         .add_plugin(MainMenuPlugin)
         .add_plugin(MapTransitionPlugin)
+        .add_plugin(SecretModePlugin)
         .init_resource::<BaseColorMaterials>()
         .init_resource::<GameOptionStore>()
         .init_resource::<PersistentHighScores>()
@@ -216,30 +219,6 @@ pub fn run() {
                     .exclusive_system()
                     .at_end()
                     .after(Label::GameEndCheck),
-            ),
-    );
-
-    app.add_system_set(
-        SystemSet::on_enter(AppState::SecretMode)
-            .with_system(setup_secret_mode.exclusive_system().label(Label::Setup))
-            .with_system(resize_window.exclusive_system().after(Label::Setup))
-            .with_system(spawn_cameras.exclusive_system().after(Label::Setup)),
-    )
-    .add_system_set(SystemSet::on_update(AppState::SecretMode).with_system(secret_mode_dispatch))
-    .add_system_set(
-        SystemSet::on_exit(AppState::SecretMode)
-            .with_system(stop_audio)
-            .with_system(teardown),
-    );
-
-    add_common_game_systems(&mut app, AppState::SecretModeInGame);
-    app.add_system_set(
-        SystemSet::on_update(AppState::SecretModeInGame)
-            .with_system(update_secret_mode.exclusive_system().at_start())
-            .with_system(
-                finish_secret_mode
-                    .after(Label::PlayerMovement)
-                    .before(Label::Explosion),
             ),
     );
 

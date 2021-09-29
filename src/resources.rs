@@ -592,29 +592,6 @@ pub struct LeaderboardDisplayContext {
     pub timer: Timer,
 }
 
-// secret mode
-pub enum SecretModeDispatcherState {
-    Setup,
-    MapTransition,
-    InGame,
-}
-
-pub enum SecretModeInGameState {
-    Initial(Timer),
-    Started {
-        move_cooldown: Cooldown,
-        round_progress: usize,
-        round: usize,
-    },
-    Stopping(Timer),
-}
-
-pub struct SecretModeContext {
-    pub dispatcher_state: SecretModeDispatcherState,
-    pub in_game_state: SecretModeInGameState,
-    pub pattern: &'static str,
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
