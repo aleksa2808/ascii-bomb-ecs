@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::types::{Cooldown, Direction};
+use crate::types::{Cooldown, Direction, Power, Upgrade};
 
 // UI
 
@@ -106,6 +106,14 @@ pub struct Solid;
 pub struct Wall;
 
 pub struct Destructible;
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Item {
+    Upgrade(Upgrade),
+    Power(Power),
+}
+
+pub struct BurningItem;
 
 pub struct Exit {
     pub spawn_cooldown: Cooldown,

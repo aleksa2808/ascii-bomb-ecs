@@ -9,9 +9,8 @@ use rand::{
 use crate::{
     components::*,
     constants::*,
-    item::{Item, Power, Upgrade},
     resources::*,
-    types::{Cooldown, Direction, PenguinControlType, PlayerAction},
+    types::{Direction, *},
 };
 
 pub fn get_x(x: isize) -> f32 {
@@ -608,7 +607,28 @@ pub fn generate_item_at_position(
     textures: &Textures,
     reduced_loot: bool,
 ) {
-    let item = Item::generate(reduced_loot);
+    let r = rand::thread_rng().gen::<usize>() % 100;
+
+    /* "Loot tables" */
+    let item = if !reduced_loot {
+        match r {
+            _ if r < 50 => Item::Upgrade(Upgrade::BombsUp),
+            50..=79 => Item::Upgrade(Upgrade::RangeUp),
+            80..=89 => Item::Power(Power::BombPush),
+            90..=93 => Item::Upgrade(Upgrade::LivesUp),
+            94..=97 => Item::Power(Power::WallHack),
+            _ if r >= 98 => Item::Power(Power::Immortal),
+            _ => unreachable!(),
+        }
+    } else {
+        match r {
+            _ if r < 50 => Item::Upgrade(Upgrade::BombsUp),
+            50..=89 => Item::Upgrade(Upgrade::RangeUp),
+            _ if r >= 90 => Item::Power(Power::BombPush),
+            _ => unreachable!(),
+        }
+    };
+
     commands
         .spawn_bundle(SpriteBundle {
             material: match item {

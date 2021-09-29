@@ -48,6 +48,21 @@ pub enum BotDifficulty {
     Hard,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Power {
+    WallHack,
+    BombPush,
+    Immortal,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[allow(clippy::enum_variant_names)]
+pub enum Upgrade {
+    BombsUp,
+    RangeUp,
+    LivesUp,
+}
+
 pub enum CooldownState {
     Ready,
     CoolingDown(Timer),

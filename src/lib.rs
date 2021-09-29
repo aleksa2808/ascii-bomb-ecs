@@ -2,7 +2,6 @@ mod camera;
 mod components;
 mod constants;
 mod events;
-mod item;
 mod main_menu;
 mod map_transition;
 mod resources;
