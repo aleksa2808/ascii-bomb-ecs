@@ -1,18 +1,6 @@
-use crate::types::RGBColor;
+use super::types::RGBColor;
 
 pub const PIXEL_SCALE: usize = 8;
-
-pub const HUD_HEIGHT: usize = 14 * PIXEL_SCALE;
-
-pub const TILE_HEIGHT: usize = 8 * PIXEL_SCALE;
-pub const TILE_WIDTH: usize = 6 * PIXEL_SCALE;
-
-pub const ROUND_START_FREEZE_SECS: f32 = 0.5;
-
-pub const STORY_MODE_LEVEL_DURATION_SECS: usize = 180;
-pub const BATTLE_MODE_ROUND_DURATION_SECS: usize = 120;
-
-pub const ITEM_SPAWN_CHANCE: f32 = 0.1;
 
 pub const COLORS: [RGBColor; 16] = [
     RGBColor(12, 12, 12),

@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
-use crate::components::*;
-use crate::types::*;
+use super::components::*;
+use super::types::*;
 
 pub struct PlayerActionEvent(pub Entity, pub PlayerAction);
 

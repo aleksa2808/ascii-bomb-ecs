@@ -1,9 +1,11 @@
 use bevy::prelude::*;
 
 use crate::{
-    constants::{COLORS, PIXEL_SCALE},
+    common::{
+        constants::{COLORS, PIXEL_SCALE},
+        resources::{BaseColorMaterials, Fonts},
+    },
     main_menu::{MENU_HEIGHT, MENU_WIDTH},
-    resources::{BaseColorMaterials, Fonts},
     AppState,
 };
 

@@ -4,10 +4,13 @@ use bevy::{app::AppExit, prelude::*};
 use bevy_kira_audio::Audio;
 
 use crate::{
-    constants::{COLORS, PIXEL_SCALE},
-    resources::{Fonts, GameOption, GameOptionStore, PersistentHighScores},
-    types::BotDifficulty,
-    AppState, BattleModeConfiguration,
+    battle_mode::BattleModeConfiguration,
+    common::{
+        constants::{COLORS, PIXEL_SCALE},
+        resources::{Fonts, GameOption, GameOptionStore, PersistentHighScores},
+    },
+    game::types::BotDifficulty,
+    AppState,
 };
 
 use super::{

@@ -1,8 +1,10 @@
 use bevy::prelude::*;
 
 use crate::{
-    add_common_game_systems,
-    systems::{resize_window, spawn_cameras},
+    game::{
+        add_common_game_systems,
+        systems::{resize_window, spawn_cameras},
+    },
     AppState, Label,
 };
 

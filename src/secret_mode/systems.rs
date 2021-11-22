@@ -5,21 +5,23 @@ use bevy_kira_audio::Audio;
 use rand::Rng;
 
 use crate::{
-    components::{
-        BaseMaterial, Bomb, Fuse, HumanControlled, ImmortalBundle, ImmortalMaterial, Penguin,
-        Perishable, Player, Position, UIComponent, UIRoot, Wall,
+    common::{
+        constants::{COLORS, PIXEL_SCALE},
+        resources::{BaseColorMaterials, Fonts, GameOption, GameOptionStore},
     },
-    constants::{COLORS, PIXEL_SCALE},
-    constants::{TILE_HEIGHT, TILE_WIDTH},
-    events::ExplosionEvent,
+    game::{
+        components::{
+            BaseMaterial, Bomb, Fuse, HumanControlled, ImmortalBundle, ImmortalMaterial, Penguin,
+            Perishable, Player, Position, UIComponent, UIRoot, Wall,
+        },
+        constants::{TILE_HEIGHT, TILE_WIDTH},
+        events::ExplosionEvent,
+        resources::{GameContext, HUDMaterials, MapSize, Textures, WorldID},
+        types::{Cooldown, Direction},
+        utils::{get_x, get_y, init_hud, spawn_map},
+    },
     map_transition::MapTransitionInput,
-    resources::{BaseColorMaterials, Fonts, GameOption, GameOptionStore},
-    resources::{GameContext, MapSize, WorldID},
-    resources::{HUDMaterials, Textures},
     secret_mode::resources::{SecretModeContext, SecretModeDispatcherState, SecretModeInGameState},
-    types::{Cooldown, Direction},
-    utils::init_hud,
-    utils::{get_x, get_y, spawn_map},
     AppState,
 };
 

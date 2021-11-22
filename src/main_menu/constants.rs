@@ -1,4 +1,4 @@
-use crate::constants::PIXEL_SCALE;
+use crate::common::constants::PIXEL_SCALE;
 
 pub const MENU_HEIGHT: usize = 100 * PIXEL_SCALE;
 pub const MENU_WIDTH: usize = 100 * PIXEL_SCALE;

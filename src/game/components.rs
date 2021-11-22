@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::types::{Cooldown, Direction, Power, Upgrade};
+use super::types::{Cooldown, Direction, Power, Upgrade};
 
 // UI
 
@@ -35,8 +35,6 @@ impl Position {
 }
 
 pub struct Player;
-
-pub struct Protagonist;
 
 // usize represents the penguin's ID
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
@@ -133,9 +131,9 @@ pub struct HUDRoot;
 
 pub struct GameTimerDisplay;
 
-pub struct LivesDisplay;
+pub struct BottomLeftDisplay1;
 
-pub struct PointsDisplay;
+pub struct BottomLeftDisplay2;
 
 pub struct PenguinPortraitDisplay;
 

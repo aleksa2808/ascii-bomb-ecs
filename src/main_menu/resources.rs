@@ -3,7 +3,10 @@ use std::collections::HashMap;
 use bevy::prelude::*;
 use bevy_kira_audio::AudioSource;
 
-use crate::{constants::COLORS, resources::GameOption, types::BotDifficulty};
+use crate::{
+    common::{constants::COLORS, resources::GameOption},
+    game::types::BotDifficulty,
+};
 
 pub struct MenuMaterials {
     pub background_color: Color,

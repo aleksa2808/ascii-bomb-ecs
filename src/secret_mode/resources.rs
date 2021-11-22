@@ -1,7 +1,7 @@
 use bevy::{core::Timer, prelude::*};
 use bevy_kira_audio::AudioSource;
 
-use crate::types::Cooldown;
+use crate::game::types::Cooldown;
 
 pub struct SecretModeMusic {
     pub what_is_f: Handle<AudioSource>,

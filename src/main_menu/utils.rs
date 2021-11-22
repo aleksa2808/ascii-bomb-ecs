@@ -1,10 +1,12 @@
 use bevy::prelude::*;
 
 use crate::{
-    constants::PIXEL_SCALE,
+    common::{
+        constants::PIXEL_SCALE,
+        resources::{Fonts, GameOption, GameOptionStore, HighScores},
+    },
+    game::types::BotDifficulty,
     main_menu::resources::BattleModeSubMenuStep,
-    resources::{Fonts, GameOption, GameOptionStore, HighScores},
-    types::BotDifficulty,
 };
 
 use super::{

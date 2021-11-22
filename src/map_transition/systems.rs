@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::{
-    components::{Player, Wall},
+    game::components::{Player, Wall},
     AppState,
 };
 
