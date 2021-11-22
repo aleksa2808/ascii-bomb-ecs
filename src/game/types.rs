@@ -48,6 +48,21 @@ pub enum BotDifficulty {
     Hard,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Power {
+    WallHack,
+    BombPush,
+    Immortal,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[allow(clippy::enum_variant_names)]
+pub enum Upgrade {
+    BombsUp,
+    RangeUp,
+    LivesUp,
+}
+
 pub enum CooldownState {
     Ready,
     CoolingDown(Timer),
@@ -89,15 +104,6 @@ impl Cooldown {
 
     pub fn duration(&self) -> Duration {
         self.duration
-    }
-}
-
-#[derive(Clone, Copy)]
-pub struct RGBColor(pub u8, pub u8, pub u8);
-
-impl From<RGBColor> for Color {
-    fn from(color: RGBColor) -> Self {
-        Self::rgb_u8(color.0, color.1, color.2)
     }
 }
 

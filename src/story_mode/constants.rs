@@ -1,0 +1,1 @@
+pub const STORY_MODE_LEVEL_DURATION_SECS: usize = 180;

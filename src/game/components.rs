@@ -1,20 +1,12 @@
 use bevy::prelude::*;
 
-use crate::types::{Cooldown, Direction};
+use super::types::{Cooldown, Direction, Power, Upgrade};
 
 // UI
 
 pub struct UIRoot;
 
 pub struct UIComponent;
-
-// menu components
-
-pub struct Cursor;
-
-pub struct MenuContentBox;
-
-pub struct BattleModeSubMenuContentBox;
 
 // game components
 
@@ -43,8 +35,6 @@ impl Position {
 }
 
 pub struct Player;
-
-pub struct Protagonist;
 
 // usize represents the penguin's ID
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
@@ -115,6 +105,14 @@ pub struct Wall;
 
 pub struct Destructible;
 
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Item {
+    Upgrade(Upgrade),
+    Power(Power),
+}
+
+pub struct BurningItem;
+
 pub struct Exit {
     pub spawn_cooldown: Cooldown,
 }
@@ -133,16 +131,13 @@ pub struct HUDRoot;
 
 pub struct GameTimerDisplay;
 
-pub struct LivesDisplay;
+pub struct BottomLeftDisplay1;
 
-pub struct PointsDisplay;
+pub struct BottomLeftDisplay2;
 
 pub struct PenguinPortraitDisplay;
 
 pub struct PenguinPortrait(pub Penguin);
-
-// workaround for the visibility inheritance problem (bevy #838)
-pub struct PenguinPortraitChild;
 
 // Bundles
 
