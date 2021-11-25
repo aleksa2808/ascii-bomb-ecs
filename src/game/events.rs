@@ -3,12 +3,27 @@ use bevy::prelude::*;
 use super::components::*;
 use super::types::*;
 
-pub struct PlayerActionEvent(pub Entity, pub PlayerAction);
+pub struct PlayerActionEvent {
+    pub player: Entity,
+    pub action: PlayerAction,
+}
 
-// position + range
 #[derive(Clone, Copy)]
-pub struct ExplosionEvent(pub Position, pub usize);
+pub struct ExplosionEvent {
+    pub position: Position,
+    pub range: usize,
+}
 
-pub struct DamageEvent(pub Entity);
+pub struct BombRestockEvent {
+    pub satchel_owner: Entity,
+}
 
-pub struct BurnEvent(pub Position);
+pub struct DamageEvent {
+    pub target: Entity,
+}
+
+pub struct BurnEvent {
+    pub position: Position,
+}
+
+pub struct PlayerDeathEvent;

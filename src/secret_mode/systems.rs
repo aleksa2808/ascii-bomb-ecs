@@ -450,7 +450,10 @@ pub fn finish_secret_mode(
         commands.entity(player_entity).remove::<HumanControlled>();
         for (entity, bomb, position) in query2.iter() {
             commands.entity(entity).despawn_recursive();
-            ev_explosion.send(ExplosionEvent(*position, bomb.range));
+            ev_explosion.send(ExplosionEvent {
+                position: *position,
+                range: bomb.range,
+            });
         }
     }
 }

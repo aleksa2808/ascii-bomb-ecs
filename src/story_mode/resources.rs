@@ -31,8 +31,6 @@ pub struct StoryModeContext {
     pub game_completed: bool,
 }
 
-pub struct Protagonist;
-
 // boss speech
 pub struct BossSpeechScript {
     script: Vec<(Penguin, &'static str)>,

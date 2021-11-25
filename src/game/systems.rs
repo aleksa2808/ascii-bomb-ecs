@@ -127,12 +127,18 @@ pub fn handle_keyboard_input(
             (KeyCode::Right, Direction::Right),
         ] {
             if keyboard_input.just_pressed(key_code) {
-                ev_player_action.send(PlayerActionEvent(entity, PlayerAction::Move(direction)));
+                ev_player_action.send(PlayerActionEvent {
+                    player: entity,
+                    action: PlayerAction::Move(direction),
+                });
             }
         }
 
         if keyboard_input.just_pressed(KeyCode::Space) {
-            ev_player_action.send(PlayerActionEvent(entity, PlayerAction::DropBomb));
+            ev_player_action.send(PlayerActionEvent {
+                player: entity,
+                action: PlayerAction::DropBomb,
+            });
         }
     }
 
@@ -173,31 +179,36 @@ pub fn handle_mouse_input(
                 );
 
                 if scale_x < 0.25 {
-                    ev_player_action.send(PlayerActionEvent(
-                        entity,
-                        PlayerAction::Move(Direction::Left),
-                    ))
+                    ev_player_action.send(PlayerActionEvent {
+                        player: entity,
+                        action: PlayerAction::Move(Direction::Left),
+                    })
                 }
                 if scale_x >= 0.75 {
-                    ev_player_action.send(PlayerActionEvent(
-                        entity,
-                        PlayerAction::Move(Direction::Right),
-                    ))
+                    ev_player_action.send(PlayerActionEvent {
+                        player: entity,
+                        action: PlayerAction::Move(Direction::Right),
+                    })
                 }
 
                 if scale_y < 0.25 {
-                    ev_player_action.send(PlayerActionEvent(
-                        entity,
-                        PlayerAction::Move(Direction::Down),
-                    ))
+                    ev_player_action.send(PlayerActionEvent {
+                        player: entity,
+                        action: PlayerAction::Move(Direction::Down),
+                    })
                 }
                 if scale_y >= 0.75 {
-                    ev_player_action
-                        .send(PlayerActionEvent(entity, PlayerAction::Move(Direction::Up)))
+                    ev_player_action.send(PlayerActionEvent {
+                        player: entity,
+                        action: PlayerAction::Move(Direction::Up),
+                    })
                 }
 
                 if (0.25..0.75).contains(&scale_x) && (0.25..0.75).contains(&scale_y) {
-                    ev_player_action.send(PlayerActionEvent(entity, PlayerAction::DropBomb));
+                    ev_player_action.send(PlayerActionEvent {
+                        player: entity,
+                        action: PlayerAction::DropBomb,
+                    });
                 }
             }
         }
@@ -218,7 +229,10 @@ pub fn mob_ai(
         if let Some(direction) = mob_ai.direction {
             let result = solids.get(&position.offset(direction, 1));
             if result.is_none() || (wall_hack.is_some() && matches!(result, Some(true))) {
-                ev_player_action.send(PlayerActionEvent(entity, PlayerAction::Move(direction)));
+                ev_player_action.send(PlayerActionEvent {
+                    player: entity,
+                    action: PlayerAction::Move(direction),
+                });
             } else {
                 mob_ai.direction = None;
                 potential_directions.remove(&direction);
@@ -238,7 +252,10 @@ pub fn mob_ai(
             });
             if let Some(direction) = passable_dir {
                 mob_ai.direction = passable_dir;
-                ev_player_action.send(PlayerActionEvent(entity, PlayerAction::Move(direction)));
+                ev_player_action.send(PlayerActionEvent {
+                    player: entity,
+                    action: PlayerAction::Move(direction),
+                });
             }
         }
     }
@@ -299,10 +316,10 @@ pub fn bot_ai(
             .iter()
             .choose(&mut rng)
             {
-                ev_player_action.send(PlayerActionEvent(
-                    entity,
-                    PlayerAction::Move(*safe_direction),
-                ));
+                ev_player_action.send(PlayerActionEvent {
+                    player: entity,
+                    action: PlayerAction::Move(*safe_direction),
+                });
                 continue;
             }
         }
@@ -337,7 +354,10 @@ pub fn bot_ai(
             )
             .is_empty()
             {
-                ev_player_action.send(PlayerActionEvent(entity, PlayerAction::DropBomb));
+                ev_player_action.send(PlayerActionEvent {
+                    player: entity,
+                    action: PlayerAction::DropBomb,
+                });
                 continue;
             }
         }
@@ -362,10 +382,10 @@ pub fn bot_ai(
                 .iter()
                 .choose(&mut rng)
             {
-                ev_player_action.send(PlayerActionEvent(
-                    entity,
-                    PlayerAction::Move(*safe_direction_to_enemy),
-                ));
+                ev_player_action.send(PlayerActionEvent {
+                    player: entity,
+                    action: PlayerAction::Move(*safe_direction_to_enemy),
+                });
                 continue;
             }
         }
@@ -382,7 +402,10 @@ pub fn bot_ai(
             &wall_positions,
             &destructible_positions,
         ) {
-            ev_player_action.send(PlayerActionEvent(entity, action));
+            ev_player_action.send(PlayerActionEvent {
+                player: entity,
+                action,
+            });
         }
 
         // TODO: more actions
@@ -420,8 +443,8 @@ pub fn player_move(
         .collect();
 
     for (entity, direction) in ev_player_action.iter().filter_map(|p| {
-        if let PlayerAction::Move(direction) = p.1 {
-            Some((p.0, direction))
+        if let PlayerAction::Move(direction) = p.action {
+            Some((p.player, direction))
         } else {
             None
         }
@@ -485,9 +508,15 @@ pub fn moving_object_update(
         QueryState<&Position, Or<(With<Solid>, With<Item>, With<Player>, With<Exit>)>>,
     )>,
 ) {
-    let impassable_positions: HashSet<Position> = q.q1().iter().copied().collect();
+    let moving_object_entities: Vec<Entity> = q.q0().iter_mut().map(|(e, _, _, _, _)| e).collect();
 
-    for (entity, moving, mut move_cooldown, mut position, mut transform) in q.q0().iter_mut() {
+    for entity in moving_object_entities {
+        let impassable_positions: HashSet<Position> = q.q1().iter().copied().collect();
+
+        let mut tmp = q.q0();
+        let (entity, moving, mut move_cooldown, mut position, mut transform) =
+            tmp.get_mut(entity).unwrap();
+
         if move_cooldown.0.ready() {
             let new_position = position.offset(moving.direction, 1);
             if impassable_positions.get(&new_position).is_none() {
@@ -550,8 +579,8 @@ pub fn bomb_drop(
 ) {
     for entity in ev_player_action
         .iter()
-        .filter(|pa| matches!(pa.1, PlayerAction::DropBomb))
-        .map(|pa| pa.0)
+        .filter(|pa| matches!(pa.action, PlayerAction::DropBomb))
+        .map(|pa| pa.player)
     {
         if let Ok((position, mut bomb_satchel)) = query.get_mut(entity) {
             if bomb_satchel.bombs_available > 0 && !query2.iter().any(|p| *p == *position) {
@@ -714,7 +743,7 @@ pub fn perishable_tick(
         Option<&Bomb>,
         Option<&Wall>,
     )>,
-    mut query2: Query<&mut BombSatchel>,
+    mut ev_bomb_restock: EventWriter<BombRestockEvent>,
     mut ev_explosion: EventWriter<ExplosionEvent>,
 ) {
     for (entity, mut perishable, position, bomb, wall) in query.iter_mut() {
@@ -723,18 +752,19 @@ pub fn perishable_tick(
         if perishable.timer.just_finished() {
             commands.entity(entity).despawn_recursive();
 
-            // TODO: move into separate system
             if let Some(bomb) = bomb {
                 if let Some(owner) = bomb.owner {
-                    if let Ok(mut bomb_satchel) = query2.get_mut(owner) {
-                        bomb_satchel.bombs_available += 1;
-                    }
+                    ev_bomb_restock.send(BombRestockEvent {
+                        satchel_owner: owner,
+                    })
                 }
 
-                ev_explosion.send(ExplosionEvent(*position, bomb.range));
+                ev_explosion.send(ExplosionEvent {
+                    position: *position,
+                    range: bomb.range,
+                });
             }
 
-            // TODO: move into separate system
             if wall.is_some() {
                 if matches!(exit_position, Some(ref p) if p.0 == *position) {
                     commands
@@ -763,6 +793,17 @@ pub fn perishable_tick(
     }
 }
 
+pub fn bomb_restock(
+    mut ev_bomb_restock: EventReader<BombRestockEvent>,
+    mut query: Query<&mut BombSatchel>,
+) {
+    for event in ev_bomb_restock.iter() {
+        if let Ok(mut bomb_satchel) = query.get_mut(event.satchel_owner) {
+            bomb_satchel.bombs_available += 1;
+        }
+    }
+}
+
 pub fn handle_explosion(
     mut commands: Commands,
     textures: Res<Textures>,
@@ -776,7 +817,7 @@ pub fn handle_explosion(
 
     let mut sound_played = false;
 
-    for ExplosionEvent(position, range) in ev_explosion.iter().copied() {
+    for ExplosionEvent { position, range } in ev_explosion.iter().copied() {
         if !sound_played {
             audio.stop();
             audio.play(sounds.boom.clone());
@@ -804,7 +845,7 @@ pub fn handle_explosion(
                 let position = position.offset(direction, i);
 
                 if fireproof_positions.contains(&position) {
-                    ev_burn.send(BurnEvent(position));
+                    ev_burn.send(BurnEvent { position });
                     break;
                 }
 
@@ -830,18 +871,23 @@ pub fn immortality_tick(
 
 pub fn animate_immortality(
     time: Res<Time>,
-    mut query: Query<
-        (
-            &Immortal,
-            &mut Timer,
-            &mut Handle<ColorMaterial>,
-            &BaseMaterial,
-            &ImmortalMaterial,
-        ),
-        With<Immortal>,
-    >,
+    mut q: QuerySet<(
+        QueryState<
+            (
+                &Immortal,
+                &mut Timer,
+                &mut Handle<ColorMaterial>,
+                &BaseMaterial,
+                &ImmortalMaterial,
+            ),
+            With<Immortal>,
+        >,
+        QueryState<(&mut Handle<ColorMaterial>, &BaseMaterial)>,
+    )>,
+    removals: RemovedComponents<Immortal>,
 ) {
-    for (immortal, mut timer, mut color, base_material, immortal_material) in query.iter_mut() {
+    // animate currently immortal players
+    for (immortal, mut timer, mut color, base_material, immortal_material) in q.q0().iter_mut() {
         if !immortal.timer.finished() {
             timer.tick(time.delta());
             let percent_left = timer.percent_left();
@@ -849,10 +895,16 @@ pub fn animate_immortality(
                 _ if (0.5..=1.0).contains(&percent_left) => {
                     *color = immortal_material.0.clone();
                 }
-                // hackish way to end the animation contnd.
                 _ => *color = base_material.0.clone(),
             };
         } else {
+            *color = base_material.0.clone();
+        }
+    }
+
+    // revert the texture of players that stopped being immortal
+    for entity in removals.iter() {
+        if let Ok((mut color, base_material)) = q.q1().get_mut(entity) {
             *color = base_material.0.clone();
         }
     }
@@ -860,7 +912,9 @@ pub fn animate_immortality(
 
 pub fn fire_effect(mut query: Query<&Position, With<Fire>>, mut ev_burn: EventWriter<BurnEvent>) {
     for position in query.iter_mut() {
-        ev_burn.send(BurnEvent(*position));
+        ev_burn.send(BurnEvent {
+            position: *position,
+        });
     }
 }
 
@@ -874,7 +928,7 @@ pub fn melee_attack(
             .iter()
             .filter(|(_, p, tid)| **p == *attacker_position && tid.0 != attacker_team_id.0)
         {
-            ev_damage.send(DamageEvent(e));
+            ev_damage.send(DamageEvent { target: e });
         }
     }
 }
@@ -885,23 +939,20 @@ pub fn player_burn(
     mut ev_burn: EventReader<BurnEvent>,
     mut ev_damage: EventWriter<DamageEvent>,
 ) {
-    for BurnEvent(position) in ev_burn.iter() {
+    for BurnEvent { position } in ev_burn.iter() {
         for (pe, player_pos) in query.iter().filter(|(_, pp)| **pp == *position) {
             if query2.iter().any(|wall_pos| *wall_pos == *player_pos) {
-                // high ground, bitch
+                // Anakin, I have the high ground
                 continue;
             }
 
-            ev_damage.send(DamageEvent(pe));
+            ev_damage.send(DamageEvent { target: pe });
         }
     }
 }
 
 pub fn player_damage(
     mut commands: Commands,
-    textures: Res<Textures>,
-    map_size: Res<MapSize>,
-    game_context: Res<GameContext>,
     mut game_score: Option<ResMut<GameScore>>,
     mut query: Query<
         (
@@ -913,25 +964,14 @@ pub fn player_damage(
         ),
         (With<Player>, Without<Immortal>),
     >,
-    query2: Query<
-        &Position,
-        Or<(
-            With<Player>,
-            With<Solid>,
-            With<Fire>,
-            With<BurningItem>,
-            With<Item>,
-            With<Exit>,
-        )>,
-    >,
-    state: Res<State<AppState>>,
     mut ev_damage: EventReader<DamageEvent>,
+    mut ev_player_death_event: EventWriter<PlayerDeathEvent>,
 ) {
     let mut damaged_players = HashSet::new();
 
-    for DamageEvent(entity) in ev_damage.iter() {
+    for DamageEvent { target } in ev_damage.iter() {
         if let Ok((pe, mut health, mut color, immortal_material, point_value)) =
-            query.get_mut(*entity)
+            query.get_mut(*target)
         {
             if damaged_players.contains(&pe) {
                 continue;
@@ -945,32 +985,12 @@ pub fn player_damage(
             if health.health == 0 {
                 health.lives -= 1;
                 if health.lives == 0 {
-                    println!("player died: {:?}", pe);
+                    println!("player died from damage: {:?}", pe);
                     commands.entity(pe).despawn_recursive();
 
-                    if let AppState::BattleMode = state.current() {
-                        // item pinata
-                        let invalid_positions: HashSet<Position> = query2.iter().copied().collect();
-                        let valid_positions = (0..map_size.rows)
-                            .map(|y| {
-                                (0..map_size.columns).map(move |x| Position {
-                                    y: y as isize,
-                                    x: x as isize,
-                                })
-                            })
-                            .flatten()
-                            .filter(|p| !invalid_positions.contains(p));
-                        for position in valid_positions.choose_multiple(&mut rand::thread_rng(), 3)
-                        {
-                            generate_item_at_position(
-                                position,
-                                &mut commands,
-                                &textures,
-                                game_context.reduced_loot,
-                            );
-                        }
-                    }
+                    ev_player_death_event.send(PlayerDeathEvent);
 
+                    // TODO: move to story_mode
                     if let Some(ref mut game_score) = game_score {
                         if let Some(point_value) = point_value {
                             game_score.0 += point_value.0;
@@ -996,7 +1016,7 @@ pub fn bomb_burn(
     mut query: Query<(&mut Perishable, &Position), With<Bomb>>,
     mut ev_burn: EventReader<BurnEvent>,
 ) {
-    for BurnEvent(position) in ev_burn.iter() {
+    for BurnEvent { position } in ev_burn.iter() {
         query
             .iter_mut()
             .filter(|(_, p)| **p == *position)
@@ -1024,7 +1044,7 @@ pub fn destructible_wall_burn(
     >,
     mut ev_burn: EventReader<BurnEvent>,
 ) {
-    for BurnEvent(position) in ev_burn.iter() {
+    for BurnEvent { position } in ev_burn.iter() {
         for (e, _, mut c, perishable) in query.iter_mut().filter(|(_, p, _, _)| **p == *position) {
             if perishable.is_none() {
                 commands.entity(e).insert(Perishable {
@@ -1044,7 +1064,7 @@ pub fn item_burn(
 ) {
     let mut burned = HashSet::new();
 
-    for BurnEvent(position) in ev_burn.iter() {
+    for BurnEvent { position } in ev_burn.iter() {
         for e in query
             .iter_mut()
             .filter(|(_, p)| **p == *position)
@@ -1088,7 +1108,7 @@ pub fn exit_burn(
         exit.spawn_cooldown.tick(time.delta());
     }
 
-    for BurnEvent(position) in ev_burn.iter() {
+    for BurnEvent { position } in ev_burn.iter() {
         if let Ok((exit_position, mut exit)) = query.single_mut() {
             if *exit_position == *position && exit.spawn_cooldown.ready() {
                 println!("exit burned: {:?}", position);

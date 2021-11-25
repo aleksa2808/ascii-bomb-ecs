@@ -1,6 +1,6 @@
 use bevy::{prelude::*, render::camera::camera_system};
 
-use crate::{AppState, Label};
+use crate::AppState;
 
 use self::{camera::SimpleOrthoProjection, events::*, resources::*, systems::*};
 
@@ -13,49 +13,140 @@ pub mod systems;
 pub mod types;
 pub mod utils;
 
+#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemLabel)]
+pub enum Label {
+    Setup,
+    TimeUpdate,
+    BombRestockEvent,
+    ItemSpawn,
+    Input,
+    PlayerMovement,
+    BombSpawn,
+    FireSpawn,
+    BurnEvent,
+    PlayerSpawn,
+    DamageEvent,
+    DamageApplication,
+    PlayerDeathEvent,
+}
+
 pub fn add_common_game_systems(app: &mut App, state: AppState) {
-    app.add_system_set(SystemSet::on_enter(state).with_system(setup_penguin_portraits))
-        .add_system_set(
-            SystemSet::on_update(state)
-                // time effect update
-                .with_system(move_cooldown_tick.label(Label::TimeUpdate))
-                .with_system(
-                    perishable_tick
-                        .label(Label::TimeUpdate)
-                        .before(Label::Explosion),
-                )
-                .with_system(immortality_tick.label(Label::TimeUpdate))
-                // handle input
-                .with_system(handle_keyboard_input.label(Label::Input))
-                .with_system(handle_mouse_input.label(Label::Input))
-                // handle AI
-                .with_system(mob_ai.label(Label::Input))
-                .with_system(bot_ai.label(Label::Input).after(Label::TimeUpdate))
-                // handle movement
-                .with_system(
-                    player_move
-                        .label(Label::PlayerMovement)
-                        .after(Label::Input)
-                        .after(Label::TimeUpdate),
-                )
-                .with_system(moving_object_update)
-                // handle bomb logic
-                .with_system(bomb_drop.after(Label::Input))
-                .with_system(handle_explosion.label(Label::Explosion))
-                .with_system(fire_effect.after(Label::Explosion).before(Label::Burn))
-                .with_system(player_burn.label(Label::Burn).before(Label::Damage))
-                .with_system(bomb_burn.label(Label::Burn))
-                .with_system(destructible_wall_burn.label(Label::Burn))
-                .with_system(item_burn.label(Label::Burn))
-                .with_system(exit_burn.label(Label::Burn))
-                // player specifics
-                .with_system(pick_up_item)
-                .with_system(melee_attack.before(Label::Damage))
-                .with_system(player_damage.label(Label::Damage))
-                // animation
-                .with_system(animate_fuse.after(Label::TimeUpdate))
-                .with_system(animate_immortality.after(Label::TimeUpdate)),
-        );
+    app.add_system_set(
+        SystemSet::on_enter(state).with_system(setup_penguin_portraits.exclusive_system()),
+    )
+    .add_system_set(
+        SystemSet::on_update(state)
+            // time effect update
+            .with_system(
+                move_cooldown_tick
+                    .exclusive_system()
+                    .label(Label::TimeUpdate),
+            )
+            .with_system(
+                perishable_tick
+                    .exclusive_system()
+                    .label(Label::TimeUpdate)
+                    .label(Label::ItemSpawn)
+                    .label(Label::BombRestockEvent),
+            )
+            .with_system(immortality_tick.exclusive_system().label(Label::TimeUpdate))
+            // handle input
+            .with_system(handle_keyboard_input.exclusive_system().label(Label::Input))
+            .with_system(handle_mouse_input.exclusive_system().label(Label::Input))
+            // handle AI
+            .with_system(mob_ai.exclusive_system().label(Label::Input))
+            .with_system(
+                bot_ai
+                    .exclusive_system()
+                    .label(Label::Input)
+                    .after(Label::TimeUpdate),
+            )
+            // handle movement
+            .with_system(
+                player_move
+                    .exclusive_system()
+                    .label(Label::PlayerMovement)
+                    .after(Label::Input)
+                    .after(Label::TimeUpdate),
+            )
+            .with_system(
+                moving_object_update
+                    .exclusive_system()
+                    .after(Label::TimeUpdate),
+            )
+            // handle bomb logic
+            .with_system(
+                bomb_drop
+                    .exclusive_system()
+                    .label(Label::BombSpawn)
+                    .after(Label::Input),
+            )
+            .with_system(
+                bomb_restock
+                    .exclusive_system()
+                    .after(Label::BombRestockEvent),
+            )
+            .with_system(
+                handle_explosion
+                    .exclusive_system()
+                    .label(Label::FireSpawn)
+                    .after(Label::TimeUpdate),
+            )
+            .with_system(
+                fire_effect
+                    .exclusive_system()
+                    .label(Label::BurnEvent)
+                    .after(Label::FireSpawn),
+            )
+            .with_system(
+                player_burn
+                    .exclusive_system()
+                    .label(Label::DamageEvent)
+                    .after(Label::BurnEvent)
+                    .after(Label::PlayerMovement),
+            )
+            .with_system(
+                bomb_burn
+                    .exclusive_system()
+                    .after(Label::BurnEvent)
+                    .after(Label::BombSpawn),
+            )
+            .with_system(
+                destructible_wall_burn
+                    .exclusive_system()
+                    .after(Label::BurnEvent),
+            )
+            .with_system(item_burn.exclusive_system().after(Label::BurnEvent))
+            .with_system(
+                exit_burn
+                    .exclusive_system()
+                    .label(Label::PlayerSpawn)
+                    .after(Label::BurnEvent),
+            )
+            // player specifics
+            .with_system(pick_up_item.exclusive_system().after(Label::ItemSpawn))
+            .with_system(
+                melee_attack
+                    .exclusive_system()
+                    .label(Label::DamageEvent)
+                    .after(Label::PlayerSpawn)
+                    .after(Label::PlayerMovement),
+            )
+            .with_system(
+                player_damage
+                    .exclusive_system()
+                    .label(Label::DamageApplication)
+                    .label(Label::PlayerDeathEvent)
+                    .after(Label::PlayerMovement),
+            )
+            // animation
+            .with_system(animate_fuse.exclusive_system().after(Label::TimeUpdate))
+            .with_system(
+                animate_immortality
+                    .exclusive_system()
+                    .after(Label::TimeUpdate),
+            ),
+    );
 }
 
 pub struct GamePlugin;
@@ -67,8 +158,10 @@ impl Plugin for GamePlugin {
             .init_resource::<Sounds>()
             .add_event::<PlayerActionEvent>()
             .add_event::<ExplosionEvent>()
-            .add_event::<BurnEvent>()
+            .add_event::<BombRestockEvent>()
             .add_event::<DamageEvent>()
+            .add_event::<BurnEvent>()
+            .add_event::<PlayerDeathEvent>()
             .add_system_to_stage(
                 CoreStage::PostUpdate,
                 camera_system::<SimpleOrthoProjection>,

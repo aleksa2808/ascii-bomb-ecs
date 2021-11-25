@@ -33,12 +33,22 @@ impl Plugin for MainMenuPlugin {
                     .with_system(setup_menu.exclusive_system().label(MenuLabel::Setup))
                     .with_system(resize_window.exclusive_system().after(MenuLabel::Setup)),
             )
-            .add_system_set(SystemSet::on_exit(AppState::MainMenu).with_system(teardown))
+            .add_system_set(
+                SystemSet::on_exit(AppState::MainMenu).with_system(teardown.exclusive_system()),
+            )
             .add_system_set(
                 SystemSet::on_update(AppState::MainMenu)
-                    .with_system(menu_navigation.label(MenuLabel::Navigation))
-                    .with_system(menu_demo_mode_trigger.after(MenuLabel::Navigation))
-                    .with_system(animate_menu_background),
+                    .with_system(
+                        menu_navigation
+                            .exclusive_system()
+                            .label(MenuLabel::Navigation),
+                    )
+                    .with_system(
+                        menu_demo_mode_trigger
+                            .exclusive_system()
+                            .after(MenuLabel::Navigation),
+                    )
+                    .with_system(animate_menu_background.exclusive_system()),
             );
     }
 }

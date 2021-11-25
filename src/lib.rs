@@ -39,18 +39,6 @@ pub enum AppState {
     SecretModeInGame,
 }
 
-#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemLabel)]
-enum Label {
-    Setup,
-    TimeUpdate,
-    Input,
-    PlayerMovement,
-    Explosion,
-    Burn,
-    Damage,
-    GameEndCheck,
-}
-
 pub fn run() {
     let mut app = App::new();
 
@@ -68,8 +56,8 @@ pub fn run() {
         .add_plugin(CommonPlugin)
         .add_plugin(SplashScreenPlugin)
         .add_plugin(MainMenuPlugin)
-        .add_plugin(MapTransitionPlugin)
         .add_plugin(GamePlugin)
+        .add_plugin(MapTransitionPlugin)
         .add_plugin(StoryModePlugin)
         .add_plugin(BattleModePlugin)
         .add_plugin(SecretModePlugin);

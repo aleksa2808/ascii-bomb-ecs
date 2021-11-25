@@ -1,4 +1,4 @@
-use bevy::prelude::{App, Plugin, SystemSet};
+use bevy::prelude::*;
 
 use crate::AppState;
 
@@ -14,11 +14,14 @@ pub struct MapTransitionPlugin;
 impl Plugin for MapTransitionPlugin {
     fn build(&self, app: &mut App) {
         app.add_system_set(
-            SystemSet::on_enter(AppState::MapTransition).with_system(setup_map_transition),
+            SystemSet::on_enter(AppState::MapTransition)
+                .with_system(setup_map_transition.exclusive_system()),
         )
         .add_system_set(
             SystemSet::on_update(AppState::MapTransition).with_system(map_transition_update),
         )
-        .add_system_set(SystemSet::on_exit(AppState::MapTransition).with_system(teardown));
+        .add_system_set(
+            SystemSet::on_exit(AppState::MapTransition).with_system(teardown.exclusive_system()),
+        );
     }
 }

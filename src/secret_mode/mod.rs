@@ -4,8 +4,9 @@ use crate::{
     game::{
         add_common_game_systems,
         systems::{resize_window, spawn_cameras},
+        Label,
     },
-    AppState, Label,
+    AppState,
 };
 
 use self::{resources::SecretModeMusic, systems::*};
@@ -42,9 +43,12 @@ impl Plugin for SecretModePlugin {
                     ),
             )
             .add_system_set(
-                SystemSet::on_update(AppState::SecretMode).with_system(secret_mode_dispatch),
+                SystemSet::on_update(AppState::SecretMode)
+                    .with_system(secret_mode_dispatch.exclusive_system()),
             )
-            .add_system_set(SystemSet::on_exit(AppState::SecretMode).with_system(teardown));
+            .add_system_set(
+                SystemSet::on_exit(AppState::SecretMode).with_system(teardown.exclusive_system()),
+            );
 
         add_common_game_systems(app, AppState::SecretModeInGame);
         app.add_system_set(
@@ -52,8 +56,9 @@ impl Plugin for SecretModePlugin {
                 .with_system(update_secret_mode.exclusive_system().at_start())
                 .with_system(
                     finish_secret_mode
+                        .exclusive_system()
                         .after(Label::PlayerMovement)
-                        .before(Label::Explosion),
+                        .before(Label::FireSpawn),
                 ),
         );
     }

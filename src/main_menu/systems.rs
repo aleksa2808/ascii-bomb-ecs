@@ -408,7 +408,6 @@ pub fn menu_navigation(
                                 commands.remove_resource::<DemoModeStartTimer>();
                             }
                         }
-                        // TODO: implement
                         GameOption::Transition => (),
                     }
                 }

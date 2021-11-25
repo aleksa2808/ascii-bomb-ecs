@@ -10,7 +10,9 @@ use crate::{
     AppState,
 };
 
-use super::{constants::STORY_MODE_LEVEL_DURATION_SECS, resources::*, utils::*};
+use super::{
+    components::Protagonist, constants::STORY_MODE_LEVEL_DURATION_SECS, resources::*, utils::*,
+};
 
 pub fn setup_story_mode(
     mut commands: Commands,

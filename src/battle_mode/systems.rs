@@ -14,7 +14,7 @@ use crate::{
         events::*,
         resources::*,
         types::{Direction, *},
-        utils::{format_hud_time, get_x, get_y, init_hud, spawn_map},
+        utils::{format_hud_time, generate_item_at_position, get_x, get_y, init_hud, spawn_map},
     },
     map_transition::MapTransitionInput,
     AppState,
@@ -239,40 +239,6 @@ pub fn finish_freeze(
     }
 }
 
-pub fn finish_round(
-    game_timer: Res<GameTimer>,
-    keyboard_input: Res<Input<KeyCode>>,
-    mut battle_mode_context: ResMut<BattleModeContext>,
-    query: Query<&Penguin, With<Player>>,
-    mut state: ResMut<State<AppState>>,
-) {
-    let mut round_over = false;
-    if game_timer.0.finished() || query.iter().count() == 0 {
-        battle_mode_context.round_outcome = Some(RoundOutcome::Tie);
-        round_over = true;
-    } else if let Ok(penguin) = query.single() {
-        battle_mode_context.round_outcome = Some(RoundOutcome::Winner(*penguin));
-        round_over = true;
-    }
-
-    // TODO: used for debugging, remove
-    if keyboard_input.just_pressed(KeyCode::F) {
-        let winner_penguin = battle_mode_context
-            .leaderboard
-            .scores
-            .iter()
-            .choose(&mut rand::thread_rng())
-            .map(|(p, _)| *p)
-            .unwrap();
-        battle_mode_context.round_outcome = Some(RoundOutcome::Winner(winner_penguin));
-        round_over = true;
-    }
-
-    if round_over {
-        state.overwrite_pop().unwrap();
-    }
-}
-
 pub fn wall_of_death_update(
     mut commands: Commands,
     time: Res<Time>,
@@ -280,8 +246,9 @@ pub fn wall_of_death_update(
     mut wall_of_death: ResMut<WallOfDeath>,
     map_size: Res<MapSize>,
     query: Query<&Position, (With<Wall>, Without<Destructible>)>,
-    query2: Query<(Entity, &Position, Option<&Bomb>)>,
-    mut query3: Query<&mut BombSatchel>,
+    query2: Query<(Entity, &Position, Option<&Bomb>, Option<&Player>)>,
+    mut ev_player_death_event: EventWriter<PlayerDeathEvent>,
+    mut ev_bomb_restock: EventWriter<BombRestockEvent>,
 ) {
     let get_next_position_direction = |mut position: Position,
                                        mut direction: Direction|
@@ -331,15 +298,19 @@ pub fn wall_of_death_update(
     };
 
     let mut clear_position_and_spawn_wall = |position: Position| {
-        for (e, _, b) in query2.iter().filter(|(_, p, _)| **p == position) {
+        for (e, _, bomb, player) in query2.iter().filter(|(_, p, _, _)| **p == position) {
             commands.entity(e).despawn_recursive();
 
-            // TODO: this is the same logic as in perishable_tick, move into a separate system
-            if let Some(bomb) = b {
+            if player.is_some() {
+                println!("player died from wall of death: {:?}", e);
+                ev_player_death_event.send(PlayerDeathEvent);
+            }
+
+            if let Some(bomb) = bomb {
                 if let Some(owner) = bomb.owner {
-                    if let Ok(mut bomb_satchel) = query3.get_mut(owner) {
-                        bomb_satchel.bombs_available += 1;
-                    }
+                    ev_bomb_restock.send(BombRestockEvent {
+                        satchel_owner: owner,
+                    })
                 }
             }
         }
@@ -405,6 +376,80 @@ pub fn wall_of_death_update(
         } else {
             break;
         }
+    }
+}
+
+pub fn on_death_item_pinata(
+    mut commands: Commands,
+    textures: Res<Textures>,
+    map_size: Res<MapSize>,
+    game_context: Res<GameContext>,
+    query: Query<
+        &Position,
+        Or<(
+            With<Player>,
+            With<Solid>,
+            With<Fire>,
+            With<BurningItem>,
+            With<Item>,
+            With<Exit>,
+        )>,
+    >,
+    mut ev_player_death_event: EventReader<PlayerDeathEvent>,
+) {
+    for _ in ev_player_death_event.iter() {
+        let invalid_positions: HashSet<Position> = query.iter().copied().collect();
+        let valid_positions = (0..map_size.rows)
+            .map(|y| {
+                (0..map_size.columns).map(move |x| Position {
+                    y: y as isize,
+                    x: x as isize,
+                })
+            })
+            .flatten()
+            .filter(|p| !invalid_positions.contains(p));
+        for position in valid_positions.choose_multiple(&mut rand::thread_rng(), 3) {
+            generate_item_at_position(
+                position,
+                &mut commands,
+                &textures,
+                game_context.reduced_loot,
+            );
+        }
+    }
+}
+
+pub fn finish_round(
+    game_timer: Res<GameTimer>,
+    keyboard_input: Res<Input<KeyCode>>,
+    mut battle_mode_context: ResMut<BattleModeContext>,
+    query: Query<&Penguin, With<Player>>,
+    mut state: ResMut<State<AppState>>,
+) {
+    let mut round_over = false;
+    if game_timer.0.finished() || query.iter().count() == 0 {
+        battle_mode_context.round_outcome = Some(RoundOutcome::Tie);
+        round_over = true;
+    } else if let Ok(penguin) = query.single() {
+        battle_mode_context.round_outcome = Some(RoundOutcome::Winner(*penguin));
+        round_over = true;
+    }
+
+    // TODO: used for debugging, remove
+    if keyboard_input.just_pressed(KeyCode::F) {
+        let winner_penguin = battle_mode_context
+            .leaderboard
+            .scores
+            .iter()
+            .choose(&mut rand::thread_rng())
+            .map(|(p, _)| *p)
+            .unwrap();
+        battle_mode_context.round_outcome = Some(RoundOutcome::Winner(winner_penguin));
+        round_over = true;
+    }
+
+    if round_over {
+        state.overwrite_pop().unwrap();
     }
 }
 
