@@ -1,0 +1,24 @@
+<html>
+
+<head>
+    <title>My Bevy Project</title>
+</head>
+
+<body>
+    <button id="button" onclick="loadGame()">Click me</button>
+    <script type="module">
+        import init from "./ascii_bomb_ecs_lib.js";
+
+        function loadGame() {
+            document.getElementById('button').remove();
+
+            init("./ascii_bomb_ecs_lib_bg.wasm").then(function (wasm) {
+                wasm.run();
+            });
+        }
+
+        window.loadGame = loadGame
+    </script>
+</body>
+
+</html>
