@@ -68,7 +68,7 @@ pub fn setup_penguin_portraits(
     query: Query<Entity, With<PenguinPortraitDisplay>>,
     query2: Query<&Penguin>,
 ) {
-    if let Ok(e) = query.single() {
+    if let Ok(e) = query.get_single() {
         let penguin_tags = query2.iter().copied().collect::<Vec<Penguin>>();
         commands.entity(e).with_children(|parent| {
             init_penguin_portraits(parent, &penguin_tags, &hud_materials, &textures);
@@ -86,7 +86,7 @@ pub fn hud_update(
     let remaining_seconds = (game_timer.0.duration() - game_timer.0.elapsed())
         .as_secs_f32()
         .ceil() as usize;
-    query.single_mut().unwrap().sections[0].value = format_hud_time(remaining_seconds);
+    query.single_mut().sections[0].value = format_hud_time(remaining_seconds);
 
     // remove dead penguin portraits :(
     for (entity, PenguinPortrait(penguin)) in query3.iter() {
@@ -97,7 +97,7 @@ pub fn hud_update(
 }
 
 pub fn hud_indicate_pause(mut query: Query<&mut Text, With<GameTimerDisplay>>) {
-    query.single_mut().unwrap().sections[0].value = String::from("PAUSE");
+    query.single_mut().sections[0].value = String::from("PAUSE");
 }
 
 pub fn move_cooldown_tick(time: Res<Time>, mut query: Query<&mut MoveCooldown>) {
@@ -638,7 +638,7 @@ pub fn bomb_drop(
                                 ..Default::default()
                             })
                             .insert(Fuse)
-                            .insert(fuse_color)
+                            .insert(ColorComponent(fuse_color))
                             .insert(Timer::from_seconds(0.1, true));
                     });
             }
@@ -650,7 +650,16 @@ pub fn animate_fuse(
     time: Res<Time>,
     fonts: Res<Fonts>,
     query: Query<&Perishable, With<Bomb>>,
-    mut query2: Query<(&Parent, &mut Text, &Color, &mut Timer, &mut Transform), With<Fuse>>,
+    mut query2: Query<
+        (
+            &Parent,
+            &mut Text,
+            &ColorComponent,
+            &mut Timer,
+            &mut Transform,
+        ),
+        With<Fuse>,
+    >,
 ) {
     for (parent, mut text, fuse_color, mut timer, mut transform) in query2.iter_mut() {
         timer.tick(time.delta());
@@ -673,7 +682,7 @@ pub fn animate_fuse(
                         style: TextStyle {
                             font: fonts.mono.clone(),
                             font_size: 2.0 * PIXEL_SCALE as f32,
-                            color: *fuse_color,
+                            color: fuse_color.0,
                         },
                     },
                     TextSection {
@@ -696,7 +705,7 @@ pub fn animate_fuse(
                         style: TextStyle {
                             font: fonts.mono.clone(),
                             font_size: 2.0 * PIXEL_SCALE as f32,
-                            color: *fuse_color,
+                            color: fuse_color.0,
                         },
                     },
                     TextSection {
@@ -718,7 +727,7 @@ pub fn animate_fuse(
                     style: TextStyle {
                         font: fonts.mono.clone(),
                         font_size: 2.0 * PIXEL_SCALE as f32,
-                        color: *fuse_color,
+                        color: fuse_color.0,
                     },
                 }];
                 let translation = &mut transform.translation;
@@ -1104,12 +1113,12 @@ pub fn exit_burn(
 ) {
     // we do checks here because some levels don't have exits (e.g. boss rooms)
     // TODO: make a separate state for those scenarios that don't run this system?
-    if let Ok((_, mut exit)) = query.single_mut() {
+    if let Ok((_, mut exit)) = query.get_single_mut() {
         exit.spawn_cooldown.tick(time.delta());
     }
 
     for BurnEvent { position } in ev_burn.iter() {
-        if let Ok((exit_position, mut exit)) = query.single_mut() {
+        if let Ok((exit_position, mut exit)) = query.get_single_mut() {
             if *exit_position == *position && exit.spawn_cooldown.ready() {
                 println!("exit burned: {:?}", position);
 

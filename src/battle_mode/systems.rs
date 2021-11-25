@@ -140,7 +140,7 @@ pub fn battle_mode_manager(
                     false,
                 )));
                 // update HUD clock
-                query4.single_mut().unwrap().sections[0].value =
+                query4.single_mut().sections[0].value =
                     format_hud_time(BATTLE_MODE_ROUND_DURATION_SECS);
                 commands.insert_resource(WallOfDeath::Dormant(Timer::from_seconds(
                     BATTLE_MODE_ROUND_DURATION_SECS as f32 / 2.0,
@@ -430,7 +430,7 @@ pub fn finish_round(
     if game_timer.0.finished() || query.iter().count() == 0 {
         battle_mode_context.round_outcome = Some(RoundOutcome::Tie);
         round_over = true;
-    } else if let Ok(penguin) = query.single() {
+    } else if let Ok(penguin) = query.get_single() {
         battle_mode_context.round_outcome = Some(RoundOutcome::Winner(*penguin));
         round_over = true;
     }
@@ -465,190 +465,167 @@ pub fn setup_leaderboard_display(
     let mut leaderboard_display_box = None;
     let window = windows.get_primary().unwrap();
 
-    commands
-        .entity(query.single().unwrap())
-        .with_children(|parent| {
-            leaderboard_display_box = Some(
-                parent
-                    .spawn_bundle(NodeBundle {
-                        style: Style {
-                            size: Size::new(Val::Px(window.width()), Val::Px(window.height())),
-                            position_type: PositionType::Absolute,
-                            position: Rect {
-                                left: Val::Px(0.0),
-                                top: Val::Px(0.0),
-                                ..Default::default()
-                            },
+    commands.entity(query.single()).with_children(|parent| {
+        leaderboard_display_box = Some(
+            parent
+                .spawn_bundle(NodeBundle {
+                    style: Style {
+                        size: Size::new(Val::Px(window.width()), Val::Px(window.height())),
+                        position_type: PositionType::Absolute,
+                        position: Rect {
+                            left: Val::Px(0.0),
+                            top: Val::Px(0.0),
                             ..Default::default()
                         },
-                        material: base_color_materials.colors[0].clone(),
                         ..Default::default()
-                    })
-                    .insert(UIComponent)
-                    .with_children(|parent| {
-                        // spawn border
-                        let mut spawn_color = |y: usize, x: usize| {
-                            parent
-                                .spawn_bundle(NodeBundle {
-                                    style: Style {
-                                        size: Size::new(
-                                            Val::Px(PIXEL_SCALE as f32),
-                                            Val::Px(PIXEL_SCALE as f32),
-                                        ),
-                                        position_type: PositionType::Absolute,
-                                        position: Rect {
-                                            left: Val::Px((x * PIXEL_SCALE) as f32),
-                                            top: Val::Px((y * PIXEL_SCALE) as f32),
-                                            ..Default::default()
-                                        },
+                    },
+                    material: base_color_materials.colors[0].clone(),
+                    ..Default::default()
+                })
+                .insert(UIComponent)
+                .with_children(|parent| {
+                    // spawn border
+                    let mut spawn_color = |y: usize, x: usize| {
+                        parent
+                            .spawn_bundle(NodeBundle {
+                                style: Style {
+                                    size: Size::new(
+                                        Val::Px(PIXEL_SCALE as f32),
+                                        Val::Px(PIXEL_SCALE as f32),
+                                    ),
+                                    position_type: PositionType::Absolute,
+                                    position: Rect {
+                                        left: Val::Px((x * PIXEL_SCALE) as f32),
+                                        top: Val::Px((y * PIXEL_SCALE) as f32),
                                         ..Default::default()
                                     },
-                                    material: base_color_materials.colors[rand::thread_rng()
-                                        .gen_range(0..base_color_materials.colors.len())]
-                                    .clone(),
                                     ..Default::default()
-                                })
-                                .insert(UIComponent);
-                        };
+                                },
+                                material: base_color_materials.colors[rand::thread_rng()
+                                    .gen_range(0..base_color_materials.colors.len())]
+                                .clone(),
+                                ..Default::default()
+                            })
+                            .insert(UIComponent);
+                    };
 
-                        let height = window.height() as usize / PIXEL_SCALE;
-                        let width = window.width() as usize / PIXEL_SCALE;
-                        for y in 0..height {
-                            spawn_color(y, 0);
-                            spawn_color(y, 1);
-                            spawn_color(y, width - 2);
-                            spawn_color(y, width - 1);
-                        }
-                        for x in 2..width - 2 {
-                            spawn_color(0, x);
-                            spawn_color(1, x);
-                            spawn_color(height - 2, x);
-                            spawn_color(height - 1, x);
-                        }
+                    let height = window.height() as usize / PIXEL_SCALE;
+                    let width = window.width() as usize / PIXEL_SCALE;
+                    for y in 0..height {
+                        spawn_color(y, 0);
+                        spawn_color(y, 1);
+                        spawn_color(y, width - 2);
+                        spawn_color(y, width - 1);
+                    }
+                    for x in 2..width - 2 {
+                        spawn_color(0, x);
+                        spawn_color(1, x);
+                        spawn_color(height - 2, x);
+                        spawn_color(height - 1, x);
+                    }
 
-                        for (penguin, score) in &battle_mode_context.leaderboard.scores {
-                            // spawn penguin portrait
-                            parent
-                                .spawn_bundle(NodeBundle {
-                                    style: Style {
-                                        size: Size::new(
-                                            Val::Px(TILE_WIDTH as f32),
-                                            Val::Px(TILE_HEIGHT as f32),
-                                        ),
-                                        position_type: PositionType::Absolute,
-                                        position: Rect {
-                                            left: Val::Px(4.0 * PIXEL_SCALE as f32),
-                                            top: Val::Px(
-                                                ((6 + penguin.0 * 12) * PIXEL_SCALE) as f32,
-                                            ),
-                                            ..Default::default()
-                                        },
+                    for (penguin, score) in &battle_mode_context.leaderboard.scores {
+                        // spawn penguin portrait
+                        parent
+                            .spawn_bundle(NodeBundle {
+                                style: Style {
+                                    size: Size::new(
+                                        Val::Px(TILE_WIDTH as f32),
+                                        Val::Px(TILE_HEIGHT as f32),
+                                    ),
+                                    position_type: PositionType::Absolute,
+                                    position: Rect {
+                                        left: Val::Px(4.0 * PIXEL_SCALE as f32),
+                                        top: Val::Px(((6 + penguin.0 * 12) * PIXEL_SCALE) as f32),
                                         ..Default::default()
                                     },
-                                    material: base_color_materials.colors[2].clone(),
                                     ..Default::default()
-                                })
-                                .insert(UIComponent)
-                                .with_children(|parent| {
-                                    parent
-                                        .spawn_bundle(ImageBundle {
-                                            style: Style {
-                                                size: Size::new(
-                                                    Val::Percent(100.0),
-                                                    Val::Percent(100.0),
-                                                ),
-                                                ..Default::default()
-                                            },
-                                            material: textures
-                                                .get_penguin_texture(*penguin)
-                                                .clone(),
-                                            ..Default::default()
-                                        })
-                                        .insert(UIComponent);
-                                });
-
-                            // spawn penguin trophies
-                            for i in 0..*score {
+                                },
+                                material: base_color_materials.colors[2].clone(),
+                                ..Default::default()
+                            })
+                            .insert(UIComponent)
+                            .with_children(|parent| {
                                 parent
                                     .spawn_bundle(ImageBundle {
                                         style: Style {
                                             size: Size::new(
-                                                Val::Px(5.0 * PIXEL_SCALE as f32),
-                                                Val::Px(7.0 * PIXEL_SCALE as f32),
+                                                Val::Percent(100.0),
+                                                Val::Percent(100.0),
                                             ),
-                                            position_type: PositionType::Absolute,
-                                            position: Rect {
-                                                top: Val::Px(
-                                                    ((7 + penguin.0 * 12) * PIXEL_SCALE) as f32,
-                                                ),
-                                                left: Val::Px(((15 + i * 9) * PIXEL_SCALE) as f32),
-                                                ..Default::default()
-                                            },
                                             ..Default::default()
                                         },
-                                        material: textures.trophy.clone(),
+                                        material: textures.get_penguin_texture(*penguin).clone(),
                                         ..Default::default()
                                     })
                                     .insert(UIComponent);
-                            }
+                            });
 
-                            if let RoundOutcome::Winner(round_winner_penguin) =
-                                battle_mode_context.round_outcome.unwrap()
-                            {
-                                if *penguin == round_winner_penguin {
-                                    let mut place_text = |y, x, str: &str, c: usize| {
-                                        parent
-                                            .spawn_bundle(TextBundle {
-                                                text: Text::with_section(
-                                                    str.to_string(),
-                                                    TextStyle {
-                                                        font: fonts.mono.clone(),
-                                                        font_size: 2.0 * PIXEL_SCALE as f32,
-                                                        color: COLORS[c].into(),
-                                                    },
-                                                    TextAlignment::default(),
-                                                ),
-                                                style: Style {
-                                                    position_type: PositionType::Absolute,
-                                                    position: Rect {
-                                                        top: Val::Px(y as f32 * PIXEL_SCALE as f32),
-                                                        left: Val::Px(
-                                                            x as f32 * PIXEL_SCALE as f32,
-                                                        ),
-                                                        ..Default::default()
-                                                    },
+                        // spawn penguin trophies
+                        for i in 0..*score {
+                            parent
+                                .spawn_bundle(ImageBundle {
+                                    style: Style {
+                                        size: Size::new(
+                                            Val::Px(5.0 * PIXEL_SCALE as f32),
+                                            Val::Px(7.0 * PIXEL_SCALE as f32),
+                                        ),
+                                        position_type: PositionType::Absolute,
+                                        position: Rect {
+                                            top: Val::Px(
+                                                ((7 + penguin.0 * 12) * PIXEL_SCALE) as f32,
+                                            ),
+                                            left: Val::Px(((15 + i * 9) * PIXEL_SCALE) as f32),
+                                            ..Default::default()
+                                        },
+                                        ..Default::default()
+                                    },
+                                    material: textures.trophy.clone(),
+                                    ..Default::default()
+                                })
+                                .insert(UIComponent);
+                        }
+
+                        if let RoundOutcome::Winner(round_winner_penguin) =
+                            battle_mode_context.round_outcome.unwrap()
+                        {
+                            if *penguin == round_winner_penguin {
+                                let mut place_text = |y, x, str: &str, c: usize| {
+                                    parent
+                                        .spawn_bundle(TextBundle {
+                                            text: Text::with_section(
+                                                str.to_string(),
+                                                TextStyle {
+                                                    font: fonts.mono.clone(),
+                                                    font_size: 2.0 * PIXEL_SCALE as f32,
+                                                    color: COLORS[c].into(),
+                                                },
+                                                TextAlignment::default(),
+                                            ),
+                                            style: Style {
+                                                position_type: PositionType::Absolute,
+                                                position: Rect {
+                                                    top: Val::Px(y as f32 * PIXEL_SCALE as f32),
+                                                    left: Val::Px(x as f32 * PIXEL_SCALE as f32),
                                                     ..Default::default()
                                                 },
                                                 ..Default::default()
-                                            })
-                                            .insert(UIComponent);
-                                    };
+                                            },
+                                            ..Default::default()
+                                        })
+                                        .insert(UIComponent);
+                                };
 
-                                    place_text(
-                                        6 + penguin.0 * 12,
-                                        15 + (*score - 1) * 9 - 2,
-                                        "*",
-                                        15,
-                                    );
-                                    place_text(
-                                        8 + penguin.0 * 12,
-                                        15 + (*score - 1) * 9 + 6,
-                                        "*",
-                                        15,
-                                    );
-                                    place_text(
-                                        10 + penguin.0 * 12,
-                                        15 + (*score - 1) * 9 - 1,
-                                        "*",
-                                        15,
-                                    );
-                                }
+                                place_text(6 + penguin.0 * 12, 15 + (*score - 1) * 9 - 2, "*", 15);
+                                place_text(8 + penguin.0 * 12, 15 + (*score - 1) * 9 + 6, "*", 15);
+                                place_text(10 + penguin.0 * 12, 15 + (*score - 1) * 9 - 1, "*", 15);
                             }
                         }
-                    })
-                    .id(),
-            );
-        });
+                    }
+                })
+                .id(),
+        );
+    });
 
     commands.insert_resource(LeaderboardDisplayContext {
         leaderboard_display_box: leaderboard_display_box.unwrap(),

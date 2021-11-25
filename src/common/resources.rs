@@ -90,8 +90,10 @@ impl GameOptionStore {
     fn save(&self) {
         let options_file_path = std::path::Path::new(Self::OPTIONS_FILE_PATH);
         let serialized = serde_json::to_string(self).unwrap();
-        fs::create_dir_all(options_file_path.parent().unwrap()).unwrap();
-        fs::write(options_file_path, serialized).unwrap();
+        match fs::create_dir_all(options_file_path.parent().unwrap()) {
+            Ok(()) => fs::write(options_file_path, serialized).unwrap(),
+            Err(e) => eprintln!("Cannot save options file. Error: {}", e),
+        }
     }
 
     pub fn toggle(&mut self, option: GameOption) -> bool {
@@ -190,10 +192,12 @@ impl PersistentHighScores {
     }
 
     fn save(&self) {
-        let options_file_path = std::path::Path::new(Self::SERIALIZED_FILE_PATH);
+        let high_scores_file_path = std::path::Path::new(Self::SERIALIZED_FILE_PATH);
         let serialized = serde_json::to_string(self).unwrap();
-        fs::create_dir_all(options_file_path.parent().unwrap()).unwrap();
-        fs::write(options_file_path, serialized).unwrap();
+        match fs::create_dir_all(high_scores_file_path.parent().unwrap()) {
+            Ok(()) => fs::write(high_scores_file_path, serialized).unwrap(),
+            Err(e) => eprintln!("Cannot save high scores file. Error: {}", e),
+        }
     }
 
     fn calculate_checksum(high_scores: &HighScores) -> usize {

@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{ecs as bevy_ecs, prelude::*};
 
 use crate::AppState;
 

@@ -10,10 +10,7 @@ use crate::{
         resources::{BaseColorMaterials, Fonts, GameOption, GameOptionStore},
     },
     game::{
-        components::{
-            BaseMaterial, Bomb, Fuse, HumanControlled, ImmortalBundle, ImmortalMaterial, Penguin,
-            Perishable, Player, Position, UIComponent, UIRoot, Wall,
-        },
+        components::*,
         constants::{TILE_HEIGHT, TILE_WIDTH},
         events::ExplosionEvent,
         resources::{GameContext, HUDMaterials, MapSize, Textures, WorldID},
@@ -384,7 +381,7 @@ pub fn update_secret_mode(
                                             ..Default::default()
                                         })
                                         .insert(Fuse)
-                                        .insert(fuse_color)
+                                        .insert(ColorComponent(fuse_color))
                                         .insert(Timer::from_seconds(0.1, true));
                                 });
                         }
@@ -397,7 +394,7 @@ pub fn update_secret_mode(
                         *round_progress = 0;
 
                         let new_material = textures.get_penguin_texture(Penguin(*round));
-                        let (entity, mut color, mut base_material) = query.single_mut().unwrap();
+                        let (entity, mut color, mut base_material) = query.single_mut();
                         *color = new_material.clone();
                         *base_material = BaseMaterial(new_material.clone());
 
@@ -442,7 +439,7 @@ pub fn finish_secret_mode(
     query2: Query<(Entity, &Bomb, &Position)>,
     mut ev_explosion: EventWriter<ExplosionEvent>,
 ) {
-    let (player_entity, player_position) = query.single().unwrap();
+    let (player_entity, player_position) = query.single();
     if query2.iter().any(|(_, _, p)| *p == *player_position) {
         secret_mode_context.in_game_state =
             SecretModeInGameState::Stopping(Timer::from_seconds(0.5, false));

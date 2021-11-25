@@ -1,16 +1,21 @@
-use bevy::prelude::*;
+use bevy::{ecs as bevy_ecs, prelude::*};
 
 use super::types::{Cooldown, Direction, Power, Upgrade};
 
+#[derive(Component)]
+pub struct ColorComponent(pub Color);
+
 // UI
 
+#[derive(Component)]
 pub struct UIRoot;
 
+#[derive(Component)]
 pub struct UIComponent;
 
 // game components
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Component)]
 pub struct Position {
     pub y: isize,
     pub x: isize,
@@ -34,85 +39,108 @@ impl Position {
     }
 }
 
+#[derive(Component)]
 pub struct Player;
 
 // usize represents the penguin's ID
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Component)]
 pub struct Penguin(pub usize);
 
 // usize represents the controller/player number
+#[derive(Component)]
 pub struct HumanControlled(pub usize);
 
-#[derive(Default)]
+#[derive(Default, Component)]
 pub struct MobAI {
     pub direction: Option<Direction>,
 }
 
+#[derive(Component)]
 pub struct BotAI;
 
+#[derive(Component)]
 pub struct MoveCooldown(pub Cooldown);
 
 // currently used for bomb movement only, will stop before items
+#[derive(Component)]
 pub struct Moving {
     pub direction: Direction,
 }
 
+#[derive(Component)]
 pub struct Health {
     pub lives: usize,
     pub max_health: usize,
     pub health: usize,
 }
 
+#[derive(Component)]
 pub struct BaseMaterial(pub Handle<ColorMaterial>);
+#[derive(Component)]
 pub struct ImmortalMaterial(pub Handle<ColorMaterial>);
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Component)]
 pub struct Bomb {
     pub owner: Option<Entity>,
     pub range: usize,
 }
 
+#[derive(Component)]
 pub struct Fuse;
 
+#[derive(Component)]
 pub struct BombSatchel {
     pub bombs_available: usize,
     pub bomb_range: usize,
 }
 
+#[derive(Component)]
 pub struct Immortal {
     pub timer: Timer,
 }
 
+#[derive(Component)]
 pub struct WallHack;
 
+#[derive(Component)]
 pub struct BombPush;
 
+#[derive(Component)]
 pub struct MeleeAttacker;
 
+#[derive(Component)]
 pub struct TeamID(pub usize);
 
+#[derive(Component)]
 pub struct PointValue(pub usize);
 
+#[derive(Component)]
 pub struct Perishable {
     pub timer: Timer,
 }
 
+#[derive(Component)]
 pub struct Fire;
 
+#[derive(Component)]
 pub struct Solid;
 
+#[derive(Component)]
 pub struct Wall;
 
+#[derive(Component)]
 pub struct Destructible;
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Component)]
 pub enum Item {
     Upgrade(Upgrade),
     Power(Power),
 }
 
+#[derive(Component)]
 pub struct BurningItem;
 
+#[derive(Component)]
 pub struct Exit {
     pub spawn_cooldown: Cooldown,
 }
@@ -127,16 +155,22 @@ impl Default for Exit {
 
 // HUD display
 
+#[derive(Component)]
 pub struct HUDRoot;
 
+#[derive(Component)]
 pub struct GameTimerDisplay;
 
+#[derive(Component)]
 pub struct BottomLeftDisplay1;
 
+#[derive(Component)]
 pub struct BottomLeftDisplay2;
 
+#[derive(Component)]
 pub struct PenguinPortraitDisplay;
 
+#[derive(Component)]
 pub struct PenguinPortrait(pub Penguin);
 
 // Bundles

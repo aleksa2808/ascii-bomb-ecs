@@ -1,4 +1,4 @@
-use bevy::{prelude::*, render::camera::camera_system};
+use bevy::{ecs as bevy_ecs, prelude::*, render::camera::camera_system};
 
 use crate::AppState;
 

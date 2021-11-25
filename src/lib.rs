@@ -9,6 +9,7 @@ mod story_mode;
 
 use bevy::prelude::*;
 use bevy_kira_audio::AudioPlugin;
+use wasm_bindgen::prelude::*;
 
 use crate::{
     battle_mode::BattleModePlugin,
@@ -39,6 +40,7 @@ pub enum AppState {
     SecretModeInGame,
 }
 
+#[wasm_bindgen]
 pub fn run() {
     let mut app = App::new();
 
@@ -51,6 +53,9 @@ pub fn run() {
     })
     .add_plugins(DefaultPlugins)
     .add_plugin(AudioPlugin);
+
+    #[cfg(target_arch = "wasm32")]
+    app.add_plugin(bevy_webgl2::WebGL2Plugin);
 
     app.add_state(AppState::SplashScreen)
         .add_plugin(CommonPlugin)

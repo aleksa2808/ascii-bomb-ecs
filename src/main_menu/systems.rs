@@ -373,16 +373,14 @@ pub fn menu_navigation(
                 }
                 MenuAction::OpenBattleModeSubMenu => {
                     let sub_menu_state = BattleModeSubMenuState::default();
-                    commands
-                        .entity(query.single().unwrap().0)
-                        .with_children(|parent| {
-                            spawn_battle_mode_sub_menu_modal(
-                                parent,
-                                &sub_menu_state,
-                                &fonts,
-                                &menu_materials,
-                            );
-                        });
+                    commands.entity(query.single().0).with_children(|parent| {
+                        spawn_battle_mode_sub_menu_modal(
+                            parent,
+                            &sub_menu_state,
+                            &fonts,
+                            &menu_materials,
+                        );
+                    });
                     menu_state.battle_mode_sub_menu_state = Some(sub_menu_state);
                     return;
                 }
@@ -471,7 +469,7 @@ pub fn menu_navigation(
     if menu_changed {
         if let Some(sub_menu_state) = &menu_state.battle_mode_sub_menu_state {
             // refresh sub menu
-            let (entity, children) = query3.single_mut().unwrap();
+            let (entity, children) = query3.single_mut();
             for child in children.iter() {
                 commands.entity(*child).despawn_recursive();
             }
@@ -480,7 +478,7 @@ pub fn menu_navigation(
             });
         } else {
             // refresh main menu
-            let (entity, children) = query.single_mut().unwrap();
+            let (entity, children) = query.single_mut();
             for child in children.iter() {
                 commands.entity(*child).despawn_recursive();
             }

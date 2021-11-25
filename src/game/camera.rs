@@ -1,9 +1,12 @@
-use bevy::prelude::*;
-use bevy::render::camera::CameraProjection;
-use bevy::render::camera::DepthCalculation;
+use bevy::{
+    ecs as bevy_ecs,
+    prelude::*,
+    render::camera::{CameraProjection, DepthCalculation},
+};
 
 // Camera that adjusts to window size + maintains aspect ratio
 
+#[derive(Component)]
 pub struct SimpleOrthoProjection {
     pub far: f32,
     aspect: f32,
