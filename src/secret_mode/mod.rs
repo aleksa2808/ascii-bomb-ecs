@@ -44,7 +44,7 @@ impl Plugin for SecretModePlugin {
             )
             .add_system_set(
                 SystemSet::on_update(AppState::SecretMode)
-                    .with_system(secret_mode_dispatch.exclusive_system()),
+                    .with_system(secret_mode_manager.exclusive_system()),
             )
             .add_system_set(
                 SystemSet::on_exit(AppState::SecretMode).with_system(teardown.exclusive_system()),

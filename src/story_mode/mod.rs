@@ -32,7 +32,7 @@ impl Plugin for StoryModePlugin {
         )
         .add_system_set(
             SystemSet::on_update(AppState::StoryMode)
-                .with_system(story_mode_dispatch.exclusive_system()),
+                .with_system(story_mode_manager.exclusive_system()),
         )
         .add_system_set(
             SystemSet::on_enter(AppState::BossSpeech)

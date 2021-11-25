@@ -21,7 +21,7 @@ use crate::{
         utils::{get_x, get_y, init_hud, spawn_map},
     },
     map_transition::MapTransitionInput,
-    secret_mode::resources::{SecretModeContext, SecretModeDispatcherState, SecretModeInGameState},
+    secret_mode::resources::{SecretModeContext, SecretModeInGameState, SecretModeManagerState},
     AppState,
 };
 
@@ -179,7 +179,7 @@ pub fn setup_secret_mode(
     commands.insert_resource(map_size);
 
     commands.insert_resource(SecretModeContext {
-        dispatcher_state: SecretModeDispatcherState::Setup,
+        manager_state: SecretModeManagerState::Setup,
         in_game_state: SecretModeInGameState::Initial(Timer::from_seconds(2.5, false)),
         pattern: PATTERN,
     });
@@ -190,7 +190,7 @@ pub fn setup_secret_mode(
     });
 }
 
-pub fn secret_mode_dispatch(
+pub fn secret_mode_manager(
     mut commands: Commands,
     textures: Res<Textures>,
     mut secret_mode_context: ResMut<SecretModeContext>,
@@ -198,8 +198,8 @@ pub fn secret_mode_dispatch(
     game_option_store: Res<GameOptionStore>,
     mut state: ResMut<State<AppState>>,
 ) {
-    match secret_mode_context.dispatcher_state {
-        SecretModeDispatcherState::Setup => {
+    match secret_mode_context.manager_state {
+        SecretModeManagerState::Setup => {
             // map generation //
 
             // spawn player
@@ -238,21 +238,21 @@ pub fn secret_mode_dispatch(
             );
 
             if game_option_store.get(GameOption::Transition) {
-                secret_mode_context.dispatcher_state = SecretModeDispatcherState::MapTransition;
+                secret_mode_context.manager_state = SecretModeManagerState::MapTransition;
                 commands.insert_resource(MapTransitionInput {
                     wall_entity_reveal_groups,
                 });
                 state.push(AppState::MapTransition).unwrap();
             } else {
-                secret_mode_context.dispatcher_state = SecretModeDispatcherState::InGame;
+                secret_mode_context.manager_state = SecretModeManagerState::InGame;
                 state.push(AppState::SecretModeInGame).unwrap();
             }
         }
-        SecretModeDispatcherState::MapTransition => {
-            secret_mode_context.dispatcher_state = SecretModeDispatcherState::InGame;
+        SecretModeManagerState::MapTransition => {
+            secret_mode_context.manager_state = SecretModeManagerState::InGame;
             state.push(AppState::SecretModeInGame).unwrap();
         }
-        SecretModeDispatcherState::InGame => {
+        SecretModeManagerState::InGame => {
             commands.remove_resource::<SecretModeContext>();
             state.replace(AppState::MainMenu).unwrap();
         }

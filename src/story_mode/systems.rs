@@ -163,7 +163,7 @@ pub fn setup_story_mode(
     commands.insert_resource(map_size);
 }
 
-pub fn story_mode_dispatch(
+pub fn story_mode_manager(
     mut commands: Commands,
     mut textures: ResMut<Textures>,
     hud_materials: Res<HUDMaterials>,

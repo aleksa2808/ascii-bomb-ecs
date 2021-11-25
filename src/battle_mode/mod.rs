@@ -32,7 +32,7 @@ impl Plugin for BattleModePlugin {
         )
         .add_system_set(
             SystemSet::on_update(AppState::BattleMode)
-                .with_system(battle_mode_dispatch.exclusive_system()),
+                .with_system(battle_mode_manager.exclusive_system()),
         )
         .add_system_set(
             SystemSet::on_update(AppState::RoundStartFreeze)

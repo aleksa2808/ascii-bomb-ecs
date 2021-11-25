@@ -17,7 +17,7 @@ impl FromWorld for SecretModeMusic {
     }
 }
 
-pub enum SecretModeDispatcherState {
+pub enum SecretModeManagerState {
     Setup,
     MapTransition,
     InGame,
@@ -34,7 +34,7 @@ pub enum SecretModeInGameState {
 }
 
 pub struct SecretModeContext {
-    pub dispatcher_state: SecretModeDispatcherState,
+    pub manager_state: SecretModeManagerState,
     pub in_game_state: SecretModeInGameState,
     pub pattern: &'static str,
 }

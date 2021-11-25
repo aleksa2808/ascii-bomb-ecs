@@ -102,7 +102,7 @@ pub fn setup_battle_mode(
     commands.remove_resource::<BattleModeConfiguration>();
 }
 
-pub fn battle_mode_dispatch(
+pub fn battle_mode_manager(
     mut commands: Commands,
     textures: Res<Textures>,
     map_size: Res<MapSize>,
