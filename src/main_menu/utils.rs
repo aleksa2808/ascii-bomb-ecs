@@ -433,10 +433,12 @@ pub fn spawn_battle_mode_sub_menu_content(
             format!(
                 "« {} »",
                 match sub_menu_state.step {
-                    BattleModeSubMenuStep::AmountOfPlayers =>
-                        sub_menu_state.amount_of_players.value().to_string(),
+                    BattleModeSubMenuStep::AmountOfPlayers => sub_menu_state
+                        .amount_of_actors
+                        .amount_of_players()
+                        .to_string(),
                     BattleModeSubMenuStep::AmountOfBots =>
-                        sub_menu_state.amount_of_bots.value().to_string(),
+                        sub_menu_state.amount_of_actors.amount_of_bots().to_string(),
                     BattleModeSubMenuStep::WinningScore =>
                         sub_menu_state.winning_score.value().to_string(),
                     BattleModeSubMenuStep::Difficulty =>

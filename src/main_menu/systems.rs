@@ -304,10 +304,12 @@ pub fn menu_navigation(
     if let Some(ref mut sub_menu_state) = menu_state.battle_mode_sub_menu_state {
         if keyboard_input.just_pressed(KeyCode::Left) {
             match sub_menu_state.step {
-                BattleModeSubMenuStep::AmountOfPlayers => {
-                    sub_menu_state.amount_of_players.decrement()
+                BattleModeSubMenuStep::AmountOfPlayers => sub_menu_state
+                    .amount_of_actors
+                    .decrement_amount_of_players(),
+                BattleModeSubMenuStep::AmountOfBots => {
+                    sub_menu_state.amount_of_actors.decrement_amount_of_bots()
                 }
-                BattleModeSubMenuStep::AmountOfBots => sub_menu_state.amount_of_bots.decrement(),
                 BattleModeSubMenuStep::WinningScore => sub_menu_state.winning_score.decrement(),
                 BattleModeSubMenuStep::Difficulty => sub_menu_state.difficulty.decrement(),
             }
@@ -316,10 +318,12 @@ pub fn menu_navigation(
 
         if keyboard_input.just_pressed(KeyCode::Right) {
             match sub_menu_state.step {
-                BattleModeSubMenuStep::AmountOfPlayers => {
-                    sub_menu_state.amount_of_players.increment()
+                BattleModeSubMenuStep::AmountOfPlayers => sub_menu_state
+                    .amount_of_actors
+                    .increment_amount_of_players(),
+                BattleModeSubMenuStep::AmountOfBots => {
+                    sub_menu_state.amount_of_actors.increment_amount_of_bots()
                 }
-                BattleModeSubMenuStep::AmountOfBots => sub_menu_state.amount_of_bots.increment(),
                 BattleModeSubMenuStep::WinningScore => sub_menu_state.winning_score.increment(),
                 BattleModeSubMenuStep::Difficulty => sub_menu_state.difficulty.increment(),
             }
@@ -339,8 +343,8 @@ pub fn menu_navigation(
                 }
                 BattleModeSubMenuStep::Difficulty => {
                     commands.insert_resource(BattleModeConfiguration {
-                        amount_of_players: *sub_menu_state.amount_of_players.value(),
-                        amount_of_bots: *sub_menu_state.amount_of_bots.value(),
+                        amount_of_players: sub_menu_state.amount_of_actors.amount_of_players(),
+                        amount_of_bots: sub_menu_state.amount_of_actors.amount_of_bots(),
                         winning_score: *sub_menu_state.winning_score.value(),
                         difficulty: *sub_menu_state.difficulty.value(),
                     });

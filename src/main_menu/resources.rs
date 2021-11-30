@@ -189,10 +189,125 @@ impl<T> ConfigurationOption<T> {
     }
 }
 
+pub struct AmountOfActors {
+    amount_of_players: ConfigurationOption<usize>,
+    amount_of_bots: ConfigurationOption<usize>,
+}
+
+impl AmountOfActors {
+    const MIN_AMOUNT_OF_PLAYERS: usize = 1;
+    const MIN_AMOUNT_OF_BOTS: usize = 0;
+    const MIN_AMOUNT_OF_ACTORS: usize = 2;
+
+    const MAX_AMOUNT_OF_PLAYERS: usize = 2;
+    const MAX_AMOUNT_OF_ACTORS: usize = 8;
+
+    fn new(
+        initial_amount_of_players: usize,
+        initial_amount_of_bots: usize,
+    ) -> Result<Self, String> {
+        if initial_amount_of_players < Self::MIN_AMOUNT_OF_PLAYERS {
+            return Err(format!(
+                "Initial amount of players ({}) is less than the minimum ({}).",
+                initial_amount_of_players,
+                Self::MIN_AMOUNT_OF_PLAYERS
+            ));
+        }
+
+        if initial_amount_of_bots < Self::MIN_AMOUNT_OF_BOTS {
+            return Err(format!(
+                "Initial amount of bots ({}) is less than the minimum ({}).",
+                initial_amount_of_bots,
+                Self::MIN_AMOUNT_OF_BOTS
+            ));
+        }
+
+        // TODO: check overflow edge cases
+        if initial_amount_of_players + initial_amount_of_bots < Self::MIN_AMOUNT_OF_ACTORS {
+            return Err(format!(
+                "Initial amount of players and bots ({}) is less than the minimum ({}).",
+                initial_amount_of_players + initial_amount_of_bots,
+                Self::MIN_AMOUNT_OF_ACTORS
+            ));
+        }
+
+        if initial_amount_of_players > Self::MAX_AMOUNT_OF_PLAYERS {
+            return Err(format!(
+                "Initial number of players ({}) exceeds the maximum ({}).",
+                initial_amount_of_players,
+                Self::MAX_AMOUNT_OF_PLAYERS
+            ));
+        }
+
+        // TODO: check overflow edge cases
+        if initial_amount_of_players + initial_amount_of_bots > Self::MAX_AMOUNT_OF_ACTORS {
+            return Err(format!(
+                "Initial number of players and bots ({}) exceeds the maximum ({}).",
+                initial_amount_of_players + initial_amount_of_bots,
+                Self::MAX_AMOUNT_OF_ACTORS
+            ));
+        }
+
+        Ok(Self {
+            amount_of_players: ConfigurationOption::new(
+                (Self::MIN_AMOUNT_OF_PLAYERS..=Self::MAX_AMOUNT_OF_PLAYERS).collect(),
+                initial_amount_of_players - Self::MIN_AMOUNT_OF_PLAYERS,
+            )
+            .unwrap(),
+            amount_of_bots: ConfigurationOption::new(
+                (Self::MIN_AMOUNT_OF_BOTS
+                    ..=Self::MAX_AMOUNT_OF_ACTORS - Self::MIN_AMOUNT_OF_PLAYERS)
+                    .collect(),
+                initial_amount_of_bots - Self::MIN_AMOUNT_OF_BOTS,
+            )
+            .unwrap(),
+        })
+    }
+
+    fn can_increase_amount(&self) -> bool {
+        self.amount_of_players() + self.amount_of_bots() < Self::MAX_AMOUNT_OF_ACTORS
+    }
+
+    fn can_decrease_amount(&self) -> bool {
+        self.amount_of_players() + self.amount_of_bots() > Self::MIN_AMOUNT_OF_ACTORS
+    }
+
+    pub fn amount_of_players(&self) -> usize {
+        *self.amount_of_players.value()
+    }
+
+    pub fn increment_amount_of_players(&mut self) {
+        if self.amount_of_players() < Self::MAX_AMOUNT_OF_PLAYERS && self.can_increase_amount() {
+            self.amount_of_players.increment();
+        }
+    }
+
+    pub fn decrement_amount_of_players(&mut self) {
+        if self.amount_of_players() > Self::MIN_AMOUNT_OF_PLAYERS && self.can_decrease_amount() {
+            self.amount_of_players.decrement();
+        }
+    }
+
+    pub fn amount_of_bots(&self) -> usize {
+        *self.amount_of_bots.value()
+    }
+
+    pub fn increment_amount_of_bots(&mut self) {
+        if self.can_increase_amount() {
+            self.amount_of_bots.increment();
+        }
+    }
+
+    pub fn decrement_amount_of_bots(&mut self) {
+        if self.amount_of_bots() > Self::MIN_AMOUNT_OF_BOTS && self.can_decrease_amount() {
+            self.amount_of_bots.decrement();
+        }
+    }
+}
+
 pub struct BattleModeSubMenuState {
+    pub amount_of_actors: AmountOfActors,
     pub step: BattleModeSubMenuStep,
-    pub amount_of_players: ConfigurationOption<usize>,
-    pub amount_of_bots: ConfigurationOption<usize>,
     pub winning_score: ConfigurationOption<usize>,
     pub difficulty: ConfigurationOption<BotDifficulty>,
 }
@@ -201,9 +316,7 @@ impl Default for BattleModeSubMenuState {
     fn default() -> Self {
         Self {
             step: BattleModeSubMenuStep::AmountOfPlayers,
-            // TODO: expand this option
-            amount_of_players: ConfigurationOption::new((1..=1).collect(), 0).unwrap(),
-            amount_of_bots: ConfigurationOption::new((1..=7).collect(), 2).unwrap(),
+            amount_of_actors: AmountOfActors::new(1, 3).unwrap(),
             winning_score: ConfigurationOption::new((1..=5).collect(), 2).unwrap(),
             difficulty: ConfigurationOption::new(
                 vec![
@@ -353,3 +466,65 @@ pub struct MenuBackgroundAnimationContext {
 }
 
 pub struct DemoModeStartTimer(pub Timer);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_amount_of_actors_init() {
+        assert!(AmountOfActors::new(1, 1).is_ok());
+        assert!(AmountOfActors::new(2, 0).is_ok());
+        assert!(AmountOfActors::new(2, 6).is_ok());
+        assert!(AmountOfActors::new(1, 7).is_ok());
+
+        assert!(AmountOfActors::new(0, 0).is_err());
+        assert!(AmountOfActors::new(0, 1).is_err());
+        assert!(AmountOfActors::new(0, 2).is_err());
+        assert!(AmountOfActors::new(1, 0).is_err());
+        assert!(AmountOfActors::new(1, 8).is_err());
+        assert!(AmountOfActors::new(3, 0).is_err());
+        assert!(AmountOfActors::new(2, 7).is_err());
+    }
+
+    #[test]
+    fn test_amount_of_actors_modification() {
+        let mut amount_of_actors = AmountOfActors::new(1, 1).unwrap();
+        assert_eq!(amount_of_actors.amount_of_players(), 1);
+        assert_eq!(amount_of_actors.amount_of_bots(), 1);
+
+        // at the minimum amount of actors, so this shouldn't do anything
+        amount_of_actors.decrement_amount_of_bots();
+        assert_eq!(amount_of_actors.amount_of_players(), 1);
+        assert_eq!(amount_of_actors.amount_of_bots(), 1);
+
+        amount_of_actors.increment_amount_of_players();
+        amount_of_actors.decrement_amount_of_bots();
+        assert_eq!(amount_of_actors.amount_of_players(), 2);
+        assert_eq!(amount_of_actors.amount_of_bots(), 0);
+
+        // at the maximum amount of actors, so this shouldn't do anything
+        amount_of_actors.increment_amount_of_players();
+        assert_eq!(amount_of_actors.amount_of_players(), 2);
+        assert_eq!(amount_of_actors.amount_of_bots(), 0);
+
+        amount_of_actors.increment_amount_of_bots();
+        amount_of_actors.increment_amount_of_bots();
+        amount_of_actors.increment_amount_of_bots();
+        amount_of_actors.increment_amount_of_bots();
+        amount_of_actors.increment_amount_of_bots();
+        amount_of_actors.increment_amount_of_bots();
+        assert_eq!(amount_of_actors.amount_of_players(), 2);
+        assert_eq!(amount_of_actors.amount_of_bots(), 6);
+
+        // at the maximum amount of actors, so this shouldn't do anything
+        amount_of_actors.increment_amount_of_bots();
+        assert_eq!(amount_of_actors.amount_of_players(), 2);
+        assert_eq!(amount_of_actors.amount_of_bots(), 6);
+
+        amount_of_actors.decrement_amount_of_players();
+        amount_of_actors.increment_amount_of_bots();
+        assert_eq!(amount_of_actors.amount_of_players(), 1);
+        assert_eq!(amount_of_actors.amount_of_bots(), 7);
+    }
+}

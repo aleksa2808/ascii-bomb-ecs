@@ -142,6 +142,29 @@ pub fn handle_keyboard_input(
         }
     }
 
+    for (entity, _) in query.iter().filter(|(_, hc)| hc.0 == 1) {
+        for (key_code, direction) in [
+            (KeyCode::W, Direction::Up),
+            (KeyCode::S, Direction::Down),
+            (KeyCode::A, Direction::Left),
+            (KeyCode::D, Direction::Right),
+        ] {
+            if keyboard_input.just_pressed(key_code) {
+                ev_player_action.send(PlayerActionEvent {
+                    player: entity,
+                    action: PlayerAction::Move(direction),
+                });
+            }
+        }
+
+        if keyboard_input.just_pressed(KeyCode::G) {
+            ev_player_action.send(PlayerActionEvent {
+                player: entity,
+                action: PlayerAction::DropBomb,
+            });
+        }
+    }
+
     if keyboard_input.just_pressed(KeyCode::Return) && game_context.pausable {
         audio.stop();
         audio.play(sounds.pause.clone());
