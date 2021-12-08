@@ -294,6 +294,7 @@ enum PlayerIntention {
     PickUpItem,
     DestroyBlocks,
     KillPlayers,
+    PlaceBombNearPlayers,
     RandomMove,
     HuntPlayers,
 }
@@ -479,7 +480,29 @@ pub fn bot_ai(
                     bomb_flag = 1;
                 }
                 4 => {
-                    // TODO: drop bomb if players in range
+                    if bomb_flag == 0
+                        && bomb_satchel.bombs_available > 0
+                        && players_in_range(*position, &enemy_positions, bomb_satchel.bomb_range)
+                        && should_place_bomb(
+                            *position,
+                            &invalid_bomb_spawn_positions,
+                            &bomb_positions,
+                            assumed_bomb_range,
+                            &fire_positions,
+                            &fireproof_positions,
+                            &impassable_positions,
+                            wall_of_death,
+                            *map_size,
+                            bomb_push.is_some(),
+                            &moving_object_stoppers,
+                        )
+                    {
+                        action = Some((
+                            PlayerAction::DropBomb,
+                            PlayerIntention::PlaceBombNearPlayers,
+                        ));
+                    }
+                    bomb_flag = 1;
                 }
                 5 => {
                     if nav_flag == -1 {

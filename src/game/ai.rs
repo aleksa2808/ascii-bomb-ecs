@@ -250,7 +250,7 @@ pub fn can_kill(
     false
 }
 
-fn players_in_range(position: Position, player_positions: &[Position], range: usize) -> bool {
+pub fn players_in_range(position: Position, player_positions: &[Position], range: usize) -> bool {
     for player_position in player_positions {
         if (player_position.y - position.y).abs() as usize <= range
             && (player_position.x - position.x).abs() as usize <= range
