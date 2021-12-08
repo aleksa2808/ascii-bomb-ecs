@@ -1245,11 +1245,16 @@ pub fn player_damage(
                     health.health = health.max_health;
                     gain_immortality = true;
 
+                    // return to spawn
                     *position = spawn_position.0;
                     let translation = &mut transform.translation;
                     translation.x = get_x(position.x);
                     translation.y = get_y(position.y);
                     sprite.flip_x = false;
+
+                    // lose powers
+                    commands.entity(pe).remove::<BombPush>();
+                    commands.entity(pe).remove::<WallHack>();
                 }
             } else {
                 gain_immortality = true;
