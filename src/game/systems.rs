@@ -1549,3 +1549,12 @@ pub fn pop_state_on_enter(
         keyboard_input.reset(KeyCode::Return);
     }
 }
+
+pub fn pop_state_fallthrough_on_esc(
+    keyboard_input: Res<Input<KeyCode>>,
+    mut state: ResMut<State<AppState>>,
+) {
+    if keyboard_input.just_pressed(KeyCode::Escape) {
+        state.pop().unwrap();
+    }
+}

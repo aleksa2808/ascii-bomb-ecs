@@ -176,6 +176,10 @@ impl Plugin for GamePlugin {
                 camera_system::<SimpleOrthoProjection>,
             )
             .add_system_set(SystemSet::on_enter(AppState::Paused).with_system(hud_indicate_pause))
-            .add_system_set(SystemSet::on_update(AppState::Paused).with_system(pop_state_on_enter));
+            .add_system_set(
+                SystemSet::on_update(AppState::Paused)
+                    .with_system(pop_state_on_enter)
+                    .with_system(pop_state_fallthrough_on_esc),
+            );
     }
 }
