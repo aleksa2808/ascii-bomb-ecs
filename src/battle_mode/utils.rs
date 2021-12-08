@@ -73,7 +73,9 @@ pub fn spawn_battle_mode_players(
             }
             PenguinControlType::Bot => {
                 entity_commands
-                    .insert(BotAI)
+                    .insert(BotAI {
+                        difficulty: bot_difficulty,
+                    })
                     .insert(MoveCooldown(Cooldown::from_seconds(match bot_difficulty {
                         BotDifficulty::Easy => 0.3,
                         BotDifficulty::Medium => 0.25,

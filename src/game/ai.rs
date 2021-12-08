@@ -163,6 +163,70 @@ pub fn safe_dir(
     result
 }
 
+pub fn detect_powers(
+    starting_position: Position,
+    impassable_positions: &HashSet<Position>,
+    fire_positions: &HashSet<Position>,
+    bomb_positions: &HashSet<Position>,
+    assumed_bomb_range: usize,
+    fireproof_positions: &HashSet<Position>,
+    wall_of_death: Option<&WallOfDeath>,
+    map_size: MapSize,
+    item_positions: &HashSet<Position>,
+) -> HashSet<Direction> {
+    let mut result = HashSet::new();
+
+    let safe = |position| {
+        safe(
+            position,
+            fire_positions,
+            bomb_positions,
+            assumed_bomb_range,
+            fireproof_positions,
+            wall_of_death,
+            map_size,
+        )
+    };
+    let mut min = 5;
+    for direction in Direction::LIST {
+        let range = min;
+        for i in 1..range {
+            let position = starting_position.offset(direction, i);
+
+            if impassable_positions.contains(&position) || !safe(position) {
+                break;
+            } else {
+                let side_directions = match direction {
+                    Direction::Left | Direction::Right => (Direction::Up, Direction::Down),
+                    Direction::Up | Direction::Down => (Direction::Left, Direction::Right),
+                };
+                let side_positions = (
+                    position.offset(side_directions.0, 1),
+                    position.offset(side_directions.1, 1),
+                );
+
+                if item_positions.contains(&position)
+                    || (!impassable_positions.contains(&side_positions.0)
+                        && safe(side_positions.0)
+                        && item_positions.contains(&side_positions.0))
+                    || (!impassable_positions.contains(&side_positions.1)
+                        && safe(side_positions.1)
+                        && item_positions.contains(&side_positions.1))
+                {
+                    if i < min {
+                        result.clear();
+                        min = i;
+                    }
+                    result.insert(direction);
+                    break;
+                }
+            }
+        }
+    }
+
+    result
+}
+
 pub fn can_kill(
     bomb_position: Position,
     bomb_range: usize,

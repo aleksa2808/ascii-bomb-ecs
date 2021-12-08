@@ -291,6 +291,7 @@ pub fn mob_ai(
 #[derive(Debug)]
 enum PlayerIntention {
     MoveToSafety,
+    PickUpItem,
     DestroyBlocks,
     KillPlayers,
     HuntPlayers,
@@ -305,6 +306,7 @@ pub fn bot_ai(
     query: Query<
         (
             Entity,
+            &BotAI,
             &Position,
             &MoveCooldown,
             Option<&WallHack>,
@@ -312,7 +314,7 @@ pub fn bot_ai(
             &BombSatchel,
             &TeamID,
         ),
-        (With<Player>, With<BotAI>),
+        With<Player>,
     >,
     query2: Query<&Position, With<Fire>>,
     query3: Query<&Position, With<Bomb>>,
@@ -326,6 +328,7 @@ pub fn bot_ai(
         QueryState<&Position, (With<Wall>, Without<Destructible>)>,
         QueryState<Entity, With<DebugSafeFieldMarker>>,
         QueryState<&Position, Or<(With<Solid>, With<Item>, With<Player>, With<Exit>)>>,
+        QueryState<&Position, With<Item>>,
     )>,
     time: Res<Time>,
     mut time_since_last_action: Local<Option<Stopwatch>>,
@@ -347,10 +350,11 @@ pub fn bot_ai(
     let destructible_positions: HashSet<Position> = query8.iter().copied().collect();
     let moving_object_stoppers: HashSet<Position> = q.q2().iter().copied().collect();
     let stone_wall_positions: HashSet<Position> = q.q0().iter().copied().collect();
+    let item_positions: HashSet<Position> = q.q3().iter().copied().collect();
 
     let wall_of_death = wall_of_death.as_deref();
 
-    for (entity, position, move_cooldown, wall_hack, bomb_push, bomb_satchel, team_id) in
+    for (entity, bot_ai, position, move_cooldown, wall_hack, bomb_push, bomb_satchel, team_id) in
         query.iter()
     {
         let impassable_positions: HashSet<Position> = if wall_hack.is_none() {
@@ -371,6 +375,7 @@ pub fn bot_ai(
         let assumed_bomb_range = bomb_satchel.bomb_range + 2;
 
         // TODO: miss
+        let _bot_difficulty = bot_ai.difficulty;
 
         let command_priority_list = [0, 3, 6, 1, 4, 2, 5, 7];
         let mut action = None;
@@ -412,7 +417,20 @@ pub fn bot_ai(
                     }
                 }
                 1 => {
-                    // TODO: detect powers
+                    action = detect_powers(
+                        *position,
+                        &impassable_positions,
+                        &fire_positions,
+                        &bomb_positions,
+                        assumed_bomb_range,
+                        &fireproof_positions,
+                        wall_of_death,
+                        *map_size,
+                        &item_positions,
+                    )
+                    .iter()
+                    .choose(&mut rng)
+                    .map(|d| (PlayerAction::Move(*d), PlayerIntention::PickUpItem));
                 }
                 2 => {
                     action = destroy_blocks(
@@ -548,7 +566,7 @@ pub fn bot_ai(
                     position,
                     &fire_positions,
                     &bomb_positions,
-                    p.5.bomb_range + 2,
+                    p.6.bomb_range + 2,
                     &fireproof_positions,
                     wall_of_death,
                     *map_size,

@@ -1,6 +1,6 @@
 use bevy::{ecs as bevy_ecs, prelude::*};
 
-use super::types::{Cooldown, Direction, Power, Upgrade};
+use super::types::{BotDifficulty, Cooldown, Direction, Power, Upgrade};
 
 #[derive(Component)]
 pub struct ColorComponent(pub Color);
@@ -56,7 +56,9 @@ pub struct MobAI {
 }
 
 #[derive(Component)]
-pub struct BotAI;
+pub struct BotAI {
+    pub difficulty: BotDifficulty,
+}
 
 #[derive(Component)]
 pub struct MoveCooldown(pub Cooldown);
