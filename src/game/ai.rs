@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use bevy::prelude::Entity;
 use rand::{prelude::SliceRandom, Rng};
 
 use super::{
@@ -497,7 +498,8 @@ fn dist(p1: Position, p2: Position) -> f32 {
 pub fn hunt_players(
     starting_position: Position,
     map_size: MapSize,
-    enemy_positions: &[Position],
+    player_positions_entities: &[(Position, Entity)],
+    hunter_entity: Entity,
     stone_wall_positions: &HashSet<Position>,
     impassable_positions: &HashSet<Position>,
     fire_positions: &HashSet<Position>,
@@ -511,20 +513,40 @@ pub fn hunt_players(
     let mut target = None;
     let mut result = HashSet::new();
 
-    if !enemy_positions.is_empty() {
-        if players_in_range(starting_position, enemy_positions, 3) {
+    if player_positions_entities.len() > 1 {
+        let enemy_positions = player_positions_entities
+            .iter()
+            .filter_map(|t| {
+                if matches!(t, &(_, e) if e != hunter_entity) {
+                    Some(t.0)
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<Position>>();
+        if players_in_range(starting_position, &enemy_positions, 3) {
             for enemy_position in enemy_positions {
-                let dist = dist(starting_position, *enemy_position);
+                let dist = dist(starting_position, enemy_position);
                 if dist <= minf || (dist == minf && rng.gen_bool(0.5)) {
                     minf = dist;
-                    target = Some(*enemy_position);
+                    target = Some(enemy_position);
                 }
             }
         } else {
-            // TODO: this used to select the next player after the hunting one
-            let enemy_position = enemy_positions.choose(&mut rng).unwrap();
-            target = Some(*enemy_position);
-            minf = dist(starting_position, *enemy_position);
+            let mut player_positions_entities_iter = player_positions_entities.iter();
+            while let Some((_, entity)) = player_positions_entities_iter.next() {
+                if *entity == hunter_entity {
+                    let target_enemy_position =
+                        if let Some(t) = player_positions_entities_iter.next() {
+                            t.0
+                        } else {
+                            player_positions_entities.first().unwrap().0
+                        };
+                    minf = dist(starting_position, target_enemy_position);
+                    target = Some(target_enemy_position);
+                    break;
+                }
+            }
         }
 
         if minf > 1.0 {

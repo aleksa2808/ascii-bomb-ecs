@@ -304,7 +304,7 @@ pub fn bot_ai(
     query3: Query<&Position, With<Bomb>>,
     query4: Query<(&Position, Option<&Destructible>), With<Solid>>,
     query5: Query<&Position, Or<(With<Solid>, With<Exit>)>>,
-    query6: Query<(&Position, &TeamID), With<Player>>,
+    query6: Query<(Entity, &Position, &TeamID), With<Player>>,
     query7: Query<&Position, Or<(With<Wall>, With<Bomb>, With<Exit>, With<BurningItem>)>>,
     query8: Query<&Position, With<Destructible>>,
     query9: Query<&Position, (With<Wall>, Without<Destructible>)>,
@@ -341,8 +341,8 @@ pub fn bot_ai(
 
         let enemy_positions: Vec<Position> = query6
             .iter()
-            .filter(|(_, tid)| tid.0 != team_id.0)
-            .map(|(p, _)| *p)
+            .filter(|(_, _, tid)| tid.0 != team_id.0)
+            .map(|(_, p, _)| *p)
             .collect();
 
         let bot_difficulty = bot_ai.difficulty;
@@ -543,7 +543,11 @@ pub fn bot_ai(
                 action = hunt_players(
                     *position,
                     *map_size,
-                    &enemy_positions,
+                    &query6
+                        .iter()
+                        .map(|p| (*p.1, p.0))
+                        .collect::<Vec<(Position, Entity)>>(),
+                    entity,
                     &stone_wall_positions,
                     &impassable_positions,
                     &fire_positions,
