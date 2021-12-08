@@ -23,6 +23,7 @@ use crate::{
 use super::{
     constants::{BATTLE_MODE_ROUND_DURATION_SECS, ROUND_START_FREEZE_SECS},
     resources::*,
+    types::PenguinControlType,
     utils::*,
 };
 
@@ -88,6 +89,7 @@ pub fn setup_battle_mode(
     commands.insert_resource(BattleModeContext {
         state: BattleModeState::RoundSetup,
         players,
+        bot_difficulty: battle_mode_configuration.bot_difficulty,
         leaderboard,
         round_outcome: None,
         percent_of_passable_positions_to_fill,
@@ -122,6 +124,7 @@ pub fn battle_mode_manager(
                     &textures,
                     *map_size,
                     &battle_mode_context.players,
+                    battle_mode_context.bot_difficulty,
                 );
 
                 let wall_entity_reveal_groups = spawn_map(

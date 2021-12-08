@@ -17,30 +17,14 @@ impl Direction {
         Direction::Up,
         Direction::Down,
     ];
-
-    pub fn opposite(&self) -> Direction {
-        match self {
-            Direction::Right => Direction::Left,
-            Direction::Left => Direction::Right,
-            Direction::Up => Direction::Down,
-            Direction::Down => Direction::Up,
-        }
-    }
 }
 
+#[derive(Debug)]
 pub enum PlayerAction {
     Move(Direction),
     DropBomb,
 }
 
-#[derive(Clone, Copy)]
-pub enum PenguinControlType {
-    Human(usize),
-    Bot,
-}
-
-// TODO: remove
-#[allow(dead_code)]
 #[derive(Clone, Copy)]
 pub enum BotDifficulty {
     Easy,

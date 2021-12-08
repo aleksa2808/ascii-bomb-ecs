@@ -79,10 +79,11 @@ pub struct BaseMaterial(pub Handle<ColorMaterial>);
 #[derive(Component)]
 pub struct ImmortalMaterial(pub Handle<ColorMaterial>);
 
-#[derive(Clone, Copy, Component)]
+#[derive(Clone, Component)]
 pub struct Bomb {
     pub owner: Option<Entity>,
     pub range: usize,
+    pub timer: Timer,
 }
 
 #[derive(Component)]
@@ -115,12 +116,9 @@ pub struct TeamID(pub usize);
 pub struct PointValue(pub usize);
 
 #[derive(Component)]
-pub struct Perishable {
+pub struct Fire {
     pub timer: Timer,
 }
-
-#[derive(Component)]
-pub struct Fire;
 
 #[derive(Component)]
 pub struct Solid;
@@ -131,6 +129,11 @@ pub struct Wall;
 #[derive(Component)]
 pub struct Destructible;
 
+#[derive(Component)]
+pub struct Crumbling {
+    pub timer: Timer,
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Component)]
 pub enum Item {
     Upgrade(Upgrade),
@@ -138,7 +141,9 @@ pub enum Item {
 }
 
 #[derive(Component)]
-pub struct BurningItem;
+pub struct BurningItem {
+    pub timer: Timer,
+}
 
 #[derive(Component)]
 pub struct Exit {

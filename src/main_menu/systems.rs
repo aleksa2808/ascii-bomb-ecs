@@ -311,7 +311,7 @@ pub fn menu_navigation(
                     sub_menu_state.amount_of_actors.decrement_amount_of_bots()
                 }
                 BattleModeSubMenuStep::WinningScore => sub_menu_state.winning_score.decrement(),
-                BattleModeSubMenuStep::Difficulty => sub_menu_state.difficulty.decrement(),
+                BattleModeSubMenuStep::BotDifficulty => sub_menu_state.difficulty.decrement(),
             }
             menu_changed = true;
         }
@@ -325,7 +325,7 @@ pub fn menu_navigation(
                     sub_menu_state.amount_of_actors.increment_amount_of_bots()
                 }
                 BattleModeSubMenuStep::WinningScore => sub_menu_state.winning_score.increment(),
-                BattleModeSubMenuStep::Difficulty => sub_menu_state.difficulty.increment(),
+                BattleModeSubMenuStep::BotDifficulty => sub_menu_state.difficulty.increment(),
             }
             menu_changed = true;
         }
@@ -339,14 +339,14 @@ pub fn menu_navigation(
                     sub_menu_state.step = BattleModeSubMenuStep::WinningScore
                 }
                 BattleModeSubMenuStep::WinningScore => {
-                    sub_menu_state.step = BattleModeSubMenuStep::Difficulty
+                    sub_menu_state.step = BattleModeSubMenuStep::BotDifficulty
                 }
-                BattleModeSubMenuStep::Difficulty => {
+                BattleModeSubMenuStep::BotDifficulty => {
                     commands.insert_resource(BattleModeConfiguration {
                         amount_of_players: sub_menu_state.amount_of_actors.amount_of_players(),
                         amount_of_bots: sub_menu_state.amount_of_actors.amount_of_bots(),
                         winning_score: *sub_menu_state.winning_score.value(),
-                        difficulty: *sub_menu_state.difficulty.value(),
+                        bot_difficulty: *sub_menu_state.difficulty.value(),
                     });
 
                     menu_state.battle_mode_sub_menu_state = None;
@@ -521,7 +521,7 @@ pub fn menu_demo_mode_trigger(
                         amount_of_players: 0,
                         amount_of_bots: 8,
                         winning_score: 1,
-                        difficulty: BotDifficulty::Medium,
+                        bot_difficulty: BotDifficulty::Medium,
                     });
                 }
             }

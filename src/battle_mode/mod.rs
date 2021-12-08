@@ -1,6 +1,7 @@
 mod constants;
 mod resources;
 mod systems;
+mod types;
 mod utils;
 
 use bevy::prelude::*;

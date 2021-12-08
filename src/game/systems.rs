@@ -4,6 +4,8 @@ use std::{
 };
 
 use bevy::{
+    core::Stopwatch,
+    ecs as bevy_ecs,
     prelude::*,
     render::camera::{Camera, VisibleEntities},
 };
@@ -16,12 +18,13 @@ use rand::{
 use crate::{
     common::{
         constants::{COLORS, PIXEL_SCALE},
-        resources::Fonts,
+        resources::{BaseColorMaterials, Fonts},
     },
     AppState,
 };
 
 use super::{
+    ai::*,
     camera::SimpleOrthoProjection,
     components::*,
     constants::*,
@@ -284,39 +287,72 @@ pub fn mob_ai(
     }
 }
 
+// TODO: remove
+#[derive(Debug)]
+enum PlayerIntention {
+    MoveToSafety,
+    DestroyBlocks,
+    KillPlayers,
+    HuntPlayers,
+}
+
+// TODO: remove
+#[derive(Component)]
+pub struct DebugSafeFieldMarker;
+
 pub fn bot_ai(
+    mut commands: Commands,
     query: Query<
         (
             Entity,
             &Position,
             &MoveCooldown,
             Option<&WallHack>,
+            Option<&BombPush>,
             &BombSatchel,
             &TeamID,
         ),
         (With<Player>, With<BotAI>),
     >,
     query2: Query<&Position, With<Fire>>,
-    query3: Query<(&Position, &Bomb)>,
+    query3: Query<&Position, With<Bomb>>,
     query4: Query<(&Position, Option<&Destructible>), With<Solid>>,
     query5: Query<&Position, Or<(With<Solid>, With<Exit>)>>,
     query6: Query<(&Position, &TeamID), With<Player>>,
-    query7: Query<&Position, With<Wall>>,
-    query8: Query<&Position, Or<(With<Wall>, With<Bomb>, With<Exit>, With<BurningItem>)>>,
-    query9: Query<&Position, With<Destructible>>,
+    query7: Query<&Position, Or<(With<Wall>, With<Bomb>, With<Exit>, With<BurningItem>)>>,
+    query8: Query<&Position, With<Destructible>>,
+    // too many arguments for system
+    mut q: QuerySet<(
+        QueryState<&Position, (With<Wall>, Without<Destructible>)>,
+        QueryState<Entity, With<DebugSafeFieldMarker>>,
+        QueryState<&Position, Or<(With<Solid>, With<Item>, With<Player>, With<Exit>)>>,
+    )>,
+    time: Res<Time>,
+    mut time_since_last_action: Local<Option<Stopwatch>>,
+    base_materials: Res<BaseColorMaterials>,
+    map_size: Res<MapSize>,
+    wall_of_death: Option<Res<WallOfDeath>>,
     mut ev_player_action: EventWriter<PlayerActionEvent>,
 ) {
+    if let Some(ref mut time_since_last_action) = *time_since_last_action {
+        time_since_last_action.tick(time.delta());
+    }
+
     // TODO: this is wasted work for situations where there aren't any bots
     let mut rng = rand::thread_rng();
     let fire_positions: HashSet<Position> = query2.iter().copied().collect();
-    let bomb_positions_ranges: HashMap<Position, usize> =
-        query3.iter().map(|(p, b)| (*p, b.range)).collect();
+    let bomb_positions: HashSet<Position> = query3.iter().copied().collect();
     let fireproof_positions: HashSet<Position> = query5.iter().copied().collect();
-    let wall_positions: HashSet<Position> = query7.iter().copied().collect();
-    let invalid_bomb_spawn_positions: HashSet<Position> = query8.iter().copied().collect();
-    let destructible_positions: HashSet<Position> = query9.iter().copied().collect();
+    let invalid_bomb_spawn_positions: HashSet<Position> = query7.iter().copied().collect();
+    let destructible_positions: HashSet<Position> = query8.iter().copied().collect();
+    let moving_object_stoppers: HashSet<Position> = q.q2().iter().copied().collect();
+    let stone_wall_positions: HashSet<Position> = q.q0().iter().copied().collect();
 
-    for (entity, position, move_cooldown, wall_hack, bomb_satchel, team_id) in query.iter() {
+    let wall_of_death = wall_of_death.as_deref();
+
+    for (entity, position, move_cooldown, wall_hack, bomb_push, bomb_satchel, team_id) in
+        query.iter()
+    {
         let impassable_positions: HashSet<Position> = if wall_hack.is_none() {
             query4.iter().map(|(p, _)| *p).collect()
         } else {
@@ -326,112 +362,211 @@ pub fn bot_ai(
                 .collect()
         };
 
-        // run to safety
-        if move_cooldown.0.ready() {
-            if let Some(safe_direction) = get_directions_to_closest_safe_positions(
-                *position,
-                &fire_positions,
-                &bomb_positions_ranges,
-                &fireproof_positions,
-                &impassable_positions,
-                &wall_positions,
-            )
-            .iter()
-            .choose(&mut rng)
-            {
-                ev_player_action.send(PlayerActionEvent {
-                    player: entity,
-                    action: PlayerAction::Move(*safe_direction),
-                });
-                continue;
-            }
-        }
-
-        // drop a bomb if possible, if it can hit an enemy and if an escape route would exist
         let enemy_positions: Vec<Position> = query6
             .iter()
             .filter(|(_, tid)| tid.0 != team_id.0)
             .map(|(p, _)| *p)
             .collect();
-        if bomb_satchel.bombs_available > 0
-            && !invalid_bomb_spawn_positions.contains(position)
-            && !fire_positions.contains(position)
-            && bomb_can_hit_a_player(
-                *position,
-                bomb_satchel.bomb_range,
-                &enemy_positions,
-                &fireproof_positions,
-                &wall_positions,
-            )
-        {
-            let mut bomb_positions_ranges = bomb_positions_ranges.clone();
-            bomb_positions_ranges.insert(*position, bomb_satchel.bomb_range);
 
-            if !get_directions_to_closest_safe_positions(
-                *position,
-                &fire_positions,
-                &bomb_positions_ranges,
-                &fireproof_positions,
-                &impassable_positions,
-                &wall_positions,
-            )
-            .is_empty()
-            {
-                ev_player_action.send(PlayerActionEvent {
-                    player: entity,
-                    action: PlayerAction::DropBomb,
-                });
-                continue;
+        let assumed_bomb_range = bomb_satchel.bomb_range + 2;
+
+        // TODO: miss
+
+        let command_priority_list = [0, 3, 6, 1, 4, 2, 5, 7];
+        let mut action = None;
+        let mut bomb_flag = 0;
+        let mut nav_flag = -1;
+        for com in command_priority_list {
+            if action.is_some() {
+                break;
+            }
+
+            // TODO: miss
+
+            match com {
+                0 => {
+                    if !safe(
+                        *position,
+                        &fire_positions,
+                        &bomb_positions,
+                        assumed_bomb_range,
+                        &fireproof_positions,
+                        wall_of_death,
+                        *map_size,
+                    ) {
+                        action = safe_dir(
+                            *position,
+                            &fire_positions,
+                            &bomb_positions,
+                            assumed_bomb_range,
+                            &fireproof_positions,
+                            &impassable_positions,
+                            wall_of_death,
+                            *map_size,
+                            bomb_push.is_some(),
+                            &moving_object_stoppers,
+                        )
+                        .iter()
+                        .choose(&mut rng)
+                        .map(|d| (PlayerAction::Move(*d), PlayerIntention::MoveToSafety));
+                    }
+                }
+                1 => {
+                    // TODO: detect powers
+                }
+                2 => {
+                    action = destroy_blocks(
+                        *position,
+                        bomb_satchel,
+                        &invalid_bomb_spawn_positions,
+                        &fire_positions,
+                        &bomb_positions,
+                        assumed_bomb_range,
+                        &fireproof_positions,
+                        &impassable_positions,
+                        &destructible_positions,
+                        wall_of_death,
+                        *map_size,
+                        bomb_push.is_some(),
+                        &moving_object_stoppers,
+                    )
+                    .map(|a| (a, PlayerIntention::DestroyBlocks));
+                }
+                3 => {
+                    if bomb_flag == 0
+                        && bomb_satchel.bombs_available > 0
+                        && can_kill(
+                            *position,
+                            bomb_satchel.bomb_range,
+                            &enemy_positions,
+                            &stone_wall_positions,
+                        )
+                        && should_place_bomb(
+                            *position,
+                            &invalid_bomb_spawn_positions,
+                            &bomb_positions,
+                            assumed_bomb_range,
+                            &fire_positions,
+                            &fireproof_positions,
+                            &impassable_positions,
+                            wall_of_death,
+                            *map_size,
+                            bomb_push.is_some(),
+                            &moving_object_stoppers,
+                        )
+                    {
+                        action = Some((PlayerAction::DropBomb, PlayerIntention::KillPlayers));
+                    }
+                    bomb_flag = 1;
+                }
+                4 => {
+                    // TODO: drop bomb if players in range
+                }
+                5 => {
+                    // TODO: find out what this is
+                    if nav_flag == -1 {
+                        nav_flag = 0;
+                    }
+                }
+                6 => {
+                    // TODO: random move
+                }
+                7 => {
+                    if nav_flag == -1 {
+                        nav_flag = 1;
+                    }
+                }
+                _ => unreachable!(),
             }
         }
 
-        // chase enemies
-        if move_cooldown.0.ready() {
-            if let Some(safe_direction_to_enemy) =
-                get_directions_to_closest_positions_with_criteria(
+        if action.is_none() {
+            if nav_flag == 0 {
+                action = hunt_players(
                     *position,
-                    |position| enemy_positions.contains(&position),
-                    |position| {
-                        !impassable_positions.contains(&position)
-                            && position_is_safe(
-                                position,
-                                &fire_positions,
-                                &bomb_positions_ranges,
-                                &fireproof_positions,
-                                &wall_positions,
-                            )
-                    },
+                    *map_size,
+                    &enemy_positions,
+                    &stone_wall_positions,
+                    &impassable_positions,
+                    &fire_positions,
+                    &bomb_positions,
+                    assumed_bomb_range,
+                    &fireproof_positions,
+                    wall_of_death,
                 )
-                .iter()
-                .choose(&mut rng)
-            {
-                ev_player_action.send(PlayerActionEvent {
-                    player: entity,
-                    action: PlayerAction::Move(*safe_direction_to_enemy),
-                });
-                continue;
+                .map(|d| (PlayerAction::Move(d), PlayerIntention::HuntPlayers));
+            } else {
+                // TODO: flee
             }
         }
 
-        // break nearby walls
-        if let Some(action) = get_destructible_destroying_action(
-            *position,
-            bomb_satchel,
-            &invalid_bomb_spawn_positions,
-            &fire_positions,
-            &bomb_positions_ranges,
-            &fireproof_positions,
-            &impassable_positions,
-            &wall_positions,
-            &destructible_positions,
-        ) {
+        // TODO: remove
+        // don't send meaningless actions, this clutters the debug log
+        if matches!(action, Some((PlayerAction::Move(_), _))) && !move_cooldown.0.ready() {
+            continue;
+        }
+
+        if let Some((action, intention)) = action {
+            // TODO: remove
+            // log the bot intentions
+            let duration_since_last_action =
+                if let Some(ref time_since_last_action) = *time_since_last_action {
+                    time_since_last_action.elapsed()
+                } else {
+                    Duration::ZERO
+                };
+            *time_since_last_action = Some(Stopwatch::new());
+            println!(
+                "{:?} ({:?}ms) - bot {:?}: {:?} - {:?}",
+                time.time_since_startup().as_millis(),
+                duration_since_last_action.as_millis(),
+                entity,
+                intention,
+                action
+            );
+
             ev_player_action.send(PlayerActionEvent {
                 player: entity,
                 action,
             });
         }
+    }
 
-        // TODO: more actions
+    // TODO: remove
+    // show the field-safety indicators as assumed by the first bot
+    if let Some(p) = query.iter().next() {
+        for entity in q.q1().iter() {
+            commands.entity(entity).despawn();
+        }
+        for j in 0..map_size.rows {
+            for i in 0..map_size.columns {
+                let position = Position {
+                    x: i as isize,
+                    y: j as isize,
+                };
+                let safe = safe(
+                    position,
+                    &fire_positions,
+                    &bomb_positions,
+                    p.5.bomb_range + 2,
+                    &fireproof_positions,
+                    wall_of_death,
+                    *map_size,
+                );
+                commands
+                    .spawn()
+                    .insert(DebugSafeFieldMarker)
+                    .insert_bundle(SpriteBundle {
+                        material: base_materials.colors[if safe { 10 } else { 4 }].clone(),
+                        transform: Transform::from_xyz(get_x(position.x), get_y(position.y), 100.0),
+                        sprite: Sprite::new(Vec2::new(
+                            TILE_WIDTH as f32 / 4.0,
+                            TILE_HEIGHT as f32 / 4.0,
+                        )),
+                        ..Default::default()
+                    });
+            }
+        }
     }
 }
 
@@ -620,11 +755,9 @@ pub fn bomb_drop(
                     .insert(Bomb {
                         owner: Some(entity),
                         range: bomb_satchel.bomb_range,
-                    })
-                    .insert(Solid)
-                    .insert(Perishable {
                         timer: Timer::from_seconds(2.0, false),
                     })
+                    .insert(Solid)
                     .insert(*position)
                     .with_children(|parent| {
                         let fuse_color = COLORS[if world_id.0 == 2 { 12 } else { 14 }].into();
@@ -672,7 +805,7 @@ pub fn bomb_drop(
 pub fn animate_fuse(
     time: Res<Time>,
     fonts: Res<Fonts>,
-    query: Query<&Perishable, With<Bomb>>,
+    query: Query<&Bomb>,
     mut query2: Query<
         (
             &Parent,
@@ -694,8 +827,8 @@ pub fn animate_fuse(
             _ => unreachable!(),
         };
 
-        let perishable = query.get(parent.0).unwrap();
-        let percent_left = perishable.timer.percent_left();
+        let bomb = query.get(parent.0).unwrap();
+        let percent_left = bomb.timer.percent_left();
 
         match percent_left {
             _ if (0.66..1.0).contains(&percent_left) => {
@@ -762,94 +895,108 @@ pub fn animate_fuse(
     }
 }
 
-pub fn perishable_tick(
-    time: Res<Time>,
-    exit_position: Option<Res<ExitPosition>>,
+pub fn bomb_tick(time: Res<Time>, mut query: Query<&mut Bomb>) {
+    for mut bomb in query.iter_mut() {
+        bomb.timer.tick(time.delta());
+    }
+}
+
+pub fn fire_tick(mut commands: Commands, time: Res<Time>, mut query: Query<(Entity, &mut Fire)>) {
+    for (entity, mut fire) in query.iter_mut() {
+        fire.timer.tick(time.delta());
+        if fire.timer.finished() {
+            commands.entity(entity).despawn_recursive();
+        }
+    }
+}
+
+pub fn crumbling_tick(
     mut commands: Commands,
+    time: Res<Time>,
     textures: Res<Textures>,
     game_context: Res<GameContext>,
-    mut query: Query<(
-        Entity,
-        &mut Perishable,
-        &Position,
-        Option<&Bomb>,
-        Option<&Wall>,
-    )>,
-    mut ev_bomb_restock: EventWriter<BombRestockEvent>,
-    mut ev_explosion: EventWriter<ExplosionEvent>,
+    exit_position: Option<Res<ExitPosition>>,
+    mut query: Query<(Entity, &mut Crumbling, &Position)>,
 ) {
-    for (entity, mut perishable, position, bomb, wall) in query.iter_mut() {
-        perishable.timer.tick(time.delta());
+    for (entity, mut crumbling, position) in query.iter_mut() {
+        crumbling.timer.tick(time.delta());
 
-        if perishable.timer.just_finished() {
+        if crumbling.timer.finished() {
             commands.entity(entity).despawn_recursive();
-
-            if let Some(bomb) = bomb {
-                if let Some(owner) = bomb.owner {
-                    ev_bomb_restock.send(BombRestockEvent {
-                        satchel_owner: owner,
+            if matches!(exit_position, Some(ref p) if p.0 == *position) {
+                commands
+                    .spawn_bundle(SpriteBundle {
+                        material: textures.exit.clone(),
+                        transform: Transform::from_xyz(get_x(position.x), get_y(position.y), 10.0),
+                        sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+                        ..Default::default()
                     })
-                }
-
-                ev_explosion.send(ExplosionEvent {
-                    position: *position,
-                    range: bomb.range,
-                });
-            }
-
-            if wall.is_some() {
-                if matches!(exit_position, Some(ref p) if p.0 == *position) {
-                    commands
-                        .spawn_bundle(SpriteBundle {
-                            material: textures.exit.clone(),
-                            transform: Transform::from_xyz(
-                                get_x(position.x),
-                                get_y(position.y),
-                                10.0,
-                            ),
-                            sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
-                            ..Default::default()
-                        })
-                        .insert(*position)
-                        .insert(Exit::default());
-                } else if rand::thread_rng().gen_range(0.0..1.0) < ITEM_SPAWN_CHANCE {
-                    generate_item_at_position(
-                        *position,
-                        &mut commands,
-                        &textures,
-                        game_context.reduced_loot,
-                    );
-                }
+                    .insert(*position)
+                    .insert(Exit::default());
+            } else if rand::thread_rng().gen_range(0.0..1.0) < ITEM_SPAWN_CHANCE {
+                generate_item_at_position(
+                    *position,
+                    &mut commands,
+                    &textures,
+                    game_context.reduced_loot,
+                );
             }
         }
     }
 }
 
-pub fn bomb_restock(
-    mut ev_bomb_restock: EventReader<BombRestockEvent>,
-    mut query: Query<&mut BombSatchel>,
+pub fn burning_item_tick(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut query: Query<(Entity, &mut BurningItem)>,
 ) {
-    for event in ev_bomb_restock.iter() {
-        if let Ok(mut bomb_satchel) = query.get_mut(event.satchel_owner) {
-            bomb_satchel.bombs_available += 1;
+    for (entity, mut burning_item) in query.iter_mut() {
+        burning_item.timer.tick(time.delta());
+        if burning_item.timer.finished() {
+            commands.entity(entity).despawn_recursive();
         }
     }
 }
 
-pub fn handle_explosion(
+pub fn bomb_update(
     mut commands: Commands,
     textures: Res<Textures>,
     audio: Res<Audio>,
     sounds: Res<Sounds>,
-    query: Query<&Position, Or<(With<Solid>, With<Exit>)>>,
+    query: Query<(Entity, &Bomb, &Position)>,
+    query1: Query<(Entity, &Position, Option<&Bomb>), Or<(With<Solid>, With<Exit>)>>,
     mut ev_explosion: EventReader<ExplosionEvent>,
+    mut ev_bomb_restock: EventWriter<BombRestockEvent>,
     mut ev_burn: EventWriter<BurnEvent>,
 ) {
-    let fireproof_positions: HashSet<Position> = query.iter().copied().collect();
+    let exploded_bombs: HashSet<Entity> = ev_explosion.iter().map(|e| e.bomb).collect();
+    let fireproof_positions: HashSet<Position> = query1
+        .iter()
+        .filter_map(|(e, p, b)| {
+            // ignore bombs that went off
+            if !matches!(b, Some(b) if b.timer.finished() || exploded_bombs.contains(&e)) {
+                Some(p)
+            } else {
+                None
+            }
+        })
+        .copied()
+        .collect();
 
     let mut sound_played = false;
 
-    for ExplosionEvent { position, range } in ev_explosion.iter().copied() {
+    for (entity, bomb, position) in query
+        .iter()
+        .filter(|(e, b, _)| b.timer.finished() || exploded_bombs.contains(e))
+    {
+        commands.entity(entity).despawn_recursive();
+
+        if let Some(owner) = bomb.owner {
+            ev_bomb_restock.send(BombRestockEvent {
+                satchel_owner: owner,
+            })
+        }
+
         if !sound_played {
             audio.stop();
             audio.play(sounds.boom.clone());
@@ -864,16 +1011,15 @@ pub fn handle_explosion(
                     sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
                     ..Default::default()
                 })
-                .insert(Fire)
-                .insert(position)
-                .insert(Perishable {
+                .insert(Fire {
                     timer: Timer::from_seconds(0.5, false),
-                });
+                })
+                .insert(position);
         };
 
-        spawn_fire(&mut commands, position);
+        spawn_fire(&mut commands, *position);
         for direction in Direction::LIST {
-            for i in 1..=range {
+            for i in 1..=bomb.range {
                 let position = position.offset(direction, i);
 
                 if fireproof_positions.contains(&position) {
@@ -883,6 +1029,17 @@ pub fn handle_explosion(
 
                 spawn_fire(&mut commands, position);
             }
+        }
+    }
+}
+
+pub fn bomb_restock(
+    mut ev_bomb_restock: EventReader<BombRestockEvent>,
+    mut query: Query<&mut BombSatchel>,
+) {
+    for event in ev_bomb_restock.iter() {
+        if let Ok(mut bomb_satchel) = query.get_mut(event.satchel_owner) {
+            bomb_satchel.bombs_available += 1;
         }
     }
 }
@@ -1044,19 +1201,16 @@ pub fn player_damage(
     }
 }
 
-pub fn bomb_burn(
-    mut query: Query<(&mut Perishable, &Position), With<Bomb>>,
-    mut ev_burn: EventReader<BurnEvent>,
-) {
+pub fn bomb_burn(mut query: Query<(&mut Bomb, &Position)>, mut ev_burn: EventReader<BurnEvent>) {
     for BurnEvent { position } in ev_burn.iter() {
         query
             .iter_mut()
             .filter(|(_, p)| **p == *position)
-            .for_each(|(mut bp, _)| {
+            .for_each(|(mut b, _)| {
                 const SHORTENED_FUSE_DURATION: Duration = Duration::from_millis(50);
-                if bp.timer.duration() - bp.timer.elapsed() > SHORTENED_FUSE_DURATION {
-                    bp.timer.set_duration(SHORTENED_FUSE_DURATION);
-                    bp.timer.reset();
+                if b.timer.duration() - b.timer.elapsed() > SHORTENED_FUSE_DURATION {
+                    b.timer.set_duration(SHORTENED_FUSE_DURATION);
+                    b.timer.reset();
                 }
             });
     }
@@ -1070,7 +1224,7 @@ pub fn destructible_wall_burn(
             Entity,
             &Position,
             &mut Handle<ColorMaterial>,
-            Option<&Perishable>,
+            Option<&Crumbling>,
         ),
         (With<Wall>, With<Destructible>),
     >,
@@ -1079,7 +1233,7 @@ pub fn destructible_wall_burn(
     for BurnEvent { position } in ev_burn.iter() {
         for (e, _, mut c, perishable) in query.iter_mut().filter(|(_, p, _, _)| **p == *position) {
             if perishable.is_none() {
-                commands.entity(e).insert(Perishable {
+                commands.entity(e).insert(Crumbling {
                     timer: Timer::from_seconds(0.5, false),
                 });
                 *c = textures.get_map_textures().burning_wall.clone();
@@ -1119,8 +1273,7 @@ pub fn item_burn(
                     ..Default::default()
                 })
                 .insert(*position)
-                .insert(BurningItem)
-                .insert(Perishable {
+                .insert(BurningItem {
                     timer: Timer::from_seconds(0.5, false),
                 });
         }

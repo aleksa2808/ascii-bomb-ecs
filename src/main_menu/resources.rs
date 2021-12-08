@@ -147,7 +147,7 @@ pub enum BattleModeSubMenuStep {
     AmountOfPlayers,
     AmountOfBots,
     WinningScore,
-    Difficulty,
+    BotDifficulty,
 }
 
 pub struct ConfigurationOption<T> {
@@ -211,14 +211,6 @@ impl AmountOfActors {
                 "Initial amount of players ({}) is less than the minimum ({}).",
                 initial_amount_of_players,
                 Self::MIN_AMOUNT_OF_PLAYERS
-            ));
-        }
-
-        if initial_amount_of_bots < Self::MIN_AMOUNT_OF_BOTS {
-            return Err(format!(
-                "Initial amount of bots ({}) is less than the minimum ({}).",
-                initial_amount_of_bots,
-                Self::MIN_AMOUNT_OF_BOTS
             ));
         }
 
