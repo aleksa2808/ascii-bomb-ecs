@@ -1,7 +1,7 @@
 <html>
 
 <head>
-    <title>My Bevy Project</title>
+    <title>ascii-bomb-ecs</title>
 </head>
 
 <body>
@@ -18,6 +18,16 @@
         }
 
         window.loadGame = loadGame
+
+        function auto_focus() {
+            let canvas = document.getElementsByTagName("canvas");
+            if (!canvas.length) {
+                setTimeout(auto_focus, 100);
+            } else {
+                canvas[0].focus();
+            }
+        }
+        auto_focus();
     </script>
 </body>
 
