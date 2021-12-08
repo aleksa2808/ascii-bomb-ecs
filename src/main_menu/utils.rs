@@ -6,12 +6,11 @@ use crate::{
         resources::{Fonts, GameOption, GameOptionStore, HighScores},
     },
     game::types::BotDifficulty,
-    main_menu::resources::BattleModeSubMenuStep,
 };
 
 use super::{
     components::{BattleModeSubMenuContentBox, Cursor},
-    resources::{BattleModeSubMenuState, MenuMaterials, MenuType},
+    resources::{BattleModeSubMenuState, BattleModeSubMenuStep, MenuMaterials, MenuType},
 };
 
 pub fn spawn_menu_type(
@@ -407,7 +406,7 @@ pub fn spawn_battle_mode_sub_menu_content(
                 BattleModeSubMenuStep::AmountOfPlayers => "AMOUNT OF PLAYERS:",
                 BattleModeSubMenuStep::AmountOfBots => "AMOUNT OF BOTS:",
                 BattleModeSubMenuStep::WinningScore => "AMOUNT OF WINS:",
-                BattleModeSubMenuStep::Difficulty => "DIFFICULTY:",
+                BattleModeSubMenuStep::BotDifficulty => "DIFFICULTY:",
             },
             TextStyle {
                 font: fonts.mono.clone(),
@@ -441,7 +440,7 @@ pub fn spawn_battle_mode_sub_menu_content(
                         sub_menu_state.amount_of_actors.amount_of_bots().to_string(),
                     BattleModeSubMenuStep::WinningScore =>
                         sub_menu_state.winning_score.value().to_string(),
-                    BattleModeSubMenuStep::Difficulty =>
+                    BattleModeSubMenuStep::BotDifficulty =>
                         String::from(match sub_menu_state.difficulty.value() {
                             BotDifficulty::Easy => "EASY",
                             BotDifficulty::Medium => "MEDIUM",

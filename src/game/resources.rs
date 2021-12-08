@@ -3,7 +3,10 @@ use bevy_kira_audio::AudioSource;
 
 use crate::common::constants::COLORS;
 
-use super::components::{Penguin, Position};
+use super::{
+    components::{Penguin, Position},
+    types::{Cooldown, Direction},
+};
 
 #[derive(Default)]
 pub struct MapTextures {
@@ -213,3 +216,15 @@ pub struct GameContext {
 }
 
 pub struct ExitPosition(pub Position);
+
+pub struct ActiveWallOfDeath {
+    pub position: Position,
+    pub direction: Direction,
+    pub cooldown: Cooldown,
+}
+
+pub enum WallOfDeath {
+    Dormant(Timer),
+    Active(ActiveWallOfDeath),
+    Done,
+}

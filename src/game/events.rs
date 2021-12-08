@@ -10,8 +10,7 @@ pub struct PlayerActionEvent {
 
 #[derive(Clone, Copy)]
 pub struct ExplosionEvent {
-    pub position: Position,
-    pub range: usize,
+    pub bomb: Entity,
 }
 
 pub struct BombRestockEvent {

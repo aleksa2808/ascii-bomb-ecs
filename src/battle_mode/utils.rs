@@ -4,15 +4,18 @@ use crate::game::{
     components::*,
     constants::{TILE_HEIGHT, TILE_WIDTH},
     resources::*,
-    types::{Cooldown, PenguinControlType},
+    types::{BotDifficulty, Cooldown},
     utils::{get_x, get_y},
 };
+
+use super::types::PenguinControlType;
 
 pub fn spawn_battle_mode_players(
     commands: &mut Commands,
     textures: &Textures,
     map_size: MapSize,
     players: &[(Penguin, PenguinControlType)],
+    bot_difficulty: BotDifficulty,
 ) -> Vec<Position> {
     let possible_player_spawn_positions = [
         (1, 1),
@@ -60,7 +63,7 @@ pub fn spawn_battle_mode_players(
             })
             .insert(player_spawn_position)
             .insert(BombSatchel {
-                bombs_available: 3,
+                bombs_available: 1,
                 bomb_range: 2,
             })
             .insert(TeamID(penguin_tag.0));
@@ -70,8 +73,14 @@ pub fn spawn_battle_mode_players(
             }
             PenguinControlType::Bot => {
                 entity_commands
-                    .insert(BotAI)
-                    .insert(MoveCooldown(Cooldown::from_seconds(0.3)));
+                    .insert(BotAI {
+                        difficulty: bot_difficulty,
+                    })
+                    .insert(MoveCooldown(Cooldown::from_seconds(match bot_difficulty {
+                        BotDifficulty::Easy => 0.3,
+                        BotDifficulty::Medium => 0.25,
+                        BotDifficulty::Hard => 0.2,
+                    })));
             }
         }
 

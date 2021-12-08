@@ -340,8 +340,6 @@ pub fn update_secret_mode(
                                 .insert(Bomb {
                                     owner: None,
                                     range: 3,
-                                })
-                                .insert(Perishable {
                                     timer: Timer::from_seconds(9999.0, false),
                                 })
                                 .insert(position)
@@ -436,21 +434,17 @@ pub fn finish_secret_mode(
     mut commands: Commands,
     mut secret_mode_context: ResMut<SecretModeContext>,
     query: Query<(Entity, &Position), With<Player>>,
-    query2: Query<(Entity, &Bomb, &Position)>,
+    query2: Query<(Entity, &Position), With<Bomb>>,
     mut ev_explosion: EventWriter<ExplosionEvent>,
 ) {
     let (player_entity, player_position) = query.single();
-    if query2.iter().any(|(_, _, p)| *p == *player_position) {
+    if query2.iter().any(|(_, p)| *p == *player_position) {
         secret_mode_context.in_game_state =
             SecretModeInGameState::Stopping(Timer::from_seconds(0.5, false));
 
         commands.entity(player_entity).remove::<HumanControlled>();
-        for (entity, bomb, position) in query2.iter() {
-            commands.entity(entity).despawn_recursive();
-            ev_explosion.send(ExplosionEvent {
-                position: *position,
-                range: bomb.range,
-            });
+        for (entity, _) in query2.iter() {
+            ev_explosion.send(ExplosionEvent { bomb: entity });
         }
     }
 }

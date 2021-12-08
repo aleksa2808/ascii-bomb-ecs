@@ -5,7 +5,7 @@ use crate::game::{
     components::*,
     constants::{TILE_HEIGHT, TILE_WIDTH},
     resources::*,
-    types::Cooldown,
+    types::{BotDifficulty, Cooldown},
     utils::{get_x, get_y},
 };
 
@@ -154,7 +154,9 @@ pub fn spawn_story_mode_boss(
         .insert(ImmortalMaterial(immortal_material))
         .insert(Player)
         .insert(boss_penguin_tag)
-        .insert(BotAI)
+        .insert(BotAI {
+            difficulty: BotDifficulty::Medium,
+        })
         .insert(MoveCooldown(Cooldown::from_seconds(0.3)))
         .insert(Health {
             lives: 1,

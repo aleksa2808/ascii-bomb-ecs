@@ -4,6 +4,7 @@ use crate::AppState;
 
 use self::{camera::SimpleOrthoProjection, events::*, resources::*, systems::*};
 
+mod ai;
 pub mod camera;
 pub mod components;
 pub mod constants;
@@ -42,12 +43,18 @@ pub fn add_common_game_systems(app: &mut App, state: AppState) {
                     .exclusive_system()
                     .label(Label::TimeUpdate),
             )
+            .with_system(bomb_tick.exclusive_system().label(Label::TimeUpdate))
+            .with_system(fire_tick.exclusive_system().label(Label::TimeUpdate))
             .with_system(
-                perishable_tick
+                crumbling_tick
                     .exclusive_system()
                     .label(Label::TimeUpdate)
-                    .label(Label::ItemSpawn)
-                    .label(Label::BombRestockEvent),
+                    .label(Label::ItemSpawn),
+            )
+            .with_system(
+                burning_item_tick
+                    .exclusive_system()
+                    .label(Label::TimeUpdate),
             )
             .with_system(immortality_tick.exclusive_system().label(Label::TimeUpdate))
             // handle input
@@ -82,20 +89,22 @@ pub fn add_common_game_systems(app: &mut App, state: AppState) {
                     .after(Label::Input),
             )
             .with_system(
+                bomb_update
+                    .exclusive_system()
+                    .label(Label::BombRestockEvent)
+                    .label(Label::FireSpawn)
+                    .after(Label::TimeUpdate),
+            )
+            .with_system(
                 bomb_restock
                     .exclusive_system()
                     .after(Label::BombRestockEvent),
             )
             .with_system(
-                handle_explosion
-                    .exclusive_system()
-                    .label(Label::FireSpawn)
-                    .after(Label::TimeUpdate),
-            )
-            .with_system(
                 fire_effect
                     .exclusive_system()
                     .label(Label::BurnEvent)
+                    .after(Label::TimeUpdate)
                     .after(Label::FireSpawn),
             )
             .with_system(
