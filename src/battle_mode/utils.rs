@@ -63,7 +63,7 @@ pub fn spawn_battle_mode_players(
             })
             .insert(player_spawn_position)
             .insert(BombSatchel {
-                bombs_available: 3,
+                bombs_available: 1,
                 bomb_range: 2,
             })
             .insert(TeamID(penguin_tag.0));

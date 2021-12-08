@@ -25,6 +25,18 @@ pub enum PlayerAction {
     DropBomb,
 }
 
+#[derive(Debug)]
+pub enum PlayerIntention {
+    MoveToSafety,
+    PickUpItem,
+    DestroyBlocks,
+    KillPlayers,
+    PlaceBombNearPlayers,
+    RandomMove,
+    HuntPlayers,
+    Flee,
+}
+
 #[derive(Clone, Copy)]
 pub enum BotDifficulty {
     Easy,

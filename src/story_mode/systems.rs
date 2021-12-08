@@ -26,7 +26,7 @@ pub fn setup_story_mode(
         columns: 15,
     };
     let world_id = WorldID(1);
-    let player_lives = 2;
+    let player_lives = 5;
     let player_points = 0;
 
     textures.set_map_textures(world_id);
@@ -61,8 +61,8 @@ pub fn setup_story_mode(
         })
         .insert(player_spawn_position)
         .insert(BombSatchel {
-            bombs_available: 3,
-            bomb_range: 2,
+            bombs_available: 1,
+            bomb_range: 1,
         })
         .insert(player_penguin_tag)
         .insert(TeamID(0));

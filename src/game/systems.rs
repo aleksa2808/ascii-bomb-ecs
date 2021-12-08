@@ -5,7 +5,6 @@ use std::{
 
 use bevy::{
     core::Stopwatch,
-    ecs as bevy_ecs,
     prelude::*,
     render::camera::{Camera, VisibleEntities},
 };
@@ -18,7 +17,7 @@ use rand::{
 use crate::{
     common::{
         constants::{COLORS, PIXEL_SCALE},
-        resources::{BaseColorMaterials, Fonts},
+        resources::Fonts,
     },
     AppState,
 };
@@ -287,25 +286,7 @@ pub fn mob_ai(
     }
 }
 
-// TODO: remove
-#[derive(Debug)]
-enum PlayerIntention {
-    MoveToSafety,
-    PickUpItem,
-    DestroyBlocks,
-    KillPlayers,
-    PlaceBombNearPlayers,
-    RandomMove,
-    HuntPlayers,
-    Flee,
-}
-
-// TODO: remove
-#[derive(Component)]
-pub struct DebugSafeFieldMarker;
-
 pub fn bot_ai(
-    mut commands: Commands,
     query: Query<
         (
             Entity,
@@ -329,13 +310,11 @@ pub fn bot_ai(
     // too many arguments for system
     mut q: QuerySet<(
         QueryState<&Position, (With<Wall>, Without<Destructible>)>,
-        QueryState<Entity, With<DebugSafeFieldMarker>>,
         QueryState<&Position, Or<(With<Solid>, With<Item>, With<Player>, With<Exit>)>>,
         QueryState<&Position, With<Item>>,
     )>,
     time: Res<Time>,
     mut time_since_last_action: Local<Option<Stopwatch>>,
-    base_materials: Res<BaseColorMaterials>,
     map_size: Res<MapSize>,
     wall_of_death: Option<Res<WallOfDeath>>,
     mut ev_player_action: EventWriter<PlayerActionEvent>,
@@ -351,9 +330,9 @@ pub fn bot_ai(
     let fireproof_positions: HashSet<Position> = query5.iter().copied().collect();
     let invalid_bomb_spawn_positions: HashSet<Position> = query7.iter().copied().collect();
     let destructible_positions: HashSet<Position> = query8.iter().copied().collect();
-    let moving_object_stoppers: HashSet<Position> = q.q2().iter().copied().collect();
+    let moving_object_stoppers: HashSet<Position> = q.q1().iter().copied().collect();
     let stone_wall_positions: HashSet<Position> = q.q0().iter().copied().collect();
-    let item_positions: HashSet<Position> = q.q3().iter().copied().collect();
+    let item_positions: HashSet<Position> = q.q2().iter().copied().collect();
 
     let wall_of_death = wall_of_death.as_deref();
 
@@ -375,21 +354,49 @@ pub fn bot_ai(
             .map(|(p, _)| *p)
             .collect();
 
+        let bot_difficulty = bot_ai.difficulty;
         let assumed_bomb_range = bomb_satchel.bomb_range + 2;
 
-        // TODO: miss
-        let _bot_difficulty = bot_ai.difficulty;
+        // miss?
+        match bot_difficulty {
+            BotDifficulty::Easy | BotDifficulty::Medium => {
+                if rng.gen_range(0..100)
+                    < match bot_difficulty {
+                        BotDifficulty::Easy => 30,
+                        BotDifficulty::Medium => 15,
+                        BotDifficulty::Hard => unreachable!(),
+                    }
+                {
+                    continue;
+                }
+            }
+            BotDifficulty::Hard => (),
+        }
 
         let command_priority_list = [0, 3, 6, 1, 4, 2, 5, 7];
         let mut action = None;
         let mut bomb_flag = 0;
         let mut nav_flag = -1;
-        for com in command_priority_list {
+        for mut com in command_priority_list {
             if action.is_some() {
                 break;
             }
 
-            // TODO: miss
+            // miss?
+            match bot_difficulty {
+                BotDifficulty::Easy | BotDifficulty::Medium => {
+                    if rng.gen_range(0..100)
+                        < match bot_difficulty {
+                            BotDifficulty::Easy => 30,
+                            BotDifficulty::Medium => 15,
+                            BotDifficulty::Hard => unreachable!(),
+                        }
+                    {
+                        com = rng.gen_range(0..8);
+                    }
+                }
+                BotDifficulty::Hard => (),
+            }
 
             match com {
                 0 => {
@@ -575,15 +582,12 @@ pub fn bot_ai(
             }
         }
 
-        // TODO: remove
-        // don't send meaningless actions, this clutters the debug log
+        // don't send meaningless actions
         if matches!(action, Some((PlayerAction::Move(_), _))) && !move_cooldown.0.ready() {
             continue;
         }
 
         if let Some((action, intention)) = action {
-            // TODO: remove
-            // log the bot intentions
             let duration_since_last_action =
                 if let Some(ref time_since_last_action) = *time_since_last_action {
                     time_since_last_action.elapsed()
@@ -604,43 +608,6 @@ pub fn bot_ai(
                 player: entity,
                 action,
             });
-        }
-    }
-
-    // TODO: remove
-    // show the field-safety indicators as assumed by the first bot
-    if let Some(p) = query.iter().next() {
-        for entity in q.q1().iter() {
-            commands.entity(entity).despawn();
-        }
-        for j in 0..map_size.rows {
-            for i in 0..map_size.columns {
-                let position = Position {
-                    x: i as isize,
-                    y: j as isize,
-                };
-                let safe = safe(
-                    position,
-                    &fire_positions,
-                    &bomb_positions,
-                    p.6.bomb_range + 2,
-                    &fireproof_positions,
-                    wall_of_death,
-                    *map_size,
-                );
-                commands
-                    .spawn()
-                    .insert(DebugSafeFieldMarker)
-                    .insert_bundle(SpriteBundle {
-                        material: base_materials.colors[if safe { 10 } else { 4 }].clone(),
-                        transform: Transform::from_xyz(get_x(position.x), get_y(position.y), 100.0),
-                        sprite: Sprite::new(Vec2::new(
-                            TILE_WIDTH as f32 / 4.0,
-                            TILE_HEIGHT as f32 / 4.0,
-                        )),
-                        ..Default::default()
-                    });
-            }
         }
     }
 }
