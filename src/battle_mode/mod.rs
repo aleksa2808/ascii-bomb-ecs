@@ -59,7 +59,6 @@ impl Plugin for BattleModePlugin {
             SystemSet::on_update(AppState::BattleModeInGame)
                 .with_system(game_timer_tick.exclusive_system().label(Label::TimeUpdate))
                 .with_system(
-                    // TODO: should this system be included in `add_common_game_systems`?
                     wall_of_death_update
                         .exclusive_system()
                         .label(Label::PlayerDeathEvent)

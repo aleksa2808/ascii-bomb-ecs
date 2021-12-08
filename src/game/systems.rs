@@ -4,7 +4,6 @@ use std::{
 };
 
 use bevy::{
-    core::Stopwatch,
     prelude::*,
     render::camera::{Camera, VisibleEntities},
 };
@@ -286,6 +285,7 @@ pub fn mob_ai(
     }
 }
 
+// TODO: most of this function and the contents of the `ai.rs` file are a lazy port which could use some cleaning
 pub fn bot_ai(
     query: Query<
         (
@@ -307,22 +307,13 @@ pub fn bot_ai(
     query6: Query<(&Position, &TeamID), With<Player>>,
     query7: Query<&Position, Or<(With<Wall>, With<Bomb>, With<Exit>, With<BurningItem>)>>,
     query8: Query<&Position, With<Destructible>>,
-    // too many arguments for system
-    mut q: QuerySet<(
-        QueryState<&Position, (With<Wall>, Without<Destructible>)>,
-        QueryState<&Position, Or<(With<Solid>, With<Item>, With<Player>, With<Exit>)>>,
-        QueryState<&Position, With<Item>>,
-    )>,
-    time: Res<Time>,
-    mut time_since_last_action: Local<Option<Stopwatch>>,
+    query9: Query<&Position, (With<Wall>, Without<Destructible>)>,
+    query10: Query<&Position, Or<(With<Solid>, With<Item>, With<Player>, With<Exit>)>>,
+    query11: Query<&Position, With<Item>>,
     map_size: Res<MapSize>,
     wall_of_death: Option<Res<WallOfDeath>>,
     mut ev_player_action: EventWriter<PlayerActionEvent>,
 ) {
-    if let Some(ref mut time_since_last_action) = *time_since_last_action {
-        time_since_last_action.tick(time.delta());
-    }
-
     // TODO: this is wasted work for situations where there aren't any bots
     let mut rng = rand::thread_rng();
     let fire_positions: HashSet<Position> = query2.iter().copied().collect();
@@ -330,9 +321,9 @@ pub fn bot_ai(
     let fireproof_positions: HashSet<Position> = query5.iter().copied().collect();
     let invalid_bomb_spawn_positions: HashSet<Position> = query7.iter().copied().collect();
     let destructible_positions: HashSet<Position> = query8.iter().copied().collect();
-    let moving_object_stoppers: HashSet<Position> = q.q1().iter().copied().collect();
-    let stone_wall_positions: HashSet<Position> = q.q0().iter().copied().collect();
-    let item_positions: HashSet<Position> = q.q2().iter().copied().collect();
+    let stone_wall_positions: HashSet<Position> = query9.iter().copied().collect();
+    let moving_object_stoppers: HashSet<Position> = query10.iter().copied().collect();
+    let item_positions: HashSet<Position> = query11.iter().copied().collect();
 
     let wall_of_death = wall_of_death.as_deref();
 
@@ -588,21 +579,7 @@ pub fn bot_ai(
         }
 
         if let Some((action, intention)) = action {
-            let duration_since_last_action =
-                if let Some(ref time_since_last_action) = *time_since_last_action {
-                    time_since_last_action.elapsed()
-                } else {
-                    Duration::ZERO
-                };
-            *time_since_last_action = Some(Stopwatch::new());
-            println!(
-                "{:?} ({:?}ms) - bot {:?}: {:?} - {:?}",
-                time.time_since_startup().as_millis(),
-                duration_since_last_action.as_millis(),
-                entity,
-                intention,
-                action
-            );
+            println!("bot {:?}: {:?} - {:?}", entity, intention, action);
 
             ev_player_action.send(PlayerActionEvent {
                 player: entity,
