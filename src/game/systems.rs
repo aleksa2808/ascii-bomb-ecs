@@ -294,6 +294,7 @@ enum PlayerIntention {
     PickUpItem,
     DestroyBlocks,
     KillPlayers,
+    RandomMove,
     HuntPlayers,
 }
 
@@ -481,13 +482,30 @@ pub fn bot_ai(
                     // TODO: drop bomb if players in range
                 }
                 5 => {
-                    // TODO: find out what this is
                     if nav_flag == -1 {
                         nav_flag = 0;
                     }
                 }
                 6 => {
-                    // TODO: random move
+                    if nav_flag == -1 {
+                        let direction = Direction::LIST.choose(&mut rng).unwrap();
+                        let position = position.offset(*direction, 1);
+
+                        if !impassable_positions.contains(&position)
+                            && safe(
+                                position,
+                                &fire_positions,
+                                &bomb_positions,
+                                assumed_bomb_range,
+                                &fireproof_positions,
+                                wall_of_death,
+                                *map_size,
+                            )
+                        {
+                            action =
+                                Some((PlayerAction::Move(*direction), PlayerIntention::RandomMove));
+                        }
+                    }
                 }
                 7 => {
                     if nav_flag == -1 {
