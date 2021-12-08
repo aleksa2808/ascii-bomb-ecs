@@ -471,7 +471,6 @@ pub fn finish_level(
     query: Query<&Protagonist>,
     query2: Query<&TeamID, With<Player>>,
     mut state: ResMut<State<AppState>>,
-    mut keyboard_input: ResMut<Input<KeyCode>>,
 ) {
     let mut level_outcome = None;
 
@@ -501,12 +500,6 @@ pub fn finish_level(
     // if the timer expired or the protagonist is dead
     if game_timer.0.finished() || query.iter().count() == 0 {
         level_outcome = Some(LevelOutcome::Loss);
-    }
-
-    // TODO: used for debugging, remove
-    if keyboard_input.just_pressed(KeyCode::F) {
-        level_outcome = Some(LevelOutcome::Win);
-        keyboard_input.reset(KeyCode::F);
     }
 
     if level_outcome.is_some() {

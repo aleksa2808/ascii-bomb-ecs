@@ -283,7 +283,6 @@ pub fn on_death_item_pinata(
 
 pub fn finish_round(
     game_timer: Res<GameTimer>,
-    keyboard_input: Res<Input<KeyCode>>,
     mut battle_mode_context: ResMut<BattleModeContext>,
     query: Query<&Penguin, With<Player>>,
     mut state: ResMut<State<AppState>>,
@@ -294,19 +293,6 @@ pub fn finish_round(
         round_over = true;
     } else if let Ok(penguin) = query.get_single() {
         battle_mode_context.round_outcome = Some(RoundOutcome::Winner(*penguin));
-        round_over = true;
-    }
-
-    // TODO: used for debugging, remove
-    if keyboard_input.just_pressed(KeyCode::F) {
-        let winner_penguin = battle_mode_context
-            .leaderboard
-            .scores
-            .iter()
-            .choose(&mut rand::thread_rng())
-            .map(|(p, _)| *p)
-            .unwrap();
-        battle_mode_context.round_outcome = Some(RoundOutcome::Winner(winner_penguin));
         round_over = true;
     }
 
