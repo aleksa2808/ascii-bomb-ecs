@@ -518,7 +518,7 @@ pub fn bot_ai(
                     }
                 }
                 6 => {
-                    if nav_flag == -1 {
+                    if nav_flag == -1 && rng.gen_bool(0.125) {
                         let direction = Direction::LIST.choose(&mut rng).unwrap();
                         let position = position.offset(*direction, 1);
 

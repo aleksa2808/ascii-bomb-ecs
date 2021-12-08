@@ -53,6 +53,9 @@ impl Plugin for StoryModePlugin {
 
         add_common_game_systems(app, AppState::StoryModeInGame);
         app.add_system_set(
+            SystemSet::on_exit(AppState::StoryModeInGame).with_system(clear_keyboard_input),
+        )
+        .add_system_set(
             SystemSet::on_update(AppState::StoryModeInGame)
                 .with_system(game_timer_tick.exclusive_system().label(Label::TimeUpdate))
                 // game end check

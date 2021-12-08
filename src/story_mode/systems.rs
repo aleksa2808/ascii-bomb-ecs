@@ -897,3 +897,7 @@ pub fn teardown(
     commands.remove_resource::<GameScore>();
     commands.remove_resource::<ExitPosition>();
 }
+
+pub fn clear_keyboard_input(mut keyboard_input: ResMut<Input<KeyCode>>) {
+    keyboard_input.clear();
+}
