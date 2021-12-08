@@ -40,6 +40,9 @@ impl Position {
 }
 
 #[derive(Component)]
+pub struct SpawnPosition(pub Position);
+
+#[derive(Component)]
 pub struct Player;
 
 // usize represents the penguin's ID

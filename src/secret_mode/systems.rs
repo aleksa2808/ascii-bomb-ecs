@@ -221,7 +221,8 @@ pub fn secret_mode_manager(
                 .insert(ImmortalMaterial(immortal_material))
                 .insert(Player)
                 .insert(HumanControlled(0))
-                .insert(player_spawn_position);
+                .insert(player_spawn_position)
+                .insert(SpawnPosition(player_spawn_position));
 
             let wall_entity_reveal_groups = spawn_map(
                 &mut commands,

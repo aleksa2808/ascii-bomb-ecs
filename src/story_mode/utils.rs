@@ -114,6 +114,7 @@ pub fn spawn_story_mode_mobs(
                 health,
             })
             .insert(mob_spawn_position)
+            .insert(SpawnPosition(mob_spawn_position))
             .insert(MeleeAttacker)
             .insert(TeamID(1))
             .insert(PointValue(point_value));
@@ -164,6 +165,7 @@ pub fn spawn_story_mode_boss(
             health: 2,
         })
         .insert(boss_spawn_position)
+        .insert(SpawnPosition(boss_spawn_position))
         .insert(BombSatchel {
             bombs_available: 1 + world_id.0,
             bomb_range: 1 + world_id.0,

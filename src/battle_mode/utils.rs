@@ -62,6 +62,7 @@ pub fn spawn_battle_mode_players(
                 health: 1,
             })
             .insert(player_spawn_position)
+            .insert(SpawnPosition(player_spawn_position))
             .insert(BombSatchel {
                 bombs_available: 1,
                 bomb_range: 2,

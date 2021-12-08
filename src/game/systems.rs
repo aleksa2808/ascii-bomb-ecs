@@ -1191,6 +1191,10 @@ pub fn player_damage(
             &mut Health,
             &mut Handle<ColorMaterial>,
             &ImmortalMaterial,
+            &SpawnPosition,
+            &mut Position,
+            &mut Transform,
+            &mut Sprite,
             Option<&PointValue>,
         ),
         (With<Player>, Without<Immortal>),
@@ -1201,8 +1205,17 @@ pub fn player_damage(
     let mut damaged_players = HashSet::new();
 
     for DamageEvent { target } in ev_damage.iter() {
-        if let Ok((pe, mut health, mut color, immortal_material, point_value)) =
-            query.get_mut(*target)
+        if let Ok((
+            pe,
+            mut health,
+            mut color,
+            immortal_material,
+            spawn_position,
+            mut position,
+            mut transform,
+            mut sprite,
+            point_value,
+        )) = query.get_mut(*target)
         {
             if damaged_players.contains(&pe) {
                 continue;
@@ -1214,6 +1227,7 @@ pub fn player_damage(
 
             let mut gain_immortality = false;
             if health.health == 0 {
+                println!("player lost a life: {:?}", pe);
                 health.lives -= 1;
                 if health.lives == 0 {
                     println!("player died from damage: {:?}", pe);
@@ -1230,6 +1244,12 @@ pub fn player_damage(
                 } else {
                     health.health = health.max_health;
                     gain_immortality = true;
+
+                    *position = spawn_position.0;
+                    let translation = &mut transform.translation;
+                    translation.x = get_x(position.x);
+                    translation.y = get_y(position.y);
+                    sprite.flip_x = false;
                 }
             } else {
                 gain_immortality = true;
@@ -1364,6 +1384,7 @@ pub fn exit_burn(
                         health: 1,
                     })
                     .insert(*exit_position)
+                    .insert(SpawnPosition(*exit_position))
                     .insert(MeleeAttacker)
                     .insert(TeamID(1))
                     .insert_bundle(ImmortalBundle::default());

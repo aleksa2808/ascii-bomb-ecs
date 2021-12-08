@@ -60,6 +60,7 @@ pub fn setup_story_mode(
             health: 1,
         })
         .insert(player_spawn_position)
+        .insert(SpawnPosition(player_spawn_position))
         .insert(BombSatchel {
             bombs_available: 1,
             bomb_range: 1,
@@ -187,7 +188,14 @@ pub fn story_mode_manager(
         >,
         // doesn't need to be in here, but putting it outside throws errors (possibly because of too many arguments)
         QueryState<
-            (Entity, &Penguin, &mut Position, &mut Transform, &mut Sprite),
+            (
+                Entity,
+                &Penguin,
+                &mut Position,
+                &mut SpawnPosition,
+                &mut Transform,
+                &mut Sprite,
+            ),
             (With<Player>, With<Protagonist>),
         >,
         QueryState<&mut Handle<ColorMaterial>, With<HUDRoot>>,
@@ -208,6 +216,7 @@ pub fn story_mode_manager(
                     player_entity,
                     player_penguin_tag,
                     mut player_position,
+                    mut player_spawn_position,
                     mut transform,
                     mut sprite,
                 ) = tmp.single_mut();
@@ -220,6 +229,7 @@ pub fn story_mode_manager(
                         x: map_size.columns as isize / 2,
                     },
                 };
+                *player_spawn_position = SpawnPosition(*player_position);
                 let mut penguin_spawn_positions = vec![*player_position];
                 let mut penguin_tags = vec![*player_penguin_tag];
 
