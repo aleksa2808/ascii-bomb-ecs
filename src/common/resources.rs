@@ -72,7 +72,21 @@ impl Default for GameOptionStore {
             Some(game_option_store) => game_option_store,
             None => {
                 println!("Missing or invalid options file detected, generating a new one.");
-                let new = Self(GameOption::LIST.iter().map(|o| (*o, true)).collect());
+                let new = Self(
+                    GameOption::LIST
+                        .iter()
+                        .map(|o| {
+                            (
+                                *o,
+                                match o {
+                                    GameOption::Sound => true,
+                                    GameOption::Demo => true,
+                                    GameOption::Transition => false,
+                                },
+                            )
+                        })
+                        .collect(),
+                );
                 new.save();
                 new
             }
