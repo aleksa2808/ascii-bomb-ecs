@@ -93,7 +93,7 @@ pub fn setup_splash_screen(
         right_text: right_text.unwrap(),
         left_position: 0,
         right_position,
-        text_state: SplashScreenTextState::Moving(Timer::from_seconds(0.03, true)),
+        text_state: SplashScreenTextState::Moving(Timer::from_seconds(0.03, false)),
     })
 }
 
@@ -111,11 +111,10 @@ pub fn splash_screen_update(
 
             timer.tick(time.delta());
             if timer.finished() {
-                let times_finished = timer.times_finished();
+                timer.reset();
 
-                splash_screen_context.left_position = (splash_screen_context.left_position
-                    + times_finished as usize * PIXEL_SCALE)
-                    .min(LEFT_END_POSITION);
+                splash_screen_context.left_position =
+                    (splash_screen_context.left_position + PIXEL_SCALE).min(LEFT_END_POSITION);
                 query
                     .get_mut(splash_screen_context.left_text)
                     .unwrap()
@@ -124,7 +123,7 @@ pub fn splash_screen_update(
 
                 splash_screen_context.right_position = splash_screen_context
                     .right_position
-                    .saturating_sub(times_finished as usize * PIXEL_SCALE)
+                    .saturating_sub(PIXEL_SCALE)
                     .max(RIGHT_END_POSITION);
                 query
                     .get_mut(splash_screen_context.right_text)
