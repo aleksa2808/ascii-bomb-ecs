@@ -415,6 +415,81 @@ pub fn destroy_blocks(
     action
 }
 
+pub fn flee(
+    starting_position: Position,
+    enemy_positions: &[Position],
+    impassable_positions: &HashSet<Position>,
+    fire_positions: &HashSet<Position>,
+    bomb_positions: &HashSet<Position>,
+    assumed_bomb_range: usize,
+    fireproof_positions: &HashSet<Position>,
+    wall_of_death: Option<&WallOfDeath>,
+    map_size: MapSize,
+) -> HashSet<Direction> {
+    const ENEMY_AVOIDANCE_RANGE: usize = 2;
+
+    let mut result = HashSet::new();
+
+    let safe = |position| {
+        safe(
+            position,
+            fire_positions,
+            bomb_positions,
+            assumed_bomb_range,
+            fireproof_positions,
+            wall_of_death,
+            map_size,
+        )
+    };
+    let mut min = 5;
+    if players_in_range(starting_position, enemy_positions, ENEMY_AVOIDANCE_RANGE) {
+        for direction in Direction::LIST {
+            let range = min;
+            for i in 1..range {
+                let position = starting_position.offset(direction, i);
+                if impassable_positions.contains(&position) || !safe(position) {
+                    break;
+                } else {
+                    let side_directions = match direction {
+                        Direction::Left | Direction::Right => (Direction::Up, Direction::Down),
+                        Direction::Up | Direction::Down => (Direction::Left, Direction::Right),
+                    };
+                    let side_positions = (
+                        position.offset(side_directions.0, 1),
+                        position.offset(side_directions.1, 1),
+                    );
+
+                    if players_in_range(position, enemy_positions, ENEMY_AVOIDANCE_RANGE)
+                        || (!impassable_positions.contains(&side_positions.0)
+                            && safe(side_positions.0)
+                            && !players_in_range(
+                                side_positions.0,
+                                enemy_positions,
+                                ENEMY_AVOIDANCE_RANGE,
+                            ))
+                        || (!impassable_positions.contains(&side_positions.1)
+                            && safe(side_positions.1)
+                            && !players_in_range(
+                                side_positions.1,
+                                enemy_positions,
+                                ENEMY_AVOIDANCE_RANGE,
+                            ))
+                    {
+                        if i < min {
+                            result.clear();
+                            min = i;
+                        }
+                        result.insert(direction);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    result
+}
+
 fn dist(p1: Position, p2: Position) -> f32 {
     f32::sqrt((isize::pow(p1.y - p2.y, 2) + isize::pow(p1.x - p2.x, 2)) as f32)
 }
@@ -430,11 +505,11 @@ pub fn hunt_players(
     assumed_bomb_range: usize,
     fireproof_positions: &HashSet<Position>,
     wall_of_death: Option<&WallOfDeath>,
-) -> Option<Direction> {
+) -> HashSet<Direction> {
     let mut rng = rand::thread_rng();
     let mut minf = (map_size.rows + map_size.columns) as f32;
     let mut target = None;
-    let mut choices = vec![];
+    let mut result = HashSet::new();
 
     if !enemy_positions.is_empty() {
         if players_in_range(starting_position, enemy_positions, 3) {
@@ -474,7 +549,7 @@ pub fn hunt_players(
                                 map_size,
                             )
                         {
-                            choices.push(direction);
+                            result.insert(direction);
                         }
                     }
                 } else {
@@ -491,7 +566,7 @@ pub fn hunt_players(
                                 map_size,
                             )
                         {
-                            choices.push(direction);
+                            result.insert(direction);
                         }
                     }
                 }
@@ -499,7 +574,7 @@ pub fn hunt_players(
 
             for direction in Direction::LIST {
                 let position = starting_position.offset(direction, 1);
-                if choices.len() != 2
+                if result.len() != 2
                     && !impassable_positions.contains(&position)
                     && safe(
                         position,
@@ -512,11 +587,11 @@ pub fn hunt_players(
                     )
                     && dist(position, target) < minf
                 {
-                    choices.push(direction);
+                    result.insert(direction);
                 }
             }
         }
     }
 
-    choices.choose(&mut rng).cloned()
+    result
 }

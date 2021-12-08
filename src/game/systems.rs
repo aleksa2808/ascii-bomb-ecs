@@ -297,6 +297,7 @@ enum PlayerIntention {
     PlaceBombNearPlayers,
     RandomMove,
     HuntPlayers,
+    Flee,
 }
 
 // TODO: remove
@@ -553,9 +554,24 @@ pub fn bot_ai(
                     &fireproof_positions,
                     wall_of_death,
                 )
-                .map(|d| (PlayerAction::Move(d), PlayerIntention::HuntPlayers));
+                .iter()
+                .choose(&mut rng)
+                .map(|d| (PlayerAction::Move(*d), PlayerIntention::HuntPlayers));
             } else {
-                // TODO: flee
+                action = flee(
+                    *position,
+                    &enemy_positions,
+                    &impassable_positions,
+                    &fire_positions,
+                    &bomb_positions,
+                    assumed_bomb_range,
+                    &fireproof_positions,
+                    wall_of_death,
+                    *map_size,
+                )
+                .iter()
+                .choose(&mut rng)
+                .map(|d| (PlayerAction::Move(*d), PlayerIntention::Flee));
             }
         }
 
