@@ -123,13 +123,11 @@
         window.loadGame = loadGame
 
         function auto_focus() {
-            console.log("auto_focus")
             let canvas = document.getElementById('bevy-canvas');
             if (canvas.hasAttribute("hidden")) {
                 setTimeout(auto_focus, 100);
             } else {
                 canvas.focus();
-                console.log("auto_focus done")
             }
         }
         auto_focus();
