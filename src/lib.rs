@@ -49,6 +49,8 @@ pub fn run() {
         width: MENU_WIDTH as f32,
         height: MENU_HEIGHT as f32,
         resizable: false,
+        #[cfg(target_arch = "wasm32")]
+        canvas: Some("#bevy-canvas".to_string()),
         ..Default::default()
     })
     .add_plugins(DefaultPlugins)

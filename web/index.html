@@ -3,15 +3,117 @@
 <head>
     <title>ascii-bomb-ecs</title>
     <link rel="shortcut icon" type="image/x-icon" href="favicon.ico">
+    <meta name="viewport" content="user-scalable=no" />
+    <style>
+        html,
+        body {
+            height: 100%;
+        }
+
+        body {
+            background-color: #111;
+            margin: 0;
+        }
+
+        .flex-container {
+            height: 100%;
+            width: 100%;
+            padding: 0;
+            margin: 0;
+            display: -webkit-box;
+            display: -moz-box;
+            display: -ms-flexbox;
+            display: -webkit-flex;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        a {
+            color: white;
+            display: block;
+        }
+
+        .btn {
+            background: #0000bc;
+            border-bottom: 6px inset rgba(0, 0, 0, 0.5);
+            border-left: 6px inset rgba(0, 0, 0, 0.5);
+            border-right: 6px inset rgba(255, 255, 255, 0.5);
+            border-top: 6px inset rgba(255, 255, 255, 0.5);
+            box-sizing: border-box;
+            color: white;
+            cursor: pointer;
+            display: inline-block;
+            font-size: 2.2rem;
+            margin: 1rem;
+            padding: 0.5rem;
+            padding-left: 15px;
+            padding-right: 15px;
+            text-transform: uppercase;
+            width: auto;
+        }
+
+        .btn:focus {
+            background: #0000bc;
+            border-bottom: 6px inset rgba(0, 0, 0, 0.5);
+            border-left: 6px inset rgba(0, 0, 0, 0.5);
+            border-right: 6px inset rgba(255, 255, 255, 0.5);
+            border-top: 6px inset rgba(255, 255, 255, 0.5);
+            box-sizing: border-box;
+            color: white;
+            cursor: pointer;
+            display: inline-block;
+            font-size: 2.2rem;
+            margin: 1rem;
+            padding: 0.5rem;
+            padding-left: 15px;
+            padding-right: 15px;
+            text-transform: uppercase;
+            width: auto;
+        }
+
+        .btn:hover {
+            background: #0000fc;
+            border-bottom: 6px inset rgba(0, 0, 0, 0.5);
+            border-left: 6px inset rgba(0, 0, 0, 0.5);
+            border-right: 6px inset rgba(255, 255, 255, 0.5);
+            border-top: 6px inset rgba(255, 255, 255, 0.5);
+            box-sizing: border-box;
+            color: white;
+            cursor: pointer;
+            display: inline-block;
+            font-size: 2.2rem;
+            margin: 1rem;
+            padding: 0.5rem;
+            padding-left: 15px;
+            padding-right: 15px;
+            text-transform: uppercase;
+            width: auto;
+        }
+
+        canvas {
+            outline: none;
+            -webkit-tap-highlight-color: rgba(255, 255, 255, 0);
+            /* mobile webkit */
+        }
+    </style>
 </head>
 
 <body>
-    <button id="button" onclick="loadGame()">Click me</button>
+    <div class="flex-container">
+        <div id="button_box">
+            <a id="button" class="btn grey" onclick="loadGame()">Start game</a>
+            <a>(browsers need manual user interaction in order for audio to play)</a>
+        </div>
+        <canvas id="bevy-canvas" tabindex="0" data-raw-handle="1" alt="bevy" cursor="auto" hidden></canvas>
+    </div>
     <script type="module">
         import init from "./ascii_bomb_ecs_lib.js";
 
         function loadGame() {
-            document.getElementById('button').remove();
+            document.getElementById('button_box').remove();
+            document.getElementById('bevy-canvas').removeAttribute("hidden");
 
             init("./ascii_bomb_ecs_lib_bg.wasm").then(function (wasm) {
                 wasm.run();
@@ -21,11 +123,13 @@
         window.loadGame = loadGame
 
         function auto_focus() {
-            let canvas = document.getElementsByTagName("canvas");
-            if (!canvas.length) {
+            console.log("auto_focus")
+            let canvas = document.getElementById('bevy-canvas');
+            if (canvas.hasAttribute("hidden")) {
                 setTimeout(auto_focus, 100);
             } else {
-                canvas[0].focus();
+                canvas.focus();
+                console.log("auto_focus done")
             }
         }
         auto_focus();
