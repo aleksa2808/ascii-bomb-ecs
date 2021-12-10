@@ -59,7 +59,6 @@ pub fn add_common_game_systems(app: &mut App, state: AppState) {
             .with_system(immortality_tick.exclusive_system().label(Label::TimeUpdate))
             // handle input
             .with_system(handle_keyboard_input.exclusive_system().label(Label::Input))
-            .with_system(handle_mouse_input.exclusive_system().label(Label::Input))
             // handle AI
             .with_system(mob_ai.exclusive_system().label(Label::Input))
             .with_system(

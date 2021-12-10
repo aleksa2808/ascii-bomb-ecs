@@ -179,66 +179,6 @@ pub fn handle_keyboard_input(
     }
 }
 
-// demo for touchscreen testing
-pub fn handle_mouse_input(
-    mouse_button_input: Res<Input<MouseButton>>,
-    windows: Res<Windows>,
-    query: Query<(Entity, &HumanControlled), With<Player>>,
-    mut ev_player_action: EventWriter<PlayerActionEvent>,
-) {
-    for (entity, _) in query.iter().filter(|(_, hc)| hc.0 == 0) {
-        if mouse_button_input.just_pressed(MouseButton::Left) {
-            let window = windows.get_primary().unwrap();
-
-            if let Some(position) = window.cursor_position() {
-                let width = window.width();
-                let height = window.height();
-
-                let scale_x = position.x / width;
-                let scale_y = position.y / height;
-
-                println!(
-                    "mouse click: {:?} / w: {}, h: {} / scale_x: {}, scale_y: {}",
-                    position, width, height, scale_x, scale_y
-                );
-
-                if scale_x < 0.25 {
-                    ev_player_action.send(PlayerActionEvent {
-                        player: entity,
-                        action: PlayerAction::Move(Direction::Left),
-                    })
-                }
-                if scale_x >= 0.75 {
-                    ev_player_action.send(PlayerActionEvent {
-                        player: entity,
-                        action: PlayerAction::Move(Direction::Right),
-                    })
-                }
-
-                if scale_y < 0.25 {
-                    ev_player_action.send(PlayerActionEvent {
-                        player: entity,
-                        action: PlayerAction::Move(Direction::Down),
-                    })
-                }
-                if scale_y >= 0.75 {
-                    ev_player_action.send(PlayerActionEvent {
-                        player: entity,
-                        action: PlayerAction::Move(Direction::Up),
-                    })
-                }
-
-                if (0.25..0.75).contains(&scale_x) && (0.25..0.75).contains(&scale_y) {
-                    ev_player_action.send(PlayerActionEvent {
-                        player: entity,
-                        action: PlayerAction::DropBomb,
-                    });
-                }
-            }
-        }
-    }
-}
-
 pub fn mob_ai(
     mut query: Query<(Entity, &Position, &mut MobAI, Option<&WallHack>), With<Player>>,
     query2: Query<(&Position, Option<&Destructible>), With<Solid>>,
