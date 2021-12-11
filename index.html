@@ -93,10 +93,14 @@
             width: auto;
         }
 
+        .btn.grey {
+            background: #666666;
+            pointer-events: none;
+        }
+
         canvas {
             outline: none;
             -webkit-tap-highlight-color: rgba(255, 255, 255, 0);
-            /* mobile webkit */
         }
 
         .footer {
@@ -105,17 +109,22 @@
             bottom: 0px;
             width: 100%;
         }
+
+        [hidden] {
+            display: none !important;
+        }
     </style>
 </head>
 
 <body>
     <div class="flex-container">
-        <div id="button_box">
-            <a id="button" class="btn grey" onclick="loadGame()">Start game*</a>
+        <div id="button-box">
+            <a id="button-loading" class="btn grey">Loading...</a>
+            <a id="button" class="btn" onclick="startGame()" hidden>Start game*</a>
         </div>
         <canvas id="bevy-canvas" tabindex="0" data-raw-handle="1" alt="bevy" cursor="auto" hidden></canvas>
     </div>
-    <div id="footer" class="footer">
+    <div id="footer" class="footer" hidden>
         <a>* browsers require manual user interaction in order for audio to play</a>
         <br />
         <a>(also, the "error 404" you should soon see was actually the game creators' team name)</a>
@@ -124,17 +133,26 @@
     <script type="module">
         import init from "./ascii_bomb_ecs_lib.js";
 
-        function loadGame() {
-            document.getElementById('button_box').remove();
+        let wasm = undefined;
+        init("./ascii_bomb_ecs_lib_bg.wasm").then(function (_wasm) {
+            wasm = _wasm;
+            doneLoading();
+        });
+
+        function doneLoading() {
+            document.getElementById('button-loading').remove();
+            document.getElementById('button').removeAttribute("hidden");
+            document.getElementById('footer').removeAttribute("hidden");
+        }
+
+        function startGame() {
+            document.getElementById('button-box').remove();
             document.getElementById('footer').remove();
             document.getElementById('bevy-canvas').removeAttribute("hidden");
 
-            init("./ascii_bomb_ecs_lib_bg.wasm").then(function (wasm) {
-                wasm.run();
-            });
+            wasm.run();
         }
-
-        window.loadGame = loadGame
+        window.startGame = startGame
 
         function auto_focus() {
             let canvas = document.getElementById('bevy-canvas');
