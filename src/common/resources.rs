@@ -3,6 +3,8 @@ use std::{cmp::Reverse, collections::HashMap, fs};
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
+use crate::loading::resources::AssetsLoading;
+
 use super::constants::COLORS;
 
 pub struct BaseColorMaterials {
@@ -35,9 +37,15 @@ impl FromWorld for Fonts {
     fn from_world(world: &mut World) -> Self {
         let asset_server = world.get_resource::<AssetServer>().unwrap();
 
-        Fonts {
+        let fonts = Fonts {
             mono: asset_server.load("fonts/UbuntuMono-R.ttf"),
+        };
+
+        if let Some(mut assets_loading) = world.get_resource_mut::<AssetsLoading>() {
+            assets_loading.0.push(fonts.mono.clone_untyped());
         }
+
+        fonts
     }
 }
 

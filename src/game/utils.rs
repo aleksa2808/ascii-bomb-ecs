@@ -125,7 +125,7 @@ pub fn init_penguin_portraits(
     parent: &mut ChildBuilder,
     penguin_tags: &[Penguin],
     hud_materials: &HUDMaterials,
-    textures: &Textures,
+    game_materials: &GameMaterials,
 ) {
     for penguin in penguin_tags {
         parent
@@ -172,7 +172,7 @@ pub fn init_penguin_portraits(
                                     size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
                                     ..Default::default()
                                 },
-                                material: textures.get_penguin_texture(*penguin).clone(),
+                                material: game_materials.get_penguin_material(*penguin).clone(),
                                 ..Default::default()
                             })
                             .insert(UIComponent);
@@ -183,7 +183,7 @@ pub fn init_penguin_portraits(
 
 pub fn spawn_map(
     commands: &mut Commands,
-    textures: &Textures,
+    game_materials: &GameMaterials,
     map_size: MapSize,
     percent_of_passable_positions_to_fill: f32,
     spawn_middle_blocks: bool,
@@ -197,7 +197,7 @@ pub fn spawn_map(
     for j in 0..map_size.rows {
         for i in 0..map_size.columns {
             commands.spawn_bundle(SpriteBundle {
-                material: textures.get_map_textures().empty.clone(),
+                material: game_materials.get_map_materials().empty.clone(),
                 transform: Transform::from_xyz(get_x(i as isize), get_y(j as isize), 0.0),
                 sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
                 ..Default::default()
@@ -248,7 +248,7 @@ pub fn spawn_map(
         for position in spawn_group {
             let entity = commands
                 .spawn_bundle(SpriteBundle {
-                    material: textures.get_map_textures().wall.clone(),
+                    material: game_materials.get_map_materials().wall.clone(),
                     transform: Transform::from_xyz(get_x(position.x), get_y(position.y), 0.0),
                     sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
                     ..Default::default()
@@ -326,7 +326,7 @@ pub fn spawn_map(
     for position in &destructible_wall_positions {
         let entity = commands
             .spawn_bundle(SpriteBundle {
-                material: textures.get_map_textures().destructible_wall.clone(),
+                material: game_materials.get_map_materials().destructible_wall.clone(),
                 transform: Transform::from_xyz(get_x(position.x), get_y(position.y), 0.0),
                 sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
                 ..Default::default()
@@ -351,7 +351,7 @@ pub fn spawn_map(
 pub fn generate_item_at_position(
     position: Position,
     commands: &mut Commands,
-    textures: &Textures,
+    game_materials: &GameMaterials,
     reduced_loot: bool,
 ) {
     let r = rand::thread_rng().gen::<usize>() % 100;
@@ -379,12 +379,12 @@ pub fn generate_item_at_position(
     commands
         .spawn_bundle(SpriteBundle {
             material: match item {
-                Item::Upgrade(Upgrade::BombsUp) => textures.bombs_up.clone(),
-                Item::Upgrade(Upgrade::RangeUp) => textures.range_up.clone(),
-                Item::Upgrade(Upgrade::LivesUp) => textures.lives_up.clone(),
-                Item::Power(Power::WallHack) => textures.wall_hack.clone(),
-                Item::Power(Power::BombPush) => textures.bomb_push.clone(),
-                Item::Power(Power::Immortal) => textures.immortal.clone(),
+                Item::Upgrade(Upgrade::BombsUp) => game_materials.bombs_up.clone(),
+                Item::Upgrade(Upgrade::RangeUp) => game_materials.range_up.clone(),
+                Item::Upgrade(Upgrade::LivesUp) => game_materials.lives_up.clone(),
+                Item::Power(Power::WallHack) => game_materials.wall_hack.clone(),
+                Item::Power(Power::BombPush) => game_materials.bomb_push.clone(),
+                Item::Power(Power::Immortal) => game_materials.immortal.clone(),
             },
             transform: Transform::from_xyz(get_x(position.x), get_y(position.y), 20.0),
             sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),

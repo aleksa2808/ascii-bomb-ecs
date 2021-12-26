@@ -12,7 +12,7 @@ use super::types::PenguinControlType;
 
 pub fn spawn_battle_mode_players(
     commands: &mut Commands,
-    textures: &Textures,
+    game_materials: &GameMaterials,
     map_size: MapSize,
     players: &[(Penguin, PenguinControlType)],
     bot_difficulty: BotDifficulty,
@@ -39,8 +39,8 @@ pub fn spawn_battle_mode_players(
 
     let mut spawn_player = |penguin_tag: Penguin, penguin_control_type: PenguinControlType| {
         let player_spawn_position = possible_player_spawn_positions.next().unwrap();
-        let base_material = textures.get_penguin_texture(penguin_tag).clone();
-        let immortal_material = textures.immortal_penguin.clone();
+        let base_material = game_materials.get_penguin_material(penguin_tag).clone();
+        let immortal_material = game_materials.immortal_penguin.clone();
         let mut entity_commands = commands.spawn_bundle(SpriteBundle {
             material: base_material.clone(),
             transform: Transform::from_xyz(

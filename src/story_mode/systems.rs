@@ -16,7 +16,7 @@ use super::{
 
 pub fn setup_story_mode(
     mut commands: Commands,
-    mut textures: ResMut<Textures>,
+    mut game_materials: ResMut<GameMaterials>,
     base_color_materials: Res<BaseColorMaterials>,
     hud_materials: Res<HUDMaterials>,
     fonts: Res<Fonts>,
@@ -29,15 +29,17 @@ pub fn setup_story_mode(
     let player_lives = 5;
     let player_points = 0;
 
-    textures.set_map_textures(world_id);
+    game_materials.set_map_materials(world_id);
 
     // map generation //
 
     // spawn player
     let player_spawn_position = Position { y: 1, x: 1 };
     let player_penguin_tag = Penguin(0);
-    let base_material = textures.get_penguin_texture(player_penguin_tag).clone();
-    let immortal_material = textures.immortal_penguin.clone();
+    let base_material = game_materials
+        .get_penguin_material(player_penguin_tag)
+        .clone();
+    let immortal_material = game_materials.immortal_penguin.clone();
     commands
         .spawn_bundle(SpriteBundle {
             material: base_material.clone(),
@@ -166,7 +168,7 @@ pub fn setup_story_mode(
 
 pub fn story_mode_manager(
     mut commands: Commands,
-    mut textures: ResMut<Textures>,
+    mut game_materials: ResMut<GameMaterials>,
     hud_materials: Res<HUDMaterials>,
     mut story_mode_context: ResMut<StoryModeContext>,
     mut game_score: ResMut<GameScore>,
@@ -247,7 +249,7 @@ pub fn story_mode_manager(
 
                 let mob_spawn_positions = spawn_story_mode_mobs(
                     &mut commands,
-                    &textures,
+                    &game_materials,
                     story_mode_context.level,
                     *world_id,
                     *map_size,
@@ -255,7 +257,7 @@ pub fn story_mode_manager(
 
                 if let Level::BossRoom = story_mode_context.level {
                     let (boss_spawn_position, boss_penguin_tag) =
-                        spawn_story_mode_boss(&mut commands, &textures, *world_id, *map_size);
+                        spawn_story_mode_boss(&mut commands, &game_materials, *world_id, *map_size);
                     penguin_spawn_positions.push(boss_spawn_position);
                     penguin_tags.push(boss_penguin_tag);
 
@@ -296,7 +298,7 @@ pub fn story_mode_manager(
 
                 let wall_entity_reveal_groups = spawn_map(
                     &mut commands,
-                    &textures,
+                    &game_materials,
                     *map_size,
                     if let Level::BossRoom = story_mode_context.level {
                         0.0
@@ -372,7 +374,7 @@ pub fn story_mode_manager(
                                 story_mode_context.level = Level::Regular(1);
                                 *q.q2().single_mut() =
                                     hud_materials.get_background_material(*world_id).clone();
-                                textures.set_map_textures(*world_id);
+                                game_materials.set_map_materials(*world_id);
                             }
                             (Level::Regular(num), _) => {
                                 if num < 4 {
@@ -387,7 +389,7 @@ pub fn story_mode_manager(
                         let (player_entity, mut player_material, base_material, mut bomb_satchel) =
                             tmp.single_mut();
 
-                        // reset the player's texture (clears immortality animation effects)
+                        // reset the player's material (clears immortality animation effects)
                         *player_material = base_material.0.clone();
 
                         let unexploded_player_bombs = query3
@@ -511,7 +513,7 @@ pub fn finish_level(
 pub fn setup_boss_speech(
     mut commands: Commands,
     hud_materials: Res<HUDMaterials>,
-    textures: Res<Textures>,
+    game_materials: Res<GameMaterials>,
     boss_speech_script: Res<BossSpeechScript>,
     fonts: Res<Fonts>,
     query: Query<Entity, With<HUDRoot>>,
@@ -620,8 +622,8 @@ pub fn setup_boss_speech(
                                                     ),
                                                     ..Default::default()
                                                 },
-                                                material: textures
-                                                    .get_penguin_texture(
+                                                material: game_materials
+                                                    .get_penguin_material(
                                                         boss_speech_script.get_current_speaker(),
                                                     )
                                                     .clone(),
@@ -675,7 +677,7 @@ pub fn setup_boss_speech(
 pub fn boss_speech_update(
     mut commands: Commands,
     time: Res<Time>,
-    textures: Res<Textures>,
+    game_materials: Res<GameMaterials>,
     mut boss_speech_script: ResMut<BossSpeechScript>,
     boss_speech_box_entities: Res<BossSpeechBoxEntities>,
     mut keyboard_input: ResMut<Input<KeyCode>>,
@@ -691,8 +693,8 @@ pub fn boss_speech_update(
         } else if boss_speech_script.advance_script().is_ok() {
             *query2
                 .get_mut(boss_speech_box_entities.speaker_portrait)
-                .unwrap() = textures
-                .get_penguin_texture(boss_speech_script.get_current_speaker())
+                .unwrap() = game_materials
+                .get_penguin_material(boss_speech_script.get_current_speaker())
                 .clone();
         } else {
             commands

@@ -13,7 +13,7 @@ use crate::{
         components::*,
         constants::{TILE_HEIGHT, TILE_WIDTH},
         events::ExplosionEvent,
-        resources::{GameContext, HUDMaterials, MapSize, Textures, WorldID},
+        resources::{GameContext, GameMaterials, HUDMaterials, MapSize, WorldID},
         types::{Cooldown, Direction},
         utils::{get_x, get_y, init_hud, spawn_map},
     },
@@ -28,7 +28,7 @@ pub fn setup_secret_mode(
     mut commands: Commands,
     audio: Res<Audio>,
     sounds: Res<SecretModeMusic>,
-    mut textures: ResMut<Textures>,
+    mut game_materials: ResMut<GameMaterials>,
     base_color_materials: Res<BaseColorMaterials>,
     hud_materials: Res<HUDMaterials>,
     fonts: Res<Fonts>,
@@ -54,7 +54,7 @@ pub fn setup_secret_mode(
     };
 
     let world_id = WorldID(rand::thread_rng().gen_range(1..=3));
-    textures.set_map_textures(world_id);
+    game_materials.set_map_materials(world_id);
 
     // spawn HUD
     commands
@@ -189,7 +189,7 @@ pub fn setup_secret_mode(
 
 pub fn secret_mode_manager(
     mut commands: Commands,
-    textures: Res<Textures>,
+    game_materials: Res<GameMaterials>,
     mut secret_mode_context: ResMut<SecretModeContext>,
     map_size: Res<MapSize>,
     game_option_store: Res<GameOptionStore>,
@@ -204,8 +204,8 @@ pub fn secret_mode_manager(
                 y: map_size.rows as isize / 2,
                 x: 2,
             };
-            let base_material = textures.get_penguin_texture(Penguin(0)).clone();
-            let immortal_material = textures.immortal_penguin.clone();
+            let base_material = game_materials.get_penguin_material(Penguin(0)).clone();
+            let immortal_material = game_materials.immortal_penguin.clone();
             commands
                 .spawn_bundle(SpriteBundle {
                     material: base_material.clone(),
@@ -226,7 +226,7 @@ pub fn secret_mode_manager(
 
             let wall_entity_reveal_groups = spawn_map(
                 &mut commands,
-                &textures,
+                &game_materials,
                 *map_size,
                 0.0,
                 false,
@@ -260,7 +260,7 @@ pub fn secret_mode_manager(
 pub fn update_secret_mode(
     mut commands: Commands,
     time: Res<Time>,
-    textures: Res<Textures>,
+    game_materials: Res<GameMaterials>,
     fonts: Res<Fonts>,
     map_size: Res<MapSize>,
     world_id: Res<WorldID>,
@@ -326,7 +326,7 @@ pub fn update_secret_mode(
                             };
                             commands
                                 .spawn_bundle(SpriteBundle {
-                                    material: textures.bomb.clone(),
+                                    material: game_materials.bomb.clone(),
                                     transform: Transform::from_xyz(
                                         get_x(position.x),
                                         get_y(position.y),
@@ -392,9 +392,9 @@ pub fn update_secret_mode(
                         *round += 1;
                         *round_progress = 0;
 
-                        let new_material = textures.get_penguin_texture(Penguin(*round));
-                        let (entity, mut color, mut base_material) = query.single_mut();
-                        *color = new_material.clone();
+                        let new_material = game_materials.get_penguin_material(Penguin(*round));
+                        let (entity, mut material, mut base_material) = query.single_mut();
+                        *material = new_material.clone();
                         *base_material = BaseMaterial(new_material.clone());
 
                         commands

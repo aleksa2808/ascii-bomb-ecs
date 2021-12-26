@@ -1,22 +1,29 @@
 use bevy::prelude::*;
 use bevy_kira_audio::AudioSource;
 
-use crate::common::constants::COLORS;
+use crate::{common::constants::COLORS, loading::resources::AssetsLoading};
 
 use super::{
     components::{Penguin, Position},
     types::{Cooldown, Direction},
 };
 
+struct MapTextures {
+    pub empty: Handle<Texture>,
+    pub wall: Handle<Texture>,
+    pub destructible_wall: Handle<Texture>,
+    pub burning_wall: Handle<Texture>,
+}
+
 #[derive(Default)]
-pub struct MapTextures {
+pub struct MapMaterials {
     pub empty: Handle<ColorMaterial>,
     pub wall: Handle<ColorMaterial>,
     pub destructible_wall: Handle<ColorMaterial>,
     pub burning_wall: Handle<ColorMaterial>,
 }
 
-pub struct Textures {
+pub struct GameMaterials {
     // players + effects
     penguin_variants: Vec<Handle<ColorMaterial>>,
     pub immortal_penguin: Handle<ColorMaterial>,
@@ -29,9 +36,9 @@ pub struct Textures {
     // bomb + fire
     pub bomb: Handle<ColorMaterial>,
     pub fire: Handle<ColorMaterial>,
-    // map textures
-    map_textures: Vec<MapTextures>,
-    map_textures_index: usize,
+    // map materials
+    map_materials: Vec<MapMaterials>,
+    map_materials_index: usize,
     // exit
     pub exit: Handle<ColorMaterial>,
     // items
@@ -42,120 +49,172 @@ pub struct Textures {
     pub bomb_push: Handle<ColorMaterial>,
     pub immortal: Handle<ColorMaterial>,
     pub burning_item: Handle<ColorMaterial>,
-    // leaderboard
-    pub trophy: Handle<ColorMaterial>,
 }
 
-impl Textures {
-    pub fn set_map_textures(&mut self, world_id: WorldID) {
-        self.map_textures_index = world_id.0 - 1;
+impl GameMaterials {
+    pub fn set_map_materials(&mut self, world_id: WorldID) {
+        self.map_materials_index = world_id.0 - 1;
     }
 
-    pub fn get_map_textures(&self) -> &MapTextures {
-        &self.map_textures[self.map_textures_index]
+    pub fn get_map_materials(&self) -> &MapMaterials {
+        &self.map_materials[self.map_materials_index]
     }
 
-    pub fn get_penguin_texture(&self, penguin: Penguin) -> &Handle<ColorMaterial> {
+    pub fn get_penguin_material(&self, penguin: Penguin) -> &Handle<ColorMaterial> {
         self.penguin_variants.iter().cycle().nth(penguin.0).unwrap()
     }
 }
 
-impl FromWorld for Textures {
+impl FromWorld for GameMaterials {
     fn from_world(world: &mut World) -> Self {
-        let mut textures = None;
-
+        // TODO: there's gotta be an easier (and less error prone) way to load textures + register them in AssetsLoading
+        let mut game_materials = None;
         world.resource_scope(|world, mut materials: Mut<Assets<ColorMaterial>>| {
             let asset_server = world.get_resource::<AssetServer>().unwrap();
-            let map_textures = (1..=3)
+
+            // load the textures
+            let map_textures: Vec<MapTextures> = (1..=3)
                 .map(|world_id| MapTextures {
-                    empty: materials.add(
-                        asset_server
-                            .load(format!("sprites/world/{}/empty.png", world_id).as_str())
-                            .into(),
-                    ),
-                    wall: materials.add(
-                        asset_server
-                            .load(format!("sprites/world/{}/wall.png", world_id).as_str())
-                            .into(),
-                    ),
-                    destructible_wall: materials.add(
-                        asset_server
-                            .load(
-                                format!("sprites/world/{}/destructible_wall.png", world_id)
-                                    .as_str(),
-                            )
-                            .into(),
-                    ),
-                    burning_wall: materials.add(
-                        asset_server
-                            .load(format!("sprites/world/{}/burning_wall.png", world_id).as_str())
-                            .into(),
-                    ),
+                    empty: asset_server
+                        .load(format!("sprites/world/{}/empty.png", world_id).as_str()),
+                    wall: asset_server
+                        .load(format!("sprites/world/{}/wall.png", world_id).as_str()),
+                    destructible_wall: asset_server
+                        .load(format!("sprites/world/{}/destructible_wall.png", world_id).as_str()),
+                    burning_wall: asset_server
+                        .load(format!("sprites/world/{}/burning_wall.png", world_id).as_str()),
                 })
                 .collect();
 
-            let penguin_variants = (0..=14)
-                .map(|i| {
-                    materials.add(
-                        asset_server
-                            .load(format!("sprites/penguins/{}.png", i).as_str())
-                            .into(),
-                    )
+            let penguin_textures: Vec<Handle<Texture>> = (0..=14)
+                .map(|i| asset_server.load(format!("sprites/penguins/{}.png", i).as_str()))
+                .collect();
+
+            let immortal_penguin_texture = asset_server.load("sprites/immortal_penguin.png");
+            let crook_texture = asset_server.load("sprites/crook.png");
+            let immortal_crook_texture = asset_server.load("sprites/immortal_crook.png");
+            let hatter_texture = asset_server.load("sprites/hatter.png");
+            let immortal_hatter_texture = asset_server.load("sprites/immortal_hatter.png");
+            let bat_texture = asset_server.load("sprites/bat.png");
+            let immortal_bat_texture = asset_server.load("sprites/immortal_bat.png");
+            let bomb_texture = asset_server.load("sprites/bomb.png");
+            let fire_texture = asset_server.load("sprites/fire.png");
+            let exit_texture = asset_server.load("sprites/exit.png");
+            let bombs_up_texture = asset_server.load("sprites/bombs_up.png");
+            let range_up_texture = asset_server.load("sprites/range_up.png");
+            let lives_up_texture = asset_server.load("sprites/lives_up.png");
+            let wall_hack_texture = asset_server.load("sprites/wall_hack.png");
+            let bomb_push_texture = asset_server.load("sprites/bomb_push.png");
+            let immortal_texture = asset_server.load("sprites/immortal.png");
+            let burning_item_texture = asset_server.load("sprites/burning_item.png");
+
+            // create materials out of the loaded textures
+            let map_materials = map_textures
+                .iter()
+                .map(|mt| MapMaterials {
+                    empty: materials.add(mt.empty.clone().into()),
+                    wall: materials.add(mt.wall.clone().into()),
+                    destructible_wall: materials.add(mt.destructible_wall.clone().into()),
+                    burning_wall: materials.add(mt.burning_wall.clone().into()),
                 })
                 .collect();
 
-            textures = Some(Textures {
+            let penguin_variants = penguin_textures
+                .iter()
+                .map(|pt| materials.add((*pt).clone().into()))
+                .collect();
+
+            game_materials = Some(GameMaterials {
                 // players + effects
                 penguin_variants,
-                immortal_penguin: materials
-                    .add(asset_server.load("sprites/immortal_penguin.png").into()),
-                crook: materials.add(asset_server.load("sprites/crook.png").into()),
-                immortal_crook: materials
-                    .add(asset_server.load("sprites/immortal_crook.png").into()),
-                hatter: materials.add(asset_server.load("sprites/hatter.png").into()),
-                immortal_hatter: materials
-                    .add(asset_server.load("sprites/immortal_hatter.png").into()),
-                bat: materials.add(asset_server.load("sprites/bat.png").into()),
-                immortal_bat: materials.add(asset_server.load("sprites/immortal_bat.png").into()),
+                immortal_penguin: materials.add(immortal_penguin_texture.clone().into()),
+                crook: materials.add(crook_texture.clone().into()),
+                immortal_crook: materials.add(immortal_crook_texture.clone().into()),
+                hatter: materials.add(hatter_texture.clone().into()),
+                immortal_hatter: materials.add(immortal_hatter_texture.clone().into()),
+                bat: materials.add(bat_texture.clone().into()),
+                immortal_bat: materials.add(immortal_bat_texture.clone().into()),
                 // bomb + fire
-                bomb: materials.add(asset_server.load("sprites/bomb.png").into()),
-                fire: materials.add(asset_server.load("sprites/fire.png").into()),
-                // map textures
-                map_textures,
-                map_textures_index: 0, // defaults to world 1
+                bomb: materials.add(bomb_texture.clone().into()),
+                fire: materials.add(fire_texture.clone().into()),
+                // map materials
+                map_materials,
+                map_materials_index: 0, // defaults to world 1
                 // exit
-                exit: materials.add(asset_server.load("sprites/exit.png").into()),
+                exit: materials.add(exit_texture.clone().into()),
                 // items
-                bombs_up: materials.add(asset_server.load("sprites/bombs_up.png").into()),
-                range_up: materials.add(asset_server.load("sprites/range_up.png").into()),
-                lives_up: materials.add(asset_server.load("sprites/lives_up.png").into()),
-                wall_hack: materials.add(asset_server.load("sprites/wall_hack.png").into()),
-                bomb_push: materials.add(asset_server.load("sprites/bomb_push.png").into()),
-                immortal: materials.add(asset_server.load("sprites/immortal.png").into()),
-                burning_item: materials.add(asset_server.load("sprites/burning_item.png").into()),
-                trophy: materials.add(asset_server.load("sprites/trophy.png").into()),
+                bombs_up: materials.add(bombs_up_texture.clone().into()),
+                range_up: materials.add(range_up_texture.clone().into()),
+                lives_up: materials.add(lives_up_texture.clone().into()),
+                wall_hack: materials.add(wall_hack_texture.clone().into()),
+                bomb_push: materials.add(bomb_push_texture.clone().into()),
+                immortal: materials.add(immortal_texture.clone().into()),
+                burning_item: materials.add(burning_item_texture.clone().into()),
             });
+
+            // register the textures in AssetsLoading
+            if let Some(mut assets_loading) = world.get_resource_mut::<AssetsLoading>() {
+                assets_loading.0.extend(map_textures.iter().flat_map(|mt| {
+                    vec![
+                        mt.empty.clone_untyped(),
+                        mt.wall.clone_untyped(),
+                        mt.destructible_wall.clone_untyped(),
+                        mt.burning_wall.clone_untyped(),
+                    ]
+                }));
+
+                assets_loading
+                    .0
+                    .extend(penguin_textures.iter().map(|pt| pt.clone_untyped()));
+
+                assets_loading.0.append(&mut vec![
+                    immortal_penguin_texture.clone_untyped(),
+                    crook_texture.clone_untyped(),
+                    immortal_crook_texture.clone_untyped(),
+                    hatter_texture.clone_untyped(),
+                    immortal_hatter_texture.clone_untyped(),
+                    bat_texture.clone_untyped(),
+                    immortal_bat_texture.clone_untyped(),
+                    bomb_texture.clone_untyped(),
+                    fire_texture.clone_untyped(),
+                    exit_texture.clone_untyped(),
+                    bombs_up_texture.clone_untyped(),
+                    range_up_texture.clone_untyped(),
+                    lives_up_texture.clone_untyped(),
+                    wall_hack_texture.clone_untyped(),
+                    bomb_push_texture.clone_untyped(),
+                    immortal_texture.clone_untyped(),
+                    burning_item_texture.clone_untyped(),
+                ]);
+            }
         });
 
-        textures.expect("Textures could not be loaded")
+        game_materials.expect("Game textures could not be loaded")
     }
 }
 
 pub struct Sounds {
     pub boom: Handle<AudioSource>,
     pub pause: Handle<AudioSource>,
-    pub what_is_f: Handle<AudioSource>,
 }
 
 impl FromWorld for Sounds {
     fn from_world(world: &mut World) -> Self {
         let asset_server = world.get_resource::<AssetServer>().unwrap();
 
-        Sounds {
+        let sounds = Sounds {
             boom: asset_server.load("sounds/boom.wav"),
             pause: asset_server.load("sounds/pause.wav"),
-            what_is_f: asset_server.load("sounds/what_is_f.ogg"),
+        };
+
+        if let Some(mut assets_loading) = world.get_resource_mut::<AssetsLoading>() {
+            assets_loading.0.append(&mut vec![
+                sounds.boom.clone_untyped(),
+                sounds.pause.clone_untyped(),
+            ]);
         }
+
+        sounds
     }
 }
 

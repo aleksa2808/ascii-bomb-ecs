@@ -18,37 +18,38 @@ use crate::{
 };
 
 pub use self::resources::BattleModeConfiguration;
-use self::systems::*;
+use self::{resources::LeaderboardMaterials, systems::*};
 
 pub struct BattleModePlugin;
 
 impl Plugin for BattleModePlugin {
     fn build(&self, app: &mut App) {
-        app.add_system_set(
-            SystemSet::on_enter(AppState::BattleMode)
-                .with_system(setup_battle_mode.exclusive_system().label(Label::Setup))
-                .with_system(resize_window.exclusive_system().after(Label::Setup))
-                .with_system(spawn_cameras.exclusive_system().after(Label::Setup)),
-        )
-        .add_system_set(
-            SystemSet::on_exit(AppState::BattleMode).with_system(teardown.exclusive_system()),
-        )
-        .add_system_set(
-            SystemSet::on_update(AppState::BattleMode)
-                .with_system(battle_mode_manager.exclusive_system()),
-        )
-        .add_system_set(
-            SystemSet::on_update(AppState::RoundStartFreeze)
-                .with_system(finish_freeze.exclusive_system()),
-        )
-        .add_system_set(
-            SystemSet::on_enter(AppState::LeaderboardDisplay)
-                .with_system(setup_leaderboard_display.exclusive_system()),
-        )
-        .add_system_set(
-            SystemSet::on_update(AppState::LeaderboardDisplay)
-                .with_system(leaderboard_display_update.exclusive_system()),
-        );
+        app.init_resource::<LeaderboardMaterials>()
+            .add_system_set(
+                SystemSet::on_enter(AppState::BattleMode)
+                    .with_system(setup_battle_mode.exclusive_system().label(Label::Setup))
+                    .with_system(resize_window.exclusive_system().after(Label::Setup))
+                    .with_system(spawn_cameras.exclusive_system().after(Label::Setup)),
+            )
+            .add_system_set(
+                SystemSet::on_exit(AppState::BattleMode).with_system(teardown.exclusive_system()),
+            )
+            .add_system_set(
+                SystemSet::on_update(AppState::BattleMode)
+                    .with_system(battle_mode_manager.exclusive_system()),
+            )
+            .add_system_set(
+                SystemSet::on_update(AppState::RoundStartFreeze)
+                    .with_system(finish_freeze.exclusive_system()),
+            )
+            .add_system_set(
+                SystemSet::on_enter(AppState::LeaderboardDisplay)
+                    .with_system(setup_leaderboard_display.exclusive_system()),
+            )
+            .add_system_set(
+                SystemSet::on_update(AppState::LeaderboardDisplay)
+                    .with_system(leaderboard_display_update.exclusive_system()),
+            );
 
         add_common_game_systems(app, AppState::BattleModeInGame);
         app.add_system_set(

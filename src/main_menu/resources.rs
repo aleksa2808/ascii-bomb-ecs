@@ -6,6 +6,7 @@ use bevy_kira_audio::AudioSource;
 use crate::{
     common::{constants::COLORS, resources::GameOption},
     game::types::BotDifficulty,
+    loading::resources::AssetsLoading,
 };
 
 pub struct MenuMaterials {
@@ -43,10 +44,19 @@ impl FromWorld for MainMenuSoundEffects {
     fn from_world(world: &mut World) -> Self {
         let asset_server = world.get_resource::<AssetServer>().unwrap();
 
-        MainMenuSoundEffects {
+        let main_menu_sound_effects = MainMenuSoundEffects {
             confirm: asset_server.load("sounds/confirm.wav"),
             select: asset_server.load("sounds/select.wav"),
+        };
+
+        if let Some(mut assets_loading) = world.get_resource_mut::<AssetsLoading>() {
+            assets_loading.0.append(&mut vec![
+                main_menu_sound_effects.confirm.clone_untyped(),
+                main_menu_sound_effects.select.clone_untyped(),
+            ]);
         }
+
+        main_menu_sound_effects
     }
 }
 

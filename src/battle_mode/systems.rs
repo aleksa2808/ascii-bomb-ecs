@@ -28,14 +28,14 @@ use super::{
 
 pub fn setup_battle_mode(
     mut commands: Commands,
-    mut textures: ResMut<Textures>,
+    mut game_materials: ResMut<GameMaterials>,
     fonts: Res<Fonts>,
     base_color_materials: Res<BaseColorMaterials>,
     hud_materials: Res<HUDMaterials>,
     battle_mode_configuration: Res<BattleModeConfiguration>,
 ) {
     let world_id = WorldID(rand::thread_rng().gen_range(1..=3));
-    textures.set_map_textures(world_id);
+    game_materials.set_map_materials(world_id);
 
     let (map_size, percent_of_passable_positions_to_fill) = get_battle_mode_map_size_fill(
         battle_mode_configuration.amount_of_players + battle_mode_configuration.amount_of_bots,
@@ -105,7 +105,7 @@ pub fn setup_battle_mode(
 
 pub fn battle_mode_manager(
     mut commands: Commands,
-    textures: Res<Textures>,
+    game_materials: Res<GameMaterials>,
     map_size: Res<MapSize>,
     mut battle_mode_context: ResMut<BattleModeContext>,
     game_option_store: Res<GameOptionStore>,
@@ -120,7 +120,7 @@ pub fn battle_mode_manager(
                 // map generation //
                 let player_spawn_positions = spawn_battle_mode_players(
                     &mut commands,
-                    &textures,
+                    &game_materials,
                     *map_size,
                     &battle_mode_context.players,
                     battle_mode_context.bot_difficulty,
@@ -128,7 +128,7 @@ pub fn battle_mode_manager(
 
                 let wall_entity_reveal_groups = spawn_map(
                     &mut commands,
-                    &textures,
+                    &game_materials,
                     *map_size,
                     battle_mode_context.percent_of_passable_positions_to_fill,
                     true,
@@ -243,7 +243,7 @@ pub fn finish_freeze(
 
 pub fn on_death_item_pinata(
     mut commands: Commands,
-    textures: Res<Textures>,
+    game_materials: Res<GameMaterials>,
     map_size: Res<MapSize>,
     game_context: Res<GameContext>,
     query: Query<
@@ -274,7 +274,7 @@ pub fn on_death_item_pinata(
             generate_item_at_position(
                 position,
                 &mut commands,
-                &textures,
+                &game_materials,
                 game_context.reduced_loot,
             );
         }
@@ -304,7 +304,8 @@ pub fn finish_round(
 pub fn setup_leaderboard_display(
     mut commands: Commands,
     base_color_materials: Res<BaseColorMaterials>,
-    textures: Res<Textures>,
+    game_materials: Res<GameMaterials>,
+    leaderboard_materials: Res<LeaderboardMaterials>,
     fonts: Res<Fonts>,
     battle_mode_context: Res<BattleModeContext>,
     windows: Res<Windows>,
@@ -403,7 +404,9 @@ pub fn setup_leaderboard_display(
                                             ),
                                             ..Default::default()
                                         },
-                                        material: textures.get_penguin_texture(*penguin).clone(),
+                                        material: game_materials
+                                            .get_penguin_material(*penguin)
+                                            .clone(),
                                         ..Default::default()
                                     })
                                     .insert(UIComponent);
@@ -428,7 +431,7 @@ pub fn setup_leaderboard_display(
                                         },
                                         ..Default::default()
                                     },
-                                    material: textures.trophy.clone(),
+                                    material: leaderboard_materials.trophy.clone(),
                                     ..Default::default()
                                 })
                                 .insert(UIComponent);

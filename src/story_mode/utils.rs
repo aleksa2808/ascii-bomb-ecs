@@ -21,7 +21,7 @@ pub fn format_hud_points(points: usize) -> String {
 
 pub fn spawn_story_mode_mobs(
     commands: &mut Commands,
-    textures: &Textures,
+    game_materials: &GameMaterials,
     level: Level,
     world_id: WorldID,
     map_size: MapSize,
@@ -62,16 +62,16 @@ pub fn spawn_story_mode_mobs(
         let (base_material, immortal_material, wall_hack, health, point_value) = if i > 3 {
             if i > 5 {
                 (
-                    textures.bat.clone(),
-                    textures.immortal_bat.clone(),
+                    game_materials.bat.clone(),
+                    game_materials.immortal_bat.clone(),
                     true,
                     3,
                     90,
                 )
             } else {
                 (
-                    textures.hatter.clone(),
-                    textures.immortal_hatter.clone(),
+                    game_materials.hatter.clone(),
+                    game_materials.immortal_hatter.clone(),
                     false,
                     2,
                     70,
@@ -79,8 +79,8 @@ pub fn spawn_story_mode_mobs(
             }
         } else {
             (
-                textures.crook.clone(),
-                textures.immortal_crook.clone(),
+                game_materials.crook.clone(),
+                game_materials.immortal_crook.clone(),
                 false,
                 1,
                 50,
@@ -129,7 +129,7 @@ pub fn spawn_story_mode_mobs(
 
 pub fn spawn_story_mode_boss(
     commands: &mut Commands,
-    textures: &Textures,
+    game_materials: &GameMaterials,
     world_id: WorldID,
     map_size: MapSize,
 ) -> (Position, Penguin) {
@@ -138,8 +138,10 @@ pub fn spawn_story_mode_boss(
         x: map_size.columns as isize / 2,
     };
     let boss_penguin_tag = Penguin(3 + world_id.0);
-    let base_material = textures.get_penguin_texture(boss_penguin_tag).clone();
-    let immortal_material = textures.immortal_penguin.clone();
+    let base_material = game_materials
+        .get_penguin_material(boss_penguin_tag)
+        .clone();
+    let immortal_material = game_materials.immortal_penguin.clone();
     commands
         .spawn_bundle(SpriteBundle {
             material: base_material.clone(),
