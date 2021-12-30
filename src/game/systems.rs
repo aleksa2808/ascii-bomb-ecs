@@ -16,7 +16,8 @@ use rand::{
 use crate::{
     common::{
         constants::{COLORS, PIXEL_SCALE},
-        resources::Fonts,
+        resources::{Fonts, InputActionStatusTracker},
+        types::InputAction,
     },
     AppState,
 };
@@ -111,23 +112,23 @@ pub fn game_timer_tick(time: Res<Time>, mut game_timer: ResMut<GameTimer>) {
     game_timer.0.tick(time.delta());
 }
 
-pub fn handle_keyboard_input(
+pub fn handle_user_input(
     audio: Res<Audio>,
     sounds: Res<Sounds>,
-    mut keyboard_input: ResMut<Input<KeyCode>>,
+    mut inputs: ResMut<InputActionStatusTracker>,
     game_context: Res<GameContext>,
     query: Query<(Entity, &HumanControlled), With<Player>>,
     mut ev_player_action: EventWriter<PlayerActionEvent>,
     mut state: ResMut<State<AppState>>,
 ) {
     for (entity, _) in query.iter().filter(|(_, hc)| hc.0 == 0) {
-        for (key_code, direction) in [
-            (KeyCode::Up, Direction::Up),
-            (KeyCode::Down, Direction::Down),
-            (KeyCode::Left, Direction::Left),
-            (KeyCode::Right, Direction::Right),
+        for (input_action, direction) in [
+            (InputAction::Up, Direction::Up),
+            (InputAction::Down, Direction::Down),
+            (InputAction::Left, Direction::Left),
+            (InputAction::Right, Direction::Right),
         ] {
-            if keyboard_input.just_pressed(key_code) {
+            if inputs.is_active(input_action) {
                 ev_player_action.send(PlayerActionEvent {
                     player: entity,
                     action: PlayerAction::Move(direction),
@@ -135,7 +136,7 @@ pub fn handle_keyboard_input(
             }
         }
 
-        if keyboard_input.just_pressed(KeyCode::Space) {
+        if inputs.is_active(InputAction::Space) {
             ev_player_action.send(PlayerActionEvent {
                 player: entity,
                 action: PlayerAction::DropBomb,
@@ -144,13 +145,13 @@ pub fn handle_keyboard_input(
     }
 
     for (entity, _) in query.iter().filter(|(_, hc)| hc.0 == 1) {
-        for (key_code, direction) in [
-            (KeyCode::W, Direction::Up),
-            (KeyCode::S, Direction::Down),
-            (KeyCode::A, Direction::Left),
-            (KeyCode::D, Direction::Right),
+        for (input_action, direction) in [
+            (InputAction::W, Direction::Up),
+            (InputAction::S, Direction::Down),
+            (InputAction::A, Direction::Left),
+            (InputAction::D, Direction::Right),
         ] {
-            if keyboard_input.just_pressed(key_code) {
+            if inputs.is_active(input_action) {
                 ev_player_action.send(PlayerActionEvent {
                     player: entity,
                     action: PlayerAction::Move(direction),
@@ -158,7 +159,7 @@ pub fn handle_keyboard_input(
             }
         }
 
-        if keyboard_input.just_pressed(KeyCode::G) {
+        if inputs.is_active(InputAction::G) {
             ev_player_action.send(PlayerActionEvent {
                 player: entity,
                 action: PlayerAction::DropBomb,
@@ -166,16 +167,16 @@ pub fn handle_keyboard_input(
         }
     }
 
-    if keyboard_input.just_pressed(KeyCode::Return) && game_context.pausable {
+    if inputs.is_active(InputAction::Return) && game_context.pausable {
         audio.stop();
         audio.play(sounds.pause.clone());
         state.push(AppState::Paused).unwrap();
-        keyboard_input.reset(KeyCode::Return);
+        inputs.clear();
     }
 
-    if keyboard_input.just_pressed(KeyCode::Escape) {
+    if inputs.is_active(InputAction::Escape) {
         state.overwrite_pop().unwrap();
-        keyboard_input.reset(KeyCode::Escape);
+        inputs.clear();
     }
 }
 
@@ -1462,20 +1463,20 @@ pub fn wall_of_death_update(
 }
 
 pub fn pop_state_on_enter(
-    mut keyboard_input: ResMut<Input<KeyCode>>,
+    mut inputs: ResMut<InputActionStatusTracker>,
     mut state: ResMut<State<AppState>>,
 ) {
-    if keyboard_input.just_pressed(KeyCode::Return) {
+    if inputs.is_active(InputAction::Return) {
         state.pop().unwrap();
-        keyboard_input.reset(KeyCode::Return);
+        inputs.clear();
     }
 }
 
 pub fn pop_state_fallthrough_on_esc(
-    keyboard_input: Res<Input<KeyCode>>,
+    inputs: Res<InputActionStatusTracker>,
     mut state: ResMut<State<AppState>>,
 ) {
-    if keyboard_input.just_pressed(KeyCode::Escape) {
+    if inputs.is_active(InputAction::Escape) {
         state.pop().unwrap();
     }
 }

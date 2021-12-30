@@ -7,7 +7,10 @@ use crate::{
     battle_mode::BattleModeConfiguration,
     common::{
         constants::{COLORS, PIXEL_SCALE},
-        resources::{Fonts, GameOption, GameOptionStore, PersistentHighScores},
+        resources::{
+            Fonts, GameOption, GameOptionStore, InputActionStatusTracker, PersistentHighScores,
+        },
+        types::InputAction,
     },
     game::types::BotDifficulty,
     AppState,
@@ -295,14 +298,14 @@ pub fn menu_navigation(
     mut menu_state: ResMut<MenuState>,
     mut game_option_store: ResMut<GameOptionStore>,
     persistent_high_scores: Res<PersistentHighScores>,
-    mut keyboard_input: ResMut<Input<KeyCode>>,
+    mut inputs: ResMut<InputActionStatusTracker>,
     mut query: Query<(Entity, &Children), With<MenuContentBox>>,
     mut query3: Query<(Entity, &Children), With<BattleModeSubMenuContentBox>>,
     mut ev_exit: EventWriter<AppExit>,
 ) {
     let mut menu_changed = false;
     if let Some(ref mut sub_menu_state) = menu_state.battle_mode_sub_menu_state {
-        if keyboard_input.just_pressed(KeyCode::Left) {
+        if inputs.is_active(InputAction::Left) {
             match sub_menu_state.step {
                 BattleModeSubMenuStep::AmountOfPlayers => sub_menu_state
                     .amount_of_actors
@@ -316,7 +319,7 @@ pub fn menu_navigation(
             menu_changed = true;
         }
 
-        if keyboard_input.just_pressed(KeyCode::Right) {
+        if inputs.is_active(InputAction::Right) {
             match sub_menu_state.step {
                 BattleModeSubMenuStep::AmountOfPlayers => sub_menu_state
                     .amount_of_actors
@@ -330,7 +333,7 @@ pub fn menu_navigation(
             menu_changed = true;
         }
 
-        if keyboard_input.just_pressed(KeyCode::Return) {
+        if inputs.is_active(InputAction::Return) || inputs.is_active(InputAction::Space) {
             match sub_menu_state.step {
                 BattleModeSubMenuStep::AmountOfPlayers => {
                     sub_menu_state.step = BattleModeSubMenuStep::AmountOfBots
@@ -351,19 +354,19 @@ pub fn menu_navigation(
 
                     menu_state.battle_mode_sub_menu_state = None;
                     state.replace(AppState::BattleMode).unwrap();
-                    keyboard_input.reset(KeyCode::Return);
+                    inputs.clear();
                     return;
                 }
             }
             menu_changed = true;
         }
 
-        if keyboard_input.just_pressed(KeyCode::Escape) {
+        if inputs.is_active(InputAction::Escape) {
             menu_state.battle_mode_sub_menu_state = None;
             menu_changed = true;
         }
     } else {
-        if keyboard_input.just_pressed(KeyCode::Return) {
+        if inputs.is_active(InputAction::Return) || inputs.is_active(InputAction::Space) {
             audio.play(sounds.confirm.clone());
             match menu_state.get_enter_action() {
                 MenuAction::SwitchMenu(menu_id) => {
@@ -372,7 +375,7 @@ pub fn menu_navigation(
                 }
                 MenuAction::LaunchStoryMode => {
                     state.replace(AppState::StoryMode).unwrap();
-                    keyboard_input.reset(KeyCode::Return);
+                    inputs.clear();
                     return;
                 }
                 MenuAction::OpenBattleModeSubMenu => {
@@ -425,11 +428,11 @@ pub fn menu_navigation(
             }
         }
 
-        if keyboard_input.just_pressed(KeyCode::Escape) && menu_state.back().is_ok() {
+        if inputs.is_active(InputAction::Escape) && menu_state.back().is_ok() {
             menu_changed = true;
         }
 
-        if keyboard_input.just_pressed(KeyCode::Down) {
+        if inputs.is_active(InputAction::Down) {
             match menu_state.get_current_menu_mut() {
                 MenuType::SelectableItems(selectable_items) => {
                     audio.play(sounds.select.clone());
@@ -445,7 +448,7 @@ pub fn menu_navigation(
             }
         }
 
-        if keyboard_input.just_pressed(KeyCode::Up) {
+        if inputs.is_active(InputAction::Up) {
             match menu_state.get_current_menu_mut() {
                 MenuType::SelectableItems(selectable_items) => {
                     audio.play(sounds.select.clone());
@@ -462,9 +465,9 @@ pub fn menu_navigation(
         }
 
         if let MenuType::ControlsScreen(_) = menu_state.get_current_menu() {
-            if keyboard_input.just_pressed(KeyCode::F) {
+            if inputs.is_active(InputAction::F) {
                 state.replace(AppState::SecretMode).unwrap();
-                keyboard_input.reset(KeyCode::F);
+                inputs.clear();
                 return;
             }
         }
@@ -504,11 +507,11 @@ pub fn menu_demo_mode_trigger(
     mut commands: Commands,
     time: Res<Time>,
     demo_mode_start_timer: Option<ResMut<DemoModeStartTimer>>,
-    keyboard_input: Res<Input<KeyCode>>,
+    inputs: Res<InputActionStatusTracker>,
     mut state: ResMut<State<AppState>>,
 ) {
     if let Some(mut demo_mode_start_timer) = demo_mode_start_timer {
-        if keyboard_input.get_just_pressed().len() > 0 {
+        if !inputs.get_active().is_empty() {
             demo_mode_start_timer.0.reset();
         } else {
             demo_mode_start_timer.0.tick(time.delta());

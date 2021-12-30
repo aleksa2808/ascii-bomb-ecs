@@ -1,11 +1,38 @@
-use std::{cmp::Reverse, collections::HashMap, fs};
+use std::{
+    cmp::Reverse,
+    collections::{HashMap, HashSet},
+    fs,
+};
 
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::loading::resources::AssetsLoading;
 
-use super::constants::COLORS;
+use super::{constants::COLORS, types::InputAction};
+
+#[derive(Default)]
+pub struct InputActionStatusTracker {
+    active_actions: HashSet<InputAction>,
+}
+
+impl InputActionStatusTracker {
+    pub fn set_active(&mut self, input_action: InputAction) {
+        self.active_actions.insert(input_action);
+    }
+
+    pub fn is_active(&self, input_action: InputAction) -> bool {
+        self.active_actions.contains(&input_action)
+    }
+
+    pub fn get_active(&self) -> &HashSet<InputAction> {
+        &self.active_actions
+    }
+
+    pub fn clear(&mut self) {
+        self.active_actions.clear();
+    }
+}
 
 pub struct BaseColorMaterials {
     pub none: Handle<ColorMaterial>,
