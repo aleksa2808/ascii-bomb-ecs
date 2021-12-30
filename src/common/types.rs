@@ -8,3 +8,21 @@ impl From<RGBColor> for Color {
         Self::rgb_u8(color.0, color.1, color.2)
     }
 }
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub enum InputAction {
+    Up,
+    Down,
+    Left,
+    Right,
+    Space,
+    W,
+    S,
+    A,
+    D,
+    G,
+    Return,
+    Escape,
+    Back,
+    F,
+}

@@ -3,227 +3,37 @@
 <head>
     <title>ascii-bomb-ecs</title>
     <link rel="shortcut icon" type="image/x-icon" href="favicon.ico">
-    <meta name="viewport" content="user-scalable=no" />
-    <style>
-        html,
-        body {
-            height: 100%;
-        }
-
-        body {
-            background-color: #111;
-            margin: 0;
-        }
-
-        .flex-container {
-            height: 100%;
-            width: 100%;
-            padding: 0;
-            margin: 0;
-            display: -webkit-box;
-            display: -moz-box;
-            display: -ms-flexbox;
-            display: -webkit-flex;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-        }
-
-        a {
-            color: white;
-            display: block;
-            font-size: 1.4rem;
-        }
-
-        .btn {
-            background: #0000bc;
-            border-bottom: 6px inset rgba(0, 0, 0, 0.5);
-            border-left: 6px inset rgba(0, 0, 0, 0.5);
-            border-right: 6px inset rgba(255, 255, 255, 0.5);
-            border-top: 6px inset rgba(255, 255, 255, 0.5);
-            box-sizing: border-box;
-            color: white;
-            cursor: pointer;
-            display: inline-block;
-            font-size: 3.5rem;
-            margin: 1rem;
-            padding: 0.5rem;
-            padding-left: 15px;
-            padding-right: 15px;
-            text-transform: uppercase;
-            width: auto;
-        }
-
-        .btn:focus {
-            background: #0000bc;
-            border-bottom: 6px inset rgba(0, 0, 0, 0.5);
-            border-left: 6px inset rgba(0, 0, 0, 0.5);
-            border-right: 6px inset rgba(255, 255, 255, 0.5);
-            border-top: 6px inset rgba(255, 255, 255, 0.5);
-            box-sizing: border-box;
-            color: white;
-            cursor: pointer;
-            display: inline-block;
-            font-size: 3.5rem;
-            margin: 1rem;
-            padding: 0.5rem;
-            padding-left: 15px;
-            padding-right: 15px;
-            text-transform: uppercase;
-            width: auto;
-        }
-
-        .btn:hover {
-            background: #0000fc;
-            border-bottom: 6px inset rgba(0, 0, 0, 0.5);
-            border-left: 6px inset rgba(0, 0, 0, 0.5);
-            border-right: 6px inset rgba(255, 255, 255, 0.5);
-            border-top: 6px inset rgba(255, 255, 255, 0.5);
-            box-sizing: border-box;
-            color: white;
-            cursor: pointer;
-            display: inline-block;
-            font-size: 3.5rem;
-            margin: 1rem;
-            padding: 0.5rem;
-            padding-left: 15px;
-            padding-right: 15px;
-            text-transform: uppercase;
-            width: auto;
-        }
-
-        .btn.grey {
-            background: #666666;
-            pointer-events: none;
-        }
-
-        canvas {
-            outline: none;
-            -webkit-tap-highlight-color: rgba(255, 255, 255, 0);
-        }
-
-        .footer {
-            position: fixed;
-            text-align: center;
-            bottom: 0px;
-            width: 100%;
-        }
-
-        [hidden] {
-            display: none !important;
-        }
-    </style>
+    <meta name="viewport" content="user-scalable=no, width=device-width" />
+    <link href="style.css" rel="stylesheet">
 </head>
 
 <body>
-    <div class="flex-container">
-        <div id="button-box">
-            <a id="button-loading" class="btn grey">Loading...</a>
-            <a id="button" class="btn" onclick="startGame()" hidden>Start game*</a>
+    <div id="button-box">
+        <a id="button-loading" class="btn grey">Loading...</a>
+        <a id="button-start" class="btn" onclick="startGame()" hidden>Start game</a>
+    </div>
+    <div id="game-container" hidden>
+        <div id="canvas-container">
+            <div id="canvas-inner-container">
+                <canvas id="bevy-canvas" tabindex="0" data-raw-handle="1" alt="bevy" cursor="auto"></canvas>
+            </div>
         </div>
-        <canvas id="bevy-canvas" tabindex="0" data-raw-handle="1" alt="bevy" cursor="auto" hidden></canvas>
+        <div id="controls">
+            <div id="dpad">
+                <a class="btn btn-small" onpointerdown="toggleFullscreen()">&#x26F6;</a>
+                <a class="btn btn-big" onpointerdown="setInputActive(0)">&#9650;</a>
+                <a class="btn btn-small" onpointerdown="setInputActive(13)">F</a>
+                <a class="btn btn-big" onpointerdown="setInputActive(2)">&#9664;</a>
+                <a class="btn btn-big" onpointerdown="setInputActive(4)">&#9679;</a>
+                <a class="btn btn-big" onpointerdown="setInputActive(3)">&#9654;</a>
+                <a class="btn btn-small" onpointerdown="setInputActive(11)">&#171;</a>
+                <a class="btn btn-big" onpointerdown="setInputActive(1)">&#9660;</a>
+                <a class="btn btn-small" onpointerdown="setInputActive(10)">&#9166;</a>
+            </div>
+        </div>
     </div>
-    <div id="footer" class="footer" hidden>
-        <a>* browsers require manual user interaction in order for audio to play</a>
-        <br />
-        <a>(also, the "error 404" you should soon see was actually the game creators' team name)</a>
-        <br />
-    </div>
-    <script type="module">
-        import init from "./ascii_bomb_ecs_lib.js";
-
-        let wasm = undefined;
-        init("./ascii_bomb_ecs_lib_bg.wasm").then(function (_wasm) {
-            wasm = _wasm;
-            wasm.run();
-        });
-
-        function startGame() {
-            document.getElementById('button-box').remove();
-            document.getElementById('footer').remove();
-            document.getElementById('bevy-canvas').removeAttribute("hidden");
-
-            wasm.start_game();
-        }
-        window.startGame = startGame
-
-        function auto_focus() {
-            let canvas = document.getElementById('bevy-canvas');
-            if (canvas.hasAttribute("hidden")) {
-                setTimeout(auto_focus, 100);
-            } else {
-                canvas.focus();
-            }
-        }
-        auto_focus();
-    </script>
-    <script>
-        // Block copied from: https://github.com/NiklasEi/bevy_game_template
-
-        // Insert hack to make sound autoplay on Chrome as soon as the user interacts with the tab:
-        // https://developers.google.com/web/updates/2018/11/web-audio-autoplay#moving-forward
-
-        // the following function keeps track of all AudioContexts and resumes them on the first user
-        // interaction with the page. If the function is called and all contexts are already running,
-        // it will remove itself from all event listeners.
-        (function () {
-            // An array of all contexts to resume on the page
-            const audioContextList = [];
-
-            // An array of various user interaction events we should listen for
-            const userInputEventNames = [
-                "click",
-                "contextmenu",
-                "auxclick",
-                "dblclick",
-                "mousedown",
-                "mouseup",
-                "pointerup",
-                "touchend",
-                "keydown",
-                "keyup",
-            ];
-
-            // A proxy object to intercept AudioContexts and
-            // add them to the array for tracking and resuming later
-            self.AudioContext = new Proxy(self.AudioContext, {
-                construct(target, args) {
-                    const result = new target(...args);
-                    audioContextList.push(result);
-                    return result;
-                },
-            });
-
-            // To resume all AudioContexts being tracked
-            function resumeAllContexts(_event) {
-                let count = 0;
-
-                audioContextList.forEach((context) => {
-                    if (context.state !== "running") {
-                        context.resume();
-                    } else {
-                        count++;
-                    }
-                });
-
-                // If all the AudioContexts have now resumed then we unbind all
-                // the event listeners from the page to prevent unnecessary resume attempts
-                // Checking count > 0 ensures that the user interaction happens AFTER the game started up
-                if (count > 0 && count === audioContextList.length) {
-                    userInputEventNames.forEach((eventName) => {
-                        document.removeEventListener(eventName, resumeAllContexts);
-                    });
-                }
-            }
-
-            // We bind the resume function for each user interaction
-            // event on the page
-            userInputEventNames.forEach((eventName) => {
-                document.addEventListener(eventName, resumeAllContexts);
-            });
-        })();
-    </script>
+    <script type="module" src="index.js"></script>
+    <script src="audio_fix.js"></script>
 </body>
 
 </html>

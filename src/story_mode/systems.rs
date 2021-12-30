@@ -3,7 +3,11 @@ use bevy::{app::Events, prelude::*, render::camera::Camera};
 use crate::{
     common::{
         constants::{COLORS, PIXEL_SCALE},
-        resources::{BaseColorMaterials, Fonts, GameOption, GameOptionStore, PersistentHighScores},
+        resources::{
+            BaseColorMaterials, Fonts, GameOption, GameOptionStore, InputActionStatusTracker,
+            PersistentHighScores,
+        },
+        types::InputAction,
     },
     game::{components::*, constants::*, events::*, resources::*, utils::*},
     map_transition::MapTransitionInput,
@@ -680,14 +684,14 @@ pub fn boss_speech_update(
     game_materials: Res<GameMaterials>,
     mut boss_speech_script: ResMut<BossSpeechScript>,
     boss_speech_box_entities: Res<BossSpeechBoxEntities>,
-    mut keyboard_input: ResMut<Input<KeyCode>>,
+    mut inputs: ResMut<InputActionStatusTracker>,
     mut state: ResMut<State<AppState>>,
     mut query: Query<&mut Text>,
     mut query2: Query<&mut Handle<ColorMaterial>>,
 ) {
     boss_speech_script.tick(time.delta());
 
-    if keyboard_input.just_pressed(KeyCode::Space) {
+    if inputs.is_active(InputAction::Space) {
         if boss_speech_script.line_in_progress() {
             boss_speech_script.complete_current_line();
         } else if boss_speech_script.advance_script().is_ok() {
@@ -705,7 +709,7 @@ pub fn boss_speech_update(
             commands.remove_resource::<BossSpeechScript>();
 
             state.pop().unwrap();
-            keyboard_input.reset(KeyCode::Space);
+            inputs.clear();
             return;
         }
     }
@@ -830,18 +834,18 @@ pub fn setup_high_score_name_input(
 pub fn high_score_name_input_update(
     mut commands: Commands,
     context: Res<HighScoreNameInputContext>,
-    mut keyboard_input: ResMut<Input<KeyCode>>,
+    mut inputs: ResMut<InputActionStatusTracker>,
     mut char_input_events: EventReader<ReceivedCharacter>,
     mut persistent_high_scores: ResMut<PersistentHighScores>,
     game_score: Res<GameScore>,
     mut query: Query<&mut Text>,
     mut state: ResMut<State<AppState>>,
 ) {
-    if keyboard_input.just_pressed(KeyCode::Escape) {
+    if inputs.is_active(InputAction::Escape) {
         persistent_high_scores.insert_score(String::from("<unnamed_player>"), game_score.0);
         commands.remove_resource::<HighScoreNameInputContext>();
         state.pop().unwrap();
-        keyboard_input.reset(KeyCode::Escape);
+        inputs.clear();
         return;
     }
 
@@ -853,11 +857,11 @@ pub fn high_score_name_input_update(
         }
     }
 
-    if keyboard_input.just_pressed(KeyCode::Back) {
+    if inputs.is_active(InputAction::Back) {
         name.pop();
     }
 
-    if keyboard_input.just_pressed(KeyCode::Return) {
+    if inputs.is_active(InputAction::Return) {
         let name = if name.is_empty() {
             String::from("<unnamed_player>")
         } else {
@@ -867,7 +871,7 @@ pub fn high_score_name_input_update(
         persistent_high_scores.insert_score(name, game_score.0);
         commands.remove_resource::<HighScoreNameInputContext>();
         state.pop().unwrap();
-        keyboard_input.reset(KeyCode::Return);
+        inputs.clear();
     }
 }
 
@@ -901,8 +905,4 @@ pub fn teardown(
     commands.remove_resource::<StoryModeContext>();
     commands.remove_resource::<GameScore>();
     commands.remove_resource::<ExitPosition>();
-}
-
-pub fn clear_keyboard_input(mut keyboard_input: ResMut<Input<KeyCode>>) {
-    keyboard_input.clear();
 }

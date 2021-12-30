@@ -65,16 +65,15 @@ pub fn run() {
     .add_plugins(DefaultPlugins)
     .add_plugin(AudioPlugin);
 
-    #[cfg(target_arch = "wasm32")]
-    app.add_plugin(bevy_webgl2::WebGL2Plugin);
-
     cfg_if::cfg_if! {
         if #[cfg(target_arch = "wasm32")] {
             app.add_state(AppState::Loading)
+                .add_plugin(bevy_webgl2::WebGL2Plugin)
                 .add_plugin(LoadingPlugin {
                     loading_state: AppState::Loading,
                     next_state: AppState::WebReadyToStart,
                 })
+                .add_system(handle_web_input.exclusive_system().label(crate::common::Label::InputMapping))
                 .add_system_set(
                     SystemSet::on_enter(AppState::WebReadyToStart).with_system(web_ready_to_start_enter),
                 )
