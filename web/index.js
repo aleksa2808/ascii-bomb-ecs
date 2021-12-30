@@ -3,8 +3,17 @@ import init from "./ascii_bomb_ecs_lib.js";
 let wasm = undefined;
 init("./ascii_bomb_ecs_lib_bg.wasm").then(function (_wasm) {
     wasm = _wasm;
-    // TODO: add add indication in case of failure
-    wasm.run();
+    try {
+        wasm.run();
+    } catch (e) {
+        // the winit crate throws an exception for control flow, which should be ignored
+        if (!e.message.includes("This isn't actually an error!")) {
+            console.error(e);
+            document.getElementById('button-box').remove();
+            document.getElementById('game-container').remove();
+            document.getElementById('error-screen').removeAttribute("hidden");
+        }
+    }
 });
 
 // pray that this works :-)
