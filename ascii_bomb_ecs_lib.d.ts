@@ -4,6 +4,10 @@
 */
 export function start_game(): void;
 /**
+* @param {number} input
+*/
+export function set_input_active(input: number): void;
+/**
 */
 export function run(): void;
 
@@ -12,6 +16,7 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 export interface InitOutput {
   readonly memory: WebAssembly.Memory;
   readonly start_game: () => void;
+  readonly set_input_active: (a: number) => void;
   readonly run: () => void;
   readonly __wbindgen_malloc: (a: number) => number;
   readonly __wbindgen_realloc: (a: number, b: number, c: number) => number;
