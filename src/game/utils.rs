@@ -265,13 +265,12 @@ pub fn spawn_map(
     let stone_wall_positions: HashSet<Position> =
         stone_wall_spawn_groups.iter().flatten().copied().collect();
     let mut destructible_wall_potential_positions: HashSet<Position> = (0..map_size.rows)
-        .map(|y| {
+        .flat_map(|y| {
             (0..map_size.columns).map(move |x| Position {
                 y: y as isize,
                 x: x as isize,
             })
         })
-        .flatten()
         .filter(|p| !stone_wall_positions.contains(p))
         .collect();
 

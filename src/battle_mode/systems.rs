@@ -262,13 +262,12 @@ pub fn on_death_item_pinata(
     for _ in ev_player_death_event.iter() {
         let invalid_positions: HashSet<Position> = query.iter().copied().collect();
         let valid_positions = (0..map_size.rows)
-            .map(|y| {
+            .flat_map(|y| {
                 (0..map_size.columns).map(move |x| Position {
                     y: y as isize,
                     x: x as isize,
                 })
             })
-            .flatten()
             .filter(|p| !invalid_positions.contains(p));
         for position in valid_positions.choose_multiple(&mut rand::thread_rng(), 3) {
             generate_item_at_position(
