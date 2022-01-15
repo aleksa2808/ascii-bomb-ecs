@@ -1,0 +1,56 @@
+name: Rust
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+env:
+  CARGO_TERM_COLOR: always
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    if: github.ref != 'refs/heads/master'
+    steps:
+    - name: Install ALSA dev
+      run: |
+        sudo apt-get update
+        sudo apt-get install libasound2-dev
+    - uses: actions/checkout@v2
+    - uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+    - uses: Swatinem/rust-cache@v1
+    - name: Run build
+      run: cargo build --verbose
+    - name: Run tests
+      run: cargo test --verbose
+  web_build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+    - uses: Swatinem/rust-cache@v1
+    - name: Install wasm-pack
+      run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+    - name: Run wasm-pack
+      run: wasm-pack build --target web --release
+    - name: Prepare the pkg folder
+      run: |
+        cp -r assets pkg/
+        cp web/* pkg/
+        rm pkg/wasm_callables.js
+        rm pkg/.gitignore
+    - name: Deploy to web-dev branch
+      if: github.ref != 'refs/heads/master'
+      uses: JamesIves/github-pages-deploy-action@v4.2.2
+      with:
+        branch: web-dev
+        folder: pkg
+    - name: Deploy to web branch
+      if: github.ref == 'refs/heads/master'
+      uses: JamesIves/github-pages-deploy-action@v4.2.2
+      with:
+        branch: web
+        folder: pkg
