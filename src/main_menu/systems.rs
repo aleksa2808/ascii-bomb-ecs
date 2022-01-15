@@ -22,7 +22,7 @@ use super::{
     resources::{
         BattleModeSubMenuState, BattleModeSubMenuStep, DemoModeStartTimer, MainMenuSoundEffects,
         MenuAction, MenuBackgroundAnimationContext, MenuBackgroundEntityChangeParameters,
-        MenuBackgroundEntityValues, MenuMaterials, MenuState, MenuType,
+        MenuBackgroundEntityValues, MenuColors, MenuState, MenuType,
     },
     utils::{
         spawn_battle_mode_sub_menu_content, spawn_battle_mode_sub_menu_modal, spawn_menu_type,
@@ -39,7 +39,7 @@ pub fn resize_window(mut windows: ResMut<Windows>) {
 pub fn setup_menu(
     fonts: Res<Fonts>,
     mut commands: Commands,
-    menu_materials: Res<MenuMaterials>,
+    menu_colors: Res<MenuColors>,
     menu_state: Res<MenuState>,
     game_option_store: Res<GameOptionStore>,
     persistent_high_scores: Res<PersistentHighScores>,
@@ -53,7 +53,7 @@ pub fn setup_menu(
                 size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
                 ..Default::default()
             },
-            material: menu_materials.background.clone(),
+            color: menu_colors.background_color.into(),
             ..Default::default()
         })
         .with_children(|parent| {
@@ -206,7 +206,7 @@ __██__
                         },
                         ..Default::default()
                     },
-                    material: menu_materials.modal_foreground.clone(),
+                    color: menu_colors.modal_foreground_color.into(),
                     ..Default::default()
                 })
                 .with_children(|parent| {
@@ -238,7 +238,7 @@ __██__
                             TextStyle {
                                 font: fonts.mono.clone(),
                                 font_size: 2.0 * PIXEL_SCALE as f32,
-                                color: menu_materials.modal_background_color,
+                                color: menu_colors.modal_background_color,
                             },
                             TextAlignment::default(),
                         ),
@@ -261,7 +261,7 @@ __██__
                                 size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
                                 ..Default::default()
                             },
-                            material: menu_materials.modal_background.clone(),
+                            color: menu_colors.modal_background_color.into(),
                             ..Default::default()
                         })
                         .insert(MenuContentBox)
@@ -270,7 +270,7 @@ __██__
                                 parent,
                                 menu_state.get_current_menu(),
                                 &fonts,
-                                &menu_materials,
+                                &menu_colors,
                                 &game_option_store,
                                 persistent_high_scores.get_raw_scores(),
                             );
@@ -293,7 +293,7 @@ pub fn menu_navigation(
     audio: Res<Audio>,
     sounds: Res<MainMenuSoundEffects>,
     fonts: Res<Fonts>,
-    menu_materials: Res<MenuMaterials>,
+    menu_colors: Res<MenuColors>,
     mut state: ResMut<State<AppState>>,
     mut menu_state: ResMut<MenuState>,
     mut game_option_store: ResMut<GameOptionStore>,
@@ -385,7 +385,7 @@ pub fn menu_navigation(
                             parent,
                             &sub_menu_state,
                             &fonts,
-                            &menu_materials,
+                            &menu_colors,
                         );
                     });
                     menu_state.battle_mode_sub_menu_state = Some(sub_menu_state);
@@ -481,7 +481,7 @@ pub fn menu_navigation(
                 commands.entity(*child).despawn_recursive();
             }
             commands.entity(entity).with_children(|parent| {
-                spawn_battle_mode_sub_menu_content(parent, sub_menu_state, &fonts, &menu_materials);
+                spawn_battle_mode_sub_menu_content(parent, sub_menu_state, &fonts, &menu_colors);
             });
         } else {
             // refresh main menu
@@ -494,7 +494,7 @@ pub fn menu_navigation(
                     parent,
                     menu_state.get_current_menu(),
                     &fonts,
-                    &menu_materials,
+                    &menu_colors,
                     &game_option_store,
                     persistent_high_scores.get_raw_scores(),
                 );

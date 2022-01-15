@@ -166,8 +166,8 @@ pub struct GamePlugin;
 
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<HUDMaterials>()
-            .init_resource::<GameMaterials>()
+        app.init_resource::<HUDColors>()
+            .init_resource::<GameTextures>()
             .init_resource::<Sounds>()
             .add_event::<PlayerActionEvent>()
             .add_event::<ExplosionEvent>()

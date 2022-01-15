@@ -80,9 +80,9 @@ pub struct Health {
 }
 
 #[derive(Component)]
-pub struct BaseMaterial(pub Handle<ColorMaterial>);
+pub struct BaseTexture(pub Handle<Image>);
 #[derive(Component)]
-pub struct ImmortalMaterial(pub Handle<ColorMaterial>);
+pub struct ImmortalTexture(pub Handle<Image>);
 
 #[derive(Clone, Component)]
 pub struct Bomb {

@@ -12,7 +12,7 @@ use super::types::PenguinControlType;
 
 pub fn spawn_battle_mode_players(
     commands: &mut Commands,
-    game_materials: &GameMaterials,
+    game_textures: &GameTextures,
     map_size: MapSize,
     players: &[(Penguin, PenguinControlType)],
     bot_difficulty: BotDifficulty,
@@ -39,21 +39,24 @@ pub fn spawn_battle_mode_players(
 
     let mut spawn_player = |penguin_tag: Penguin, penguin_control_type: PenguinControlType| {
         let player_spawn_position = possible_player_spawn_positions.next().unwrap();
-        let base_material = game_materials.get_penguin_material(penguin_tag).clone();
-        let immortal_material = game_materials.immortal_penguin.clone();
+        let base_texture = game_textures.get_penguin_texture(penguin_tag).clone();
+        let immortal_texture = game_textures.immortal_penguin.clone();
         let mut entity_commands = commands.spawn_bundle(SpriteBundle {
-            material: base_material.clone(),
+            texture: base_texture.clone(),
             transform: Transform::from_xyz(
                 get_x(player_spawn_position.x),
                 get_y(player_spawn_position.y),
                 50.0,
             ),
-            sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+            sprite: Sprite {
+                custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+                ..Default::default()
+            },
             ..Default::default()
         });
         entity_commands
-            .insert(BaseMaterial(base_material))
-            .insert(ImmortalMaterial(immortal_material))
+            .insert(BaseTexture(base_texture))
+            .insert(ImmortalTexture(immortal_texture))
             .insert(Player)
             .insert(penguin_tag)
             .insert(Health {

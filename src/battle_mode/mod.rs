@@ -18,13 +18,13 @@ use crate::{
 };
 
 pub use self::resources::BattleModeConfiguration;
-use self::{resources::LeaderboardMaterials, systems::*};
+use self::{resources::LeaderboardTextures, systems::*};
 
 pub struct BattleModePlugin;
 
 impl Plugin for BattleModePlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<LeaderboardMaterials>()
+        app.init_resource::<LeaderboardTextures>()
             .add_system_set(
                 SystemSet::on_enter(AppState::BattleMode)
                     .with_system(setup_battle_mode.exclusive_system().label(Label::Setup))

@@ -4,8 +4,7 @@ use crate::{
     common::{
         constants::{COLORS, PIXEL_SCALE},
         resources::{
-            BaseColorMaterials, Fonts, GameOption, GameOptionStore, InputActionStatusTracker,
-            PersistentHighScores,
+            Fonts, GameOption, GameOptionStore, InputActionStatusTracker, PersistentHighScores,
         },
         types::InputAction,
     },
@@ -20,9 +19,8 @@ use super::{
 
 pub fn setup_story_mode(
     mut commands: Commands,
-    mut game_materials: ResMut<GameMaterials>,
-    base_color_materials: Res<BaseColorMaterials>,
-    hud_materials: Res<HUDMaterials>,
+    mut game_textures: ResMut<GameTextures>,
+    hud_colors: Res<HUDColors>,
     fonts: Res<Fonts>,
 ) {
     let map_size = MapSize {
@@ -33,30 +31,33 @@ pub fn setup_story_mode(
     let player_lives = 5;
     let player_points = 0;
 
-    game_materials.set_map_materials(world_id);
+    game_textures.set_map_textures(world_id);
 
     // map generation //
 
     // spawn player
     let player_spawn_position = Position { y: 1, x: 1 };
     let player_penguin_tag = Penguin(0);
-    let base_material = game_materials
-        .get_penguin_material(player_penguin_tag)
+    let base_texture = game_textures
+        .get_penguin_texture(player_penguin_tag)
         .clone();
-    let immortal_material = game_materials.immortal_penguin.clone();
+    let immortal_texture = game_textures.immortal_penguin.clone();
     commands
         .spawn_bundle(SpriteBundle {
-            material: base_material.clone(),
+            texture: base_texture.clone(),
             transform: Transform::from_xyz(
                 get_x(player_spawn_position.x),
                 get_y(player_spawn_position.y),
                 50.0,
             ),
-            sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+            sprite: Sprite {
+                custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+                ..Default::default()
+            },
             ..Default::default()
         })
-        .insert(BaseMaterial(base_material))
-        .insert(ImmortalMaterial(immortal_material))
+        .insert(BaseTexture(base_texture))
+        .insert(ImmortalTexture(immortal_texture))
         .insert(Player)
         .insert(Protagonist)
         .insert(HumanControlled(0))
@@ -81,7 +82,7 @@ pub fn setup_story_mode(
                 size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
                 ..Default::default()
             },
-            material: base_color_materials.none.clone(),
+            color: Color::NONE.into(),
             ..Default::default()
         })
         .insert(UIRoot)
@@ -89,7 +90,7 @@ pub fn setup_story_mode(
         .with_children(|parent| {
             init_hud(
                 parent,
-                &hud_materials,
+                &hud_colors,
                 &fonts,
                 (map_size.columns * TILE_WIDTH) as f32,
                 world_id,
@@ -172,8 +173,8 @@ pub fn setup_story_mode(
 
 pub fn story_mode_manager(
     mut commands: Commands,
-    mut game_materials: ResMut<GameMaterials>,
-    hud_materials: Res<HUDMaterials>,
+    mut game_textures: ResMut<GameTextures>,
+    hud_colors: Res<HUDColors>,
     mut story_mode_context: ResMut<StoryModeContext>,
     mut game_score: ResMut<GameScore>,
     mut game_timer: ResMut<GameTimer>,
@@ -184,12 +185,7 @@ pub fn story_mode_manager(
     mut state: ResMut<State<AppState>>,
     mut q: QuerySet<(
         QueryState<
-            (
-                Entity,
-                &mut Handle<ColorMaterial>,
-                &BaseMaterial,
-                &mut BombSatchel,
-            ),
+            (Entity, &mut Handle<Image>, &BaseTexture, &mut BombSatchel),
             (With<Player>, With<Protagonist>),
         >,
         // doesn't need to be in here, but putting it outside throws errors (possibly because of too many arguments)
@@ -204,7 +200,7 @@ pub fn story_mode_manager(
             ),
             (With<Player>, With<Protagonist>),
         >,
-        QueryState<&mut Handle<ColorMaterial>, With<HUDRoot>>,
+        QueryState<&mut UiColor, With<HUDRoot>>,
     )>,
     mut q2: QuerySet<(
         QueryState<&mut Text, With<BottomLeftDisplay2>>,
@@ -253,7 +249,7 @@ pub fn story_mode_manager(
 
                 let mob_spawn_positions = spawn_story_mode_mobs(
                     &mut commands,
-                    &game_materials,
+                    &game_textures,
                     story_mode_context.level,
                     *world_id,
                     *map_size,
@@ -261,7 +257,7 @@ pub fn story_mode_manager(
 
                 if let Level::BossRoom = story_mode_context.level {
                     let (boss_spawn_position, boss_penguin_tag) =
-                        spawn_story_mode_boss(&mut commands, &game_materials, *world_id, *map_size);
+                        spawn_story_mode_boss(&mut commands, &game_textures, *world_id, *map_size);
                     penguin_spawn_positions.push(boss_spawn_position);
                     penguin_tags.push(boss_penguin_tag);
 
@@ -302,7 +298,7 @@ pub fn story_mode_manager(
 
                 let wall_entity_reveal_groups = spawn_map(
                     &mut commands,
-                    &game_materials,
+                    &game_textures,
                     *map_size,
                     if let Level::BossRoom = story_mode_context.level {
                         0.0
@@ -377,8 +373,8 @@ pub fn story_mode_manager(
                                 world_id.0 += 1;
                                 story_mode_context.level = Level::Regular(1);
                                 *q.q2().single_mut() =
-                                    hud_materials.get_background_material(*world_id).clone();
-                                game_materials.set_map_materials(*world_id);
+                                    hud_colors.get_background_color(*world_id).into();
+                                game_textures.set_map_textures(*world_id);
                             }
                             (Level::Regular(num), _) => {
                                 if num < 4 {
@@ -390,11 +386,11 @@ pub fn story_mode_manager(
                         };
 
                         let mut tmp = q.q0();
-                        let (player_entity, mut player_material, base_material, mut bomb_satchel) =
+                        let (player_entity, mut player_texture, base_texture, mut bomb_satchel) =
                             tmp.single_mut();
 
-                        // reset the player's material (clears immortality animation effects)
-                        *player_material = base_material.0.clone();
+                        // reset the player's texture (clears immortality animation effects)
+                        *player_texture = base_texture.0.clone();
 
                         let unexploded_player_bombs = query3
                             .iter()
@@ -516,8 +512,8 @@ pub fn finish_level(
 
 pub fn setup_boss_speech(
     mut commands: Commands,
-    hud_materials: Res<HUDMaterials>,
-    game_materials: Res<GameMaterials>,
+    hud_colors: Res<HUDColors>,
+    game_textures: Res<GameTextures>,
     boss_speech_script: Res<BossSpeechScript>,
     fonts: Res<Fonts>,
     query: Query<Entity, With<HUDRoot>>,
@@ -540,7 +536,7 @@ pub fn setup_boss_speech(
                         },
                         ..Default::default()
                     },
-                    material: hud_materials.black.clone(),
+                    color: hud_colors.black_color.into(),
                     ..Default::default()
                 })
                 .insert(UIComponent)
@@ -600,7 +596,7 @@ pub fn setup_boss_speech(
                                 },
                                 ..Default::default()
                             },
-                            material: hud_materials.portrait_border_color.clone(),
+                            color: hud_colors.portrait_border_color.into(),
                             ..Default::default()
                         })
                         .insert(UIComponent)
@@ -611,7 +607,7 @@ pub fn setup_boss_speech(
                                         size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
                                         ..Default::default()
                                     },
-                                    material: hud_materials.portrait_background_color.clone(),
+                                    color: hud_colors.portrait_background_color.into(),
                                     ..Default::default()
                                 })
                                 .insert(UIComponent)
@@ -626,11 +622,12 @@ pub fn setup_boss_speech(
                                                     ),
                                                     ..Default::default()
                                                 },
-                                                material: game_materials
-                                                    .get_penguin_material(
+                                                image: game_textures
+                                                    .get_penguin_texture(
                                                         boss_speech_script.get_current_speaker(),
                                                     )
-                                                    .clone(),
+                                                    .clone()
+                                                    .into(),
                                                 ..Default::default()
                                             })
                                             .insert(UIComponent)
@@ -681,13 +678,13 @@ pub fn setup_boss_speech(
 pub fn boss_speech_update(
     mut commands: Commands,
     time: Res<Time>,
-    game_materials: Res<GameMaterials>,
+    game_textures: Res<GameTextures>,
     mut boss_speech_script: ResMut<BossSpeechScript>,
     boss_speech_box_entities: Res<BossSpeechBoxEntities>,
     mut inputs: ResMut<InputActionStatusTracker>,
     mut state: ResMut<State<AppState>>,
     mut query: Query<&mut Text>,
-    mut query2: Query<&mut Handle<ColorMaterial>>,
+    mut query2: Query<&mut Handle<Image>>,
 ) {
     boss_speech_script.tick(time.delta());
 
@@ -697,8 +694,8 @@ pub fn boss_speech_update(
         } else if boss_speech_script.advance_script().is_ok() {
             *query2
                 .get_mut(boss_speech_box_entities.speaker_portrait)
-                .unwrap() = game_materials
-                .get_penguin_material(boss_speech_script.get_current_speaker())
+                .unwrap() = game_textures
+                .get_penguin_texture(boss_speech_script.get_current_speaker())
                 .clone();
         } else {
             commands
@@ -723,7 +720,7 @@ pub fn boss_speech_update(
 
 pub fn setup_high_score_name_input(
     mut commands: Commands,
-    hud_materials: Res<HUDMaterials>,
+    hud_colors: Res<HUDColors>,
     fonts: Res<Fonts>,
     query: Query<Entity, With<UIRoot>>,
     map_size: Res<MapSize>,
@@ -757,7 +754,7 @@ pub fn setup_high_score_name_input(
                         },
                         ..Default::default()
                     },
-                    material: hud_materials.black.clone(),
+                    color: hud_colors.black_color.into(),
                     ..Default::default()
                 })
                 .insert(UIComponent)

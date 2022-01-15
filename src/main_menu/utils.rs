@@ -10,14 +10,14 @@ use crate::{
 
 use super::{
     components::{BattleModeSubMenuContentBox, Cursor},
-    resources::{BattleModeSubMenuState, BattleModeSubMenuStep, MenuMaterials, MenuType},
+    resources::{BattleModeSubMenuState, BattleModeSubMenuStep, MenuColors, MenuType},
 };
 
 pub fn spawn_menu_type(
     parent: &mut ChildBuilder,
     menu_type: &MenuType,
     fonts: &Fonts,
-    menu_materials: &MenuMaterials,
+    menu_colors: &MenuColors,
     game_option_store: &GameOptionStore,
     high_scores: &HighScores,
 ) {
@@ -29,7 +29,7 @@ pub fn spawn_menu_type(
                     TextStyle {
                         font: fonts.mono.clone(),
                         font_size: 2.0 * PIXEL_SCALE as f32,
-                        color: menu_materials.modal_foreground_color,
+                        color: menu_colors.modal_foreground_color,
                     },
                     TextAlignment::default(),
                 ),
@@ -53,7 +53,7 @@ pub fn spawn_menu_type(
                         TextStyle {
                             font: fonts.mono.clone(),
                             font_size: 2.0 * PIXEL_SCALE as f32,
-                            color: menu_materials.modal_foreground_color,
+                            color: menu_colors.modal_foreground_color,
                         },
                         TextAlignment::default(),
                     ),
@@ -99,7 +99,7 @@ pub fn spawn_menu_type(
                     TextStyle {
                         font: fonts.mono.clone(),
                         font_size: 2.0 * PIXEL_SCALE as f32,
-                        color: menu_materials.modal_foreground_color,
+                        color: menu_colors.modal_foreground_color,
                     },
                     TextAlignment::default(),
                 ),
@@ -123,7 +123,7 @@ pub fn spawn_menu_type(
                         TextStyle {
                             font: fonts.mono.clone(),
                             font_size: 2.0 * PIXEL_SCALE as f32,
-                            color: menu_materials.modal_foreground_color,
+                            color: menu_colors.modal_foreground_color,
                         },
                         TextAlignment::default(),
                     ),
@@ -150,7 +150,7 @@ pub fn spawn_menu_type(
                     TextStyle {
                         font: fonts.mono.clone(),
                         font_size: 2.0 * PIXEL_SCALE as f32,
-                        color: menu_materials.modal_foreground_color,
+                        color: menu_colors.modal_foreground_color,
                     },
                     TextAlignment::default(),
                 ),
@@ -182,7 +182,7 @@ pub fn spawn_menu_type(
                         },
                         ..Default::default()
                     },
-                    material: menu_materials.modal_foreground.clone(),
+                    color: menu_colors.modal_foreground_color.into(),
                     ..Default::default()
                 })
                 .with_children(|parent| {
@@ -192,7 +192,7 @@ pub fn spawn_menu_type(
                             TextStyle {
                                 font: fonts.mono.clone(),
                                 font_size: 2.0 * PIXEL_SCALE as f32,
-                                color: menu_materials.modal_background_color,
+                                color: menu_colors.modal_background_color,
                             },
                             TextAlignment::default(),
                         ),
@@ -216,7 +216,7 @@ pub fn spawn_menu_type(
                     TextStyle {
                         font: fonts.mono.clone(),
                         font_size: 2.0 * PIXEL_SCALE as f32,
-                        color: menu_materials.modal_foreground_color,
+                        color: menu_colors.modal_foreground_color,
                     },
                     TextAlignment::default(),
                 ),
@@ -248,7 +248,7 @@ pub fn spawn_menu_type(
                     TextStyle {
                         font: fonts.mono.clone(),
                         font_size: 2.0 * PIXEL_SCALE as f32,
-                        color: menu_materials.modal_foreground_color,
+                        color: menu_colors.modal_foreground_color,
                     },
                     TextAlignment::default(),
                 ),
@@ -280,7 +280,7 @@ pub fn spawn_menu_type(
                         },
                         ..Default::default()
                     },
-                    material: menu_materials.modal_foreground.clone(),
+                    color: menu_colors.modal_foreground_color.into(),
                     ..Default::default()
                 })
                 .with_children(|parent| {
@@ -290,7 +290,7 @@ pub fn spawn_menu_type(
                             TextStyle {
                                 font: fonts.mono.clone(),
                                 font_size: 2.0 * PIXEL_SCALE as f32,
-                                color: menu_materials.modal_background_color,
+                                color: menu_colors.modal_background_color,
                             },
                             TextAlignment::default(),
                         ),
@@ -314,7 +314,7 @@ pub fn spawn_battle_mode_sub_menu_modal(
     parent: &mut ChildBuilder,
     sub_menu_state: &BattleModeSubMenuState,
     fonts: &Fonts,
-    menu_materials: &MenuMaterials,
+    menu_colors: &MenuColors,
 ) {
     parent
         .spawn_bundle(NodeBundle {
@@ -337,7 +337,7 @@ pub fn spawn_battle_mode_sub_menu_modal(
                 },
                 ..Default::default()
             },
-            material: menu_materials.modal_foreground.clone(),
+            color: menu_colors.modal_foreground_color.into(),
             ..Default::default()
         })
         .with_children(|parent| {
@@ -356,7 +356,7 @@ pub fn spawn_battle_mode_sub_menu_modal(
                     TextStyle {
                         font: fonts.mono.clone(),
                         font_size: 2.0 * PIXEL_SCALE as f32,
-                        color: menu_materials.modal_background_color,
+                        color: menu_colors.modal_background_color,
                     },
                     TextAlignment::default(),
                 ),
@@ -379,17 +379,12 @@ pub fn spawn_battle_mode_sub_menu_modal(
                         size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
                         ..Default::default()
                     },
-                    material: menu_materials.modal_background.clone(),
+                    color: menu_colors.modal_background_color.into(),
                     ..Default::default()
                 })
                 .insert(BattleModeSubMenuContentBox)
                 .with_children(|parent| {
-                    spawn_battle_mode_sub_menu_content(
-                        parent,
-                        sub_menu_state,
-                        fonts,
-                        menu_materials,
-                    );
+                    spawn_battle_mode_sub_menu_content(parent, sub_menu_state, fonts, menu_colors);
                 });
         });
 }
@@ -398,7 +393,7 @@ pub fn spawn_battle_mode_sub_menu_content(
     parent: &mut ChildBuilder,
     sub_menu_state: &BattleModeSubMenuState,
     fonts: &Fonts,
-    menu_materials: &MenuMaterials,
+    menu_colors: &MenuColors,
 ) {
     parent.spawn_bundle(TextBundle {
         text: Text::with_section(
@@ -411,7 +406,7 @@ pub fn spawn_battle_mode_sub_menu_content(
             TextStyle {
                 font: fonts.mono.clone(),
                 font_size: 2.0 * PIXEL_SCALE as f32,
-                color: menu_materials.modal_foreground_color,
+                color: menu_colors.modal_foreground_color,
             },
             TextAlignment::default(),
         ),
@@ -451,7 +446,7 @@ pub fn spawn_battle_mode_sub_menu_content(
             TextStyle {
                 font: fonts.mono.clone(),
                 font_size: 2.0 * PIXEL_SCALE as f32,
-                color: menu_materials.modal_foreground_color,
+                color: menu_colors.modal_foreground_color,
             },
             TextAlignment::default(),
         ),

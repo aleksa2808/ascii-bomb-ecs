@@ -9,28 +9,18 @@ use crate::{
     loading::resources::AssetsLoading,
 };
 
-pub struct MenuMaterials {
+pub struct MenuColors {
     pub background_color: Color,
     pub modal_background_color: Color,
     pub modal_foreground_color: Color,
-    pub background: Handle<ColorMaterial>,
-    pub modal_background: Handle<ColorMaterial>,
-    pub modal_foreground: Handle<ColorMaterial>,
 }
 
-impl FromWorld for MenuMaterials {
-    fn from_world(world: &mut World) -> Self {
-        let mut materials = world.get_resource_mut::<Assets<ColorMaterial>>().unwrap();
-        let background_color: Color = COLORS[0].into();
-        let modal_background_color: Color = COLORS[8].into();
-        let modal_foreground_color: Color = COLORS[1].into();
-        MenuMaterials {
-            background_color,
-            modal_background_color,
-            modal_foreground_color,
-            background: materials.add(background_color.into()),
-            modal_background: materials.add(modal_background_color.into()),
-            modal_foreground: materials.add(modal_foreground_color.into()),
+impl Default for MenuColors {
+    fn default() -> Self {
+        Self {
+            background_color: COLORS[0].into(),
+            modal_background_color: COLORS[8].into(),
+            modal_foreground_color: COLORS[1].into(),
         }
     }
 }

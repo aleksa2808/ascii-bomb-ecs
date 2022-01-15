@@ -8,7 +8,7 @@ use bevy::{
 
 #[derive(Component)]
 pub struct SimpleOrthoProjection {
-    pub far: f32,
+    far: f32,
     aspect: f32,
     flag: bool,
     multiplier: f32,
@@ -48,6 +48,10 @@ impl CameraProjection for SimpleOrthoProjection {
 
     fn depth_calculation(&self) -> DepthCalculation {
         DepthCalculation::ZDifference
+    }
+
+    fn far(&self) -> f32 {
+        self.far
     }
 }
 

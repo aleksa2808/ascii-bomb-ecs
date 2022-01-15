@@ -7,13 +7,13 @@ use rand::Rng;
 use crate::{
     common::{
         constants::{COLORS, PIXEL_SCALE},
-        resources::{BaseColorMaterials, Fonts, GameOption, GameOptionStore},
+        resources::{Fonts, GameOption, GameOptionStore},
     },
     game::{
         components::*,
         constants::{TILE_HEIGHT, TILE_WIDTH},
         events::ExplosionEvent,
-        resources::{GameContext, GameMaterials, HUDMaterials, MapSize, WorldID},
+        resources::{GameContext, GameTextures, HUDColors, MapSize, WorldID},
         types::{Cooldown, Direction},
         utils::{get_x, get_y, init_hud, spawn_map},
     },
@@ -28,9 +28,8 @@ pub fn setup_secret_mode(
     mut commands: Commands,
     audio: Res<Audio>,
     sounds: Res<SecretModeMusic>,
-    mut game_materials: ResMut<GameMaterials>,
-    base_color_materials: Res<BaseColorMaterials>,
-    hud_materials: Res<HUDMaterials>,
+    mut game_textures: ResMut<GameTextures>,
+    hud_colors: Res<HUDColors>,
     fonts: Res<Fonts>,
 ) {
     // TODO: Audio will start playing only when the asset is loaded and decoded, which might be after
@@ -54,7 +53,7 @@ pub fn setup_secret_mode(
     };
 
     let world_id = WorldID(rand::thread_rng().gen_range(1..=3));
-    game_materials.set_map_materials(world_id);
+    game_textures.set_map_textures(world_id);
 
     // spawn HUD
     commands
@@ -63,7 +62,7 @@ pub fn setup_secret_mode(
                 size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
                 ..Default::default()
             },
-            material: base_color_materials.none.clone(),
+            color: Color::NONE.into(),
             ..Default::default()
         })
         .insert(UIRoot)
@@ -72,7 +71,7 @@ pub fn setup_secret_mode(
             let hud_width = (map_size.columns * TILE_WIDTH) as f32;
             init_hud(
                 parent,
-                &hud_materials,
+                &hud_colors,
                 &fonts,
                 hud_width,
                 world_id,
@@ -94,7 +93,7 @@ pub fn setup_secret_mode(
                                 },
                                 ..Default::default()
                             },
-                            material: hud_materials.black.clone(),
+                            color: hud_colors.black_color.into(),
                             ..Default::default()
                         })
                         .insert(UIComponent)
@@ -139,7 +138,7 @@ pub fn setup_secret_mode(
                                 },
                                 ..Default::default()
                             },
-                            material: hud_materials.black.clone(),
+                            color: hud_colors.black_color.into(),
                             ..Default::default()
                         })
                         .insert(UIComponent)
@@ -189,7 +188,7 @@ pub fn setup_secret_mode(
 
 pub fn secret_mode_manager(
     mut commands: Commands,
-    game_materials: Res<GameMaterials>,
+    game_textures: Res<GameTextures>,
     mut secret_mode_context: ResMut<SecretModeContext>,
     map_size: Res<MapSize>,
     game_option_store: Res<GameOptionStore>,
@@ -204,21 +203,24 @@ pub fn secret_mode_manager(
                 y: map_size.rows as isize / 2,
                 x: 2,
             };
-            let base_material = game_materials.get_penguin_material(Penguin(0)).clone();
-            let immortal_material = game_materials.immortal_penguin.clone();
+            let base_texture = game_textures.get_penguin_texture(Penguin(0)).clone();
+            let immortal_texture = game_textures.immortal_penguin.clone();
             commands
                 .spawn_bundle(SpriteBundle {
-                    material: base_material.clone(),
+                    texture: base_texture.clone(),
                     transform: Transform::from_xyz(
                         get_x(player_spawn_position.x),
                         get_y(player_spawn_position.y),
                         50.0,
                     ),
-                    sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+                    sprite: Sprite {
+                        custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+                        ..Default::default()
+                    },
                     ..Default::default()
                 })
-                .insert(BaseMaterial(base_material))
-                .insert(ImmortalMaterial(immortal_material))
+                .insert(BaseTexture(base_texture))
+                .insert(ImmortalTexture(immortal_texture))
                 .insert(Player)
                 .insert(HumanControlled(0))
                 .insert(player_spawn_position)
@@ -226,7 +228,7 @@ pub fn secret_mode_manager(
 
             let wall_entity_reveal_groups = spawn_map(
                 &mut commands,
-                &game_materials,
+                &game_textures,
                 *map_size,
                 0.0,
                 false,
@@ -260,7 +262,7 @@ pub fn secret_mode_manager(
 pub fn update_secret_mode(
     mut commands: Commands,
     time: Res<Time>,
-    game_materials: Res<GameMaterials>,
+    game_textures: Res<GameTextures>,
     fonts: Res<Fonts>,
     map_size: Res<MapSize>,
     world_id: Res<WorldID>,
@@ -270,7 +272,7 @@ pub fn update_secret_mode(
         QueryState<(Entity, &mut Position, &mut Transform), With<Bomb>>,
         QueryState<&Position, With<Wall>>,
     )>,
-    mut query: Query<(Entity, &mut Handle<ColorMaterial>, &mut BaseMaterial), With<Player>>,
+    mut query: Query<(Entity, &mut Handle<Image>, &mut BaseTexture), With<Player>>,
 ) {
     let pattern = secret_mode_context.pattern;
 
@@ -326,16 +328,19 @@ pub fn update_secret_mode(
                             };
                             commands
                                 .spawn_bundle(SpriteBundle {
-                                    material: game_materials.bomb.clone(),
+                                    texture: game_textures.bomb.clone(),
                                     transform: Transform::from_xyz(
                                         get_x(position.x),
                                         get_y(position.y),
                                         25.0,
                                     ),
-                                    sprite: Sprite::new(Vec2::new(
-                                        TILE_WIDTH as f32,
-                                        TILE_HEIGHT as f32,
-                                    )),
+                                    sprite: Sprite {
+                                        custom_size: Some(Vec2::new(
+                                            TILE_WIDTH as f32,
+                                            TILE_HEIGHT as f32,
+                                        )),
+                                        ..Default::default()
+                                    },
                                     ..Default::default()
                                 })
                                 .insert(Bomb {
@@ -392,10 +397,10 @@ pub fn update_secret_mode(
                         *round += 1;
                         *round_progress = 0;
 
-                        let new_material = game_materials.get_penguin_material(Penguin(*round));
-                        let (entity, mut material, mut base_material) = query.single_mut();
-                        *material = new_material.clone();
-                        *base_material = BaseMaterial(new_material.clone());
+                        let new_texture = game_textures.get_penguin_texture(Penguin(*round));
+                        let (entity, mut texture, mut base_texture) = query.single_mut();
+                        *texture = new_texture.clone();
+                        *base_texture = BaseTexture(new_texture.clone());
 
                         commands
                             .entity(entity)

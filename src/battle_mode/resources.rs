@@ -53,27 +53,24 @@ pub struct LeaderboardDisplayContext {
     pub timer: Timer,
 }
 
-pub struct LeaderboardMaterials {
-    pub trophy: Handle<ColorMaterial>,
+pub struct LeaderboardTextures {
+    pub trophy: Handle<Image>,
 }
 
-impl FromWorld for LeaderboardMaterials {
+impl FromWorld for LeaderboardTextures {
     fn from_world(world: &mut World) -> Self {
-        let mut leaderboard_materials = None;
-        world.resource_scope(|world, mut materials: Mut<Assets<ColorMaterial>>| {
-            let asset_server = world.get_resource::<AssetServer>().unwrap();
+        let asset_server = world.get_resource::<AssetServer>().unwrap();
 
-            let trophy_texture = asset_server.load("sprites/trophy.png");
+        let trophy_texture = asset_server.load("sprites/trophy.png");
 
-            leaderboard_materials = Some(LeaderboardMaterials {
-                trophy: materials.add(trophy_texture.clone().into()),
-            });
+        let leaderboard_textures = LeaderboardTextures {
+            trophy: trophy_texture.clone(),
+        };
 
-            if let Some(mut assets_loading) = world.get_resource_mut::<AssetsLoading>() {
-                assets_loading.0.push(trophy_texture.clone_untyped());
-            }
-        });
+        if let Some(mut assets_loading) = world.get_resource_mut::<AssetsLoading>() {
+            assets_loading.0.push(trophy_texture.clone_untyped());
+        }
 
-        leaderboard_materials.expect("Leaderboard textures could not be loaded")
+        leaderboard_textures
     }
 }

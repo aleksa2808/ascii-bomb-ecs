@@ -28,14 +28,13 @@ use super::{
 
 pub fn setup_battle_mode(
     mut commands: Commands,
-    mut game_materials: ResMut<GameMaterials>,
+    mut game_textures: ResMut<GameTextures>,
     fonts: Res<Fonts>,
-    base_color_materials: Res<BaseColorMaterials>,
-    hud_materials: Res<HUDMaterials>,
+    hud_colors: Res<HUDColors>,
     battle_mode_configuration: Res<BattleModeConfiguration>,
 ) {
     let world_id = WorldID(rand::thread_rng().gen_range(1..=3));
-    game_materials.set_map_materials(world_id);
+    game_textures.set_map_textures(world_id);
 
     let (map_size, percent_of_passable_positions_to_fill) = get_battle_mode_map_size_fill(
         battle_mode_configuration.amount_of_players + battle_mode_configuration.amount_of_bots,
@@ -48,7 +47,7 @@ pub fn setup_battle_mode(
                 size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
                 ..Default::default()
             },
-            material: base_color_materials.none.clone(),
+            color: Color::NONE.into(),
             ..Default::default()
         })
         .insert(UIRoot)
@@ -56,7 +55,7 @@ pub fn setup_battle_mode(
         .with_children(|parent| {
             init_hud(
                 parent,
-                &hud_materials,
+                &hud_colors,
                 &fonts,
                 (map_size.columns * TILE_WIDTH) as f32,
                 world_id,
@@ -105,7 +104,7 @@ pub fn setup_battle_mode(
 
 pub fn battle_mode_manager(
     mut commands: Commands,
-    game_materials: Res<GameMaterials>,
+    game_textures: Res<GameTextures>,
     map_size: Res<MapSize>,
     mut battle_mode_context: ResMut<BattleModeContext>,
     game_option_store: Res<GameOptionStore>,
@@ -120,7 +119,7 @@ pub fn battle_mode_manager(
                 // map generation //
                 let player_spawn_positions = spawn_battle_mode_players(
                     &mut commands,
-                    &game_materials,
+                    &game_textures,
                     *map_size,
                     &battle_mode_context.players,
                     battle_mode_context.bot_difficulty,
@@ -128,7 +127,7 @@ pub fn battle_mode_manager(
 
                 let wall_entity_reveal_groups = spawn_map(
                     &mut commands,
-                    &game_materials,
+                    &game_textures,
                     *map_size,
                     battle_mode_context.percent_of_passable_positions_to_fill,
                     true,
@@ -243,7 +242,7 @@ pub fn finish_freeze(
 
 pub fn on_death_item_pinata(
     mut commands: Commands,
-    game_materials: Res<GameMaterials>,
+    game_textures: Res<GameTextures>,
     map_size: Res<MapSize>,
     game_context: Res<GameContext>,
     query: Query<
@@ -273,7 +272,7 @@ pub fn on_death_item_pinata(
             generate_item_at_position(
                 position,
                 &mut commands,
-                &game_materials,
+                &game_textures,
                 game_context.reduced_loot,
             );
         }
@@ -302,9 +301,8 @@ pub fn finish_round(
 
 pub fn setup_leaderboard_display(
     mut commands: Commands,
-    base_color_materials: Res<BaseColorMaterials>,
-    game_materials: Res<GameMaterials>,
-    leaderboard_materials: Res<LeaderboardMaterials>,
+    game_textures: Res<GameTextures>,
+    leaderboard_textures: Res<LeaderboardTextures>,
     fonts: Res<Fonts>,
     battle_mode_context: Res<BattleModeContext>,
     windows: Res<Windows>,
@@ -327,7 +325,7 @@ pub fn setup_leaderboard_display(
                         },
                         ..Default::default()
                     },
-                    material: base_color_materials.colors[0].clone(),
+                    color: COLORS[0].into(),
                     ..Default::default()
                 })
                 .insert(UIComponent)
@@ -349,9 +347,8 @@ pub fn setup_leaderboard_display(
                                     },
                                     ..Default::default()
                                 },
-                                material: base_color_materials.colors[rand::thread_rng()
-                                    .gen_range(0..base_color_materials.colors.len())]
-                                .clone(),
+                                color: (*COLORS.iter().choose(&mut rand::thread_rng()).unwrap())
+                                    .into(),
                                 ..Default::default()
                             })
                             .insert(UIComponent);
@@ -389,7 +386,7 @@ pub fn setup_leaderboard_display(
                                     },
                                     ..Default::default()
                                 },
-                                material: base_color_materials.colors[2].clone(),
+                                color: COLORS[2].into(),
                                 ..Default::default()
                             })
                             .insert(UIComponent)
@@ -403,9 +400,10 @@ pub fn setup_leaderboard_display(
                                             ),
                                             ..Default::default()
                                         },
-                                        material: game_materials
-                                            .get_penguin_material(*penguin)
-                                            .clone(),
+                                        image: game_textures
+                                            .get_penguin_texture(*penguin)
+                                            .clone()
+                                            .into(),
                                         ..Default::default()
                                     })
                                     .insert(UIComponent);
@@ -430,7 +428,7 @@ pub fn setup_leaderboard_display(
                                         },
                                         ..Default::default()
                                     },
-                                    material: leaderboard_materials.trophy.clone(),
+                                    image: leaderboard_textures.trophy.clone().into(),
                                     ..Default::default()
                                 })
                                 .insert(UIComponent);

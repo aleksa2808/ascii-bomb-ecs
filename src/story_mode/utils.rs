@@ -21,7 +21,7 @@ pub fn format_hud_points(points: usize) -> String {
 
 pub fn spawn_story_mode_mobs(
     commands: &mut Commands,
-    game_materials: &GameMaterials,
+    game_textures: &GameTextures,
     level: Level,
     world_id: WorldID,
     map_size: MapSize,
@@ -59,19 +59,19 @@ pub fn spawn_story_mode_mobs(
 
     let mut mob_spawn_positions = vec![];
     for i in 0..mob_number {
-        let (base_material, immortal_material, wall_hack, health, point_value) = if i > 3 {
+        let (base_texture, immortal_texture, wall_hack, health, point_value) = if i > 3 {
             if i > 5 {
                 (
-                    game_materials.bat.clone(),
-                    game_materials.immortal_bat.clone(),
+                    game_textures.bat.clone(),
+                    game_textures.immortal_bat.clone(),
                     true,
                     3,
                     90,
                 )
             } else {
                 (
-                    game_materials.hatter.clone(),
-                    game_materials.immortal_hatter.clone(),
+                    game_textures.hatter.clone(),
+                    game_textures.immortal_hatter.clone(),
                     false,
                     2,
                     70,
@@ -79,8 +79,8 @@ pub fn spawn_story_mode_mobs(
             }
         } else {
             (
-                game_materials.crook.clone(),
-                game_materials.immortal_crook.clone(),
+                game_textures.crook.clone(),
+                game_textures.immortal_crook.clone(),
                 false,
                 1,
                 50,
@@ -94,17 +94,20 @@ pub fn spawn_story_mode_mobs(
         mob_spawn_positions.push(mob_spawn_position);
 
         let mut ec = commands.spawn_bundle(SpriteBundle {
-            material: base_material.clone(),
+            texture: base_texture.clone(),
             transform: Transform::from_xyz(
                 get_x(mob_spawn_position.x),
                 get_y(mob_spawn_position.y),
                 50.0,
             ),
-            sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+            sprite: Sprite {
+                custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+                ..Default::default()
+            },
             ..Default::default()
         });
-        ec.insert(BaseMaterial(base_material))
-            .insert(ImmortalMaterial(immortal_material))
+        ec.insert(BaseTexture(base_texture))
+            .insert(ImmortalTexture(immortal_texture))
             .insert(Player)
             .insert(MobAI::default())
             .insert(MoveCooldown(Cooldown::from_seconds(0.4)))
@@ -129,7 +132,7 @@ pub fn spawn_story_mode_mobs(
 
 pub fn spawn_story_mode_boss(
     commands: &mut Commands,
-    game_materials: &GameMaterials,
+    game_textures: &GameTextures,
     world_id: WorldID,
     map_size: MapSize,
 ) -> (Position, Penguin) {
@@ -138,23 +141,24 @@ pub fn spawn_story_mode_boss(
         x: map_size.columns as isize / 2,
     };
     let boss_penguin_tag = Penguin(3 + world_id.0);
-    let base_material = game_materials
-        .get_penguin_material(boss_penguin_tag)
-        .clone();
-    let immortal_material = game_materials.immortal_penguin.clone();
+    let base_texture = game_textures.get_penguin_texture(boss_penguin_tag).clone();
+    let immortal_texture = game_textures.immortal_penguin.clone();
     commands
         .spawn_bundle(SpriteBundle {
-            material: base_material.clone(),
+            texture: base_texture.clone(),
             transform: Transform::from_xyz(
                 get_x(boss_spawn_position.x),
                 get_y(boss_spawn_position.y),
                 50.0,
             ),
-            sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+            sprite: Sprite {
+                custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+                ..Default::default()
+            },
             ..Default::default()
         })
-        .insert(BaseMaterial(base_material))
-        .insert(ImmortalMaterial(immortal_material))
+        .insert(BaseTexture(base_texture))
+        .insert(ImmortalTexture(immortal_texture))
         .insert(Player)
         .insert(boss_penguin_tag)
         .insert(BotAI {

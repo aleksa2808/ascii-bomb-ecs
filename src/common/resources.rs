@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::loading::resources::AssetsLoading;
 
-use super::{constants::COLORS, types::InputAction};
+use super::types::InputAction;
 
 #[derive(Default)]
 pub struct InputActionStatusTracker {
@@ -31,28 +31,6 @@ impl InputActionStatusTracker {
 
     pub fn clear(&mut self) {
         self.active_actions.clear();
-    }
-}
-
-pub struct BaseColorMaterials {
-    pub none: Handle<ColorMaterial>,
-    pub colors: Vec<Handle<ColorMaterial>>,
-}
-
-impl FromWorld for BaseColorMaterials {
-    fn from_world(world: &mut World) -> Self {
-        let mut materials = world.get_resource_mut::<Assets<ColorMaterial>>().unwrap();
-        Self {
-            none: materials.add(Color::NONE.into()),
-            colors: COLORS
-                .iter()
-                .copied()
-                .map(|color| {
-                    let color: Color = color.into();
-                    materials.add(color.into())
-                })
-                .collect(),
-        }
     }
 }
 

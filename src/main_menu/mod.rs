@@ -3,7 +3,7 @@ use bevy::{ecs as bevy_ecs, prelude::*};
 use crate::AppState;
 
 use self::{
-    resources::{MainMenuSoundEffects, MenuMaterials, MenuState},
+    resources::{MainMenuSoundEffects, MenuColors, MenuState},
     systems::*,
 };
 
@@ -25,7 +25,7 @@ pub struct MainMenuPlugin;
 
 impl Plugin for MainMenuPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<MenuMaterials>()
+        app.init_resource::<MenuColors>()
             .init_resource::<MainMenuSoundEffects>()
             .init_resource::<MenuState>()
             .add_system_set(

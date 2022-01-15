@@ -17,7 +17,6 @@ pub struct CommonPlugin;
 impl Plugin for CommonPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<InputActionStatusTracker>()
-            .init_resource::<BaseColorMaterials>()
             .init_resource::<GameOptionStore>()
             .init_resource::<PersistentHighScores>()
             .init_resource::<Fonts>()

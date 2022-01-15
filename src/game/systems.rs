@@ -5,7 +5,10 @@ use std::{
 
 use bevy::{
     prelude::*,
-    render::camera::{Camera, VisibleEntities},
+    render::{
+        camera::{Camera, CameraPlugin, CameraProjection},
+        view::VisibleEntities,
+    },
 };
 use bevy_kira_audio::Audio;
 use rand::{
@@ -46,14 +49,14 @@ pub fn spawn_cameras(mut commands: Commands, map_size: Res<MapSize>) {
         (map_size.rows * TILE_HEIGHT) as f32,
         (map_size.columns * TILE_WIDTH) as f32,
     );
-    let cam_name = bevy::render::render_graph::base::camera::CAMERA_2D;
+    let cam_name = CameraPlugin::CAMERA_2D;
     let camera = Camera {
         name: Some(cam_name.to_string()),
         ..Default::default()
     };
 
     commands.spawn_bundle((
-        Transform::from_translation(Vec3::new(0.0, 0.0, projection.far - 0.1)),
+        Transform::from_translation(Vec3::new(0.0, 0.0, projection.far() - 0.1)),
         GlobalTransform::default(),
         VisibleEntities::default(),
         camera,
@@ -65,15 +68,15 @@ pub fn spawn_cameras(mut commands: Commands, map_size: Res<MapSize>) {
 
 pub fn setup_penguin_portraits(
     mut commands: Commands,
-    game_materials: Res<GameMaterials>,
-    hud_materials: Res<HUDMaterials>,
+    game_textures: Res<GameTextures>,
+    hud_colors: Res<HUDColors>,
     query: Query<Entity, With<PenguinPortraitDisplay>>,
     query2: Query<&Penguin>,
 ) {
     if let Ok(e) = query.get_single() {
         let penguin_tags = query2.iter().copied().collect::<Vec<Penguin>>();
         commands.entity(e).with_children(|parent| {
-            init_penguin_portraits(parent, &penguin_tags, &hud_materials, &game_materials);
+            init_penguin_portraits(parent, &penguin_tags, &hud_colors, &game_textures);
         });
     }
 }
@@ -692,7 +695,7 @@ pub fn pick_up_item(
 
 pub fn bomb_drop(
     mut commands: Commands,
-    game_materials: Res<GameMaterials>,
+    game_textures: Res<GameTextures>,
     fonts: Res<Fonts>,
     world_id: Res<WorldID>,
     mut ev_player_action: EventReader<PlayerActionEvent>,
@@ -711,9 +714,12 @@ pub fn bomb_drop(
 
                 commands
                     .spawn_bundle(SpriteBundle {
-                        material: game_materials.bomb.clone(),
+                        texture: game_textures.bomb.clone(),
                         transform: Transform::from_xyz(get_x(position.x), get_y(position.y), 25.0),
-                        sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+                        sprite: Sprite {
+                            custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+                            ..Default::default()
+                        },
                         ..Default::default()
                     })
                     .insert(Bomb {
@@ -877,7 +883,7 @@ pub fn fire_tick(mut commands: Commands, time: Res<Time>, mut query: Query<(Enti
 pub fn crumbling_tick(
     mut commands: Commands,
     time: Res<Time>,
-    game_materials: Res<GameMaterials>,
+    game_textures: Res<GameTextures>,
     game_context: Res<GameContext>,
     exit_position: Option<Res<ExitPosition>>,
     mut query: Query<(Entity, &mut Crumbling, &Position)>,
@@ -890,9 +896,12 @@ pub fn crumbling_tick(
             if matches!(exit_position, Some(ref p) if p.0 == *position) {
                 commands
                     .spawn_bundle(SpriteBundle {
-                        material: game_materials.exit.clone(),
+                        texture: game_textures.exit.clone(),
                         transform: Transform::from_xyz(get_x(position.x), get_y(position.y), 10.0),
-                        sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+                        sprite: Sprite {
+                            custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+                            ..Default::default()
+                        },
                         ..Default::default()
                     })
                     .insert(*position)
@@ -901,7 +910,7 @@ pub fn crumbling_tick(
                 generate_item_at_position(
                     *position,
                     &mut commands,
-                    &game_materials,
+                    &game_textures,
                     game_context.reduced_loot,
                 );
             }
@@ -924,7 +933,7 @@ pub fn burning_item_tick(
 
 pub fn bomb_update(
     mut commands: Commands,
-    game_materials: Res<GameMaterials>,
+    game_textures: Res<GameTextures>,
     audio: Res<Audio>,
     sounds: Res<Sounds>,
     query: Query<(Entity, &Bomb, &Position)>,
@@ -970,9 +979,12 @@ pub fn bomb_update(
         let spawn_fire = |commands: &mut Commands, position: Position| {
             commands
                 .spawn_bundle(SpriteBundle {
-                    material: game_materials.fire.clone(),
-                    transform: Transform::from_xyz(get_x(position.x), get_y(position.y), 10.0),
-                    sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+                    texture: game_textures.fire.clone(),
+                    transform: Transform::from_xyz(get_x(position.x), get_y(position.y), 5.0),
+                    sprite: Sprite {
+                        custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+                        ..Default::default()
+                    },
                     ..Default::default()
                 })
                 .insert(Fire {
@@ -1029,36 +1041,36 @@ pub fn animate_immortality(
             (
                 &Immortal,
                 &mut Timer,
-                &mut Handle<ColorMaterial>,
-                &BaseMaterial,
-                &ImmortalMaterial,
+                &mut Handle<Image>,
+                &BaseTexture,
+                &ImmortalTexture,
             ),
             With<Immortal>,
         >,
-        QueryState<(&mut Handle<ColorMaterial>, &BaseMaterial)>,
+        QueryState<(&mut Handle<Image>, &BaseTexture)>,
     )>,
     removals: RemovedComponents<Immortal>,
 ) {
     // animate currently immortal players
-    for (immortal, mut timer, mut material, base_material, immortal_material) in q.q0().iter_mut() {
+    for (immortal, mut timer, mut texture, base_texture, immortal_texture) in q.q0().iter_mut() {
         if !immortal.timer.finished() {
             timer.tick(time.delta());
             let percent_left = timer.percent_left();
             match percent_left {
                 _ if (0.5..=1.0).contains(&percent_left) => {
-                    *material = immortal_material.0.clone();
+                    *texture = immortal_texture.0.clone();
                 }
-                _ => *material = base_material.0.clone(),
+                _ => *texture = base_texture.0.clone(),
             };
         } else {
-            *material = base_material.0.clone();
+            *texture = base_texture.0.clone();
         }
     }
 
-    // revert the material of players that stopped being immortal
+    // revert the texture of players that stopped being immortal
     for entity in removals.iter() {
-        if let Ok((mut material, base_material)) = q.q1().get_mut(entity) {
-            *material = base_material.0.clone();
+        if let Ok((mut texture, base_texture)) = q.q1().get_mut(entity) {
+            *texture = base_texture.0.clone();
         }
     }
 }
@@ -1111,8 +1123,8 @@ pub fn player_damage(
         (
             Entity,
             &mut Health,
-            &mut Handle<ColorMaterial>,
-            &ImmortalMaterial,
+            &mut Handle<Image>,
+            &ImmortalTexture,
             &SpawnPosition,
             &mut Position,
             &mut Transform,
@@ -1130,8 +1142,8 @@ pub fn player_damage(
         if let Ok((
             pe,
             mut health,
-            mut material,
-            immortal_material,
+            mut texture,
+            immortal_texture,
             spawn_position,
             mut position,
             mut transform,
@@ -1184,7 +1196,7 @@ pub fn player_damage(
 
             if gain_immortality {
                 commands.entity(pe).insert_bundle(ImmortalBundle::default());
-                *material = immortal_material.0.clone();
+                *texture = immortal_texture.0.clone();
             }
         }
     }
@@ -1206,33 +1218,28 @@ pub fn bomb_burn(mut query: Query<(&mut Bomb, &Position)>, mut ev_burn: EventRea
 }
 
 pub fn destructible_wall_burn(
-    game_materials: Res<GameMaterials>,
+    game_textures: Res<GameTextures>,
     mut commands: Commands,
     mut query: Query<
-        (
-            Entity,
-            &Position,
-            &mut Handle<ColorMaterial>,
-            Option<&Crumbling>,
-        ),
+        (Entity, &Position, &mut Handle<Image>, Option<&Crumbling>),
         (With<Wall>, With<Destructible>),
     >,
     mut ev_burn: EventReader<BurnEvent>,
 ) {
     for BurnEvent { position } in ev_burn.iter() {
-        for (e, _, mut c, perishable) in query.iter_mut().filter(|(_, p, _, _)| **p == *position) {
+        for (e, _, mut t, perishable) in query.iter_mut().filter(|(_, p, _, _)| **p == *position) {
             if perishable.is_none() {
                 commands.entity(e).insert(Crumbling {
                     timer: Timer::from_seconds(0.5, false),
                 });
-                *c = game_materials.get_map_materials().burning_wall.clone();
+                *t = game_textures.get_map_textures().burning_wall.clone();
             }
         }
     }
 }
 
 pub fn item_burn(
-    game_materials: Res<GameMaterials>,
+    game_textures: Res<GameTextures>,
     mut commands: Commands,
     mut query: Query<(Entity, &Position), With<Item>>,
     mut ev_burn: EventReader<BurnEvent>,
@@ -1256,9 +1263,12 @@ pub fn item_burn(
             // burning item
             commands
                 .spawn_bundle(SpriteBundle {
-                    material: game_materials.burning_item.clone(),
+                    texture: game_textures.burning_item.clone(),
                     transform: Transform::from_xyz(get_x(position.x), get_y(position.y), 20.0),
-                    sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+                    sprite: Sprite {
+                        custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+                        ..Default::default()
+                    },
                     ..Default::default()
                 })
                 .insert(*position)
@@ -1271,7 +1281,7 @@ pub fn item_burn(
 
 pub fn exit_burn(
     time: Res<Time>,
-    game_materials: Res<GameMaterials>,
+    game_textures: Res<GameTextures>,
     mut commands: Commands,
     mut query: Query<(&Position, &mut Exit)>,
     mut ev_burn: EventReader<BurnEvent>,
@@ -1288,20 +1298,23 @@ pub fn exit_burn(
                 println!("exit burned: {:?}", position);
 
                 // spawn mob
-                let base_material = game_materials.crook.clone();
+                let base_texture = game_textures.crook.clone();
                 commands
                     .spawn_bundle(SpriteBundle {
-                        material: base_material.clone(),
+                        texture: base_texture.clone(),
                         transform: Transform::from_xyz(
                             get_x(exit_position.x),
                             get_y(exit_position.y),
                             50.0,
                         ),
-                        sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+                        sprite: Sprite {
+                            custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+                            ..Default::default()
+                        },
                         ..Default::default()
                     })
-                    .insert(BaseMaterial(base_material))
-                    .insert(ImmortalMaterial(game_materials.immortal_crook.clone()))
+                    .insert(BaseTexture(base_texture))
+                    .insert(ImmortalTexture(game_textures.immortal_crook.clone()))
                     .insert(Player)
                     .insert(MobAI::default())
                     .insert(MoveCooldown(Cooldown::from_seconds(0.4)))
@@ -1325,7 +1338,7 @@ pub fn exit_burn(
 pub fn wall_of_death_update(
     mut commands: Commands,
     time: Res<Time>,
-    game_materials: Res<GameMaterials>,
+    game_textures: Res<GameTextures>,
     mut wall_of_death: ResMut<WallOfDeath>,
     map_size: Res<MapSize>,
     query: Query<&Position, (With<Wall>, Without<Destructible>)>,
@@ -1400,9 +1413,12 @@ pub fn wall_of_death_update(
 
         commands
             .spawn_bundle(SpriteBundle {
-                material: game_materials.get_map_materials().wall.clone(),
-                transform: Transform::from_xyz(get_x(position.x), get_y(position.y), 0.0),
-                sprite: Sprite::new(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+                texture: game_textures.get_map_textures().wall.clone(),
+                transform: Transform::from_xyz(get_x(position.x), get_y(position.y), 10.0),
+                sprite: Sprite {
+                    custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+                    ..Default::default()
+                },
                 ..Default::default()
             })
             .insert(Wall)

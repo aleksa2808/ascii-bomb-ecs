@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::{
     common::{
         constants::{COLORS, PIXEL_SCALE},
-        resources::{BaseColorMaterials, Fonts},
+        resources::Fonts,
     },
     main_menu::{MENU_HEIGHT, MENU_WIDTH},
     AppState,
@@ -14,11 +14,7 @@ use super::{
     resources::{SplashScreenContext, SplashScreenTextState},
 };
 
-pub fn setup_splash_screen(
-    mut commands: Commands,
-    base_color_materials: Res<BaseColorMaterials>,
-    fonts: Res<Fonts>,
-) {
+pub fn setup_splash_screen(mut commands: Commands, fonts: Res<Fonts>) {
     commands.spawn_bundle(UiCameraBundle::default());
 
     let right_position = MENU_WIDTH - SPLASH_SCREEN_TEXT_RIGHT.len() * PIXEL_SCALE;
@@ -31,7 +27,7 @@ pub fn setup_splash_screen(
                 size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
                 ..Default::default()
             },
-            material: base_color_materials.colors[0].clone(),
+            color: COLORS[0].into(),
             ..Default::default()
         })
         .with_children(|parent| {

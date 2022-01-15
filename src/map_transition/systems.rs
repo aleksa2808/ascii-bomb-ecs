@@ -10,7 +10,8 @@ use super::resources::{MapTransitionContext, MapTransitionInput};
 pub fn setup_map_transition(
     mut commands: Commands,
     mut map_spawn_input: ResMut<MapTransitionInput>,
-    mut query: Query<&mut Visible, Or<(With<Wall>, With<Player>)>>,
+    // TODO: what's the difference between Visibility and ComputedVisibility?
+    mut query: Query<&mut Visibility, Or<(With<Wall>, With<Player>)>>,
 ) {
     // hide wall and player entities
     for mut visible in query.iter_mut() {
@@ -31,7 +32,7 @@ pub fn map_transition_update(
     time: Res<Time>,
     mut map_transition_context: ResMut<MapTransitionContext>,
     mut state: ResMut<State<AppState>>,
-    mut query: Query<&mut Visible>,
+    mut query: Query<&mut Visibility>,
 ) {
     // TODO: why is the first tick much larger? it progresses the transition further than we want
     map_transition_context.reveal_timer.tick(time.delta());
