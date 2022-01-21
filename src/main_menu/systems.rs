@@ -1,6 +1,4 @@
-use std::collections::HashMap;
-
-use bevy::{app::AppExit, prelude::*};
+use bevy::{app::AppExit, prelude::*, utils::HashMap};
 use bevy_kira_audio::Audio;
 
 use crate::{
@@ -133,7 +131,7 @@ __██__
                 8,
             );
 
-            let mut entity_change_parameters = HashMap::new();
+            let mut entity_change_parameters = HashMap::default();
 
             let mut add_text_entity_change_parameters = |y, x, modulo, threshold, v1, v2| {
                 let initial_value = String::from(v1);

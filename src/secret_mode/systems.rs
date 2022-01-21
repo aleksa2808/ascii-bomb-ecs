@@ -1,6 +1,6 @@
-use std::{collections::HashSet, time::Duration};
+use std::time::Duration;
 
-use bevy::prelude::*;
+use bevy::{prelude::*, utils::HashSet};
 use bevy_kira_audio::Audio;
 use rand::Rng;
 

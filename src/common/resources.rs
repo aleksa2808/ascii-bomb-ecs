@@ -1,10 +1,9 @@
-use std::{
-    cmp::Reverse,
-    collections::{HashMap, HashSet},
-    fs,
-};
+use std::{cmp::Reverse, fs};
 
-use bevy::prelude::*;
+use bevy::{
+    prelude::*,
+    utils::{HashMap, HashSet},
+};
 use serde::{Deserialize, Serialize};
 
 use crate::loading::resources::AssetsLoading;

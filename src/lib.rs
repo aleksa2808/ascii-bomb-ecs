@@ -60,6 +60,8 @@ pub fn run() {
         resizable: false,
         #[cfg(target_arch = "wasm32")]
         canvas: Some("#bevy-canvas".to_string()),
+        #[cfg(target_arch = "wasm32")]
+        scale_factor_override: Some(1.0),
         ..Default::default()
     })
     .add_plugins(DefaultPlugins)

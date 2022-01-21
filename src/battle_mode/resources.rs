@@ -1,6 +1,4 @@
-use std::collections::HashMap;
-
-use bevy::{core::Timer, prelude::*};
+use bevy::{core::Timer, prelude::*, utils::HashMap};
 
 use crate::{
     game::{components::Penguin, types::BotDifficulty},
