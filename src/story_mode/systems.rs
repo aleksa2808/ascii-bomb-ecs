@@ -684,7 +684,7 @@ pub fn boss_speech_update(
     mut inputs: ResMut<InputActionStatusTracker>,
     mut state: ResMut<State<AppState>>,
     mut query: Query<&mut Text>,
-    mut query2: Query<&mut Handle<Image>>,
+    mut query2: Query<&mut UiImage>,
 ) {
     boss_speech_script.tick(time.delta());
 
@@ -696,7 +696,8 @@ pub fn boss_speech_update(
                 .get_mut(boss_speech_box_entities.speaker_portrait)
                 .unwrap() = game_textures
                 .get_penguin_texture(boss_speech_script.get_current_speaker())
-                .clone();
+                .clone()
+                .into();
         } else {
             commands
                 .entity(boss_speech_box_entities.speech_box)
