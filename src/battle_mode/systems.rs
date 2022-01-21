@@ -1,6 +1,4 @@
-use std::collections::HashSet;
-
-use bevy::{app::Events, prelude::*, render::camera::Camera};
+use bevy::{app::Events, prelude::*, render::camera::Camera, utils::HashSet};
 use rand::{prelude::IteratorRandom, Rng};
 
 use crate::{

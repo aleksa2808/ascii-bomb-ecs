@@ -1,6 +1,4 @@
-use std::collections::HashSet;
-
-use bevy::prelude::Entity;
+use bevy::{prelude::Entity, utils::HashSet};
 use rand::{prelude::SliceRandom, Rng};
 
 use super::{
@@ -92,7 +90,7 @@ pub fn safe_dir(
     can_push_bombs: bool,
     moving_object_stoppers: &HashSet<Position>,
 ) -> HashSet<Direction> {
-    let mut result = HashSet::new();
+    let mut result = HashSet::default();
 
     let safe = |position| {
         safe(
@@ -175,7 +173,7 @@ pub fn detect_powers(
     map_size: MapSize,
     item_positions: &HashSet<Position>,
 ) -> HashSet<Direction> {
-    let mut result = HashSet::new();
+    let mut result = HashSet::default();
 
     let safe = |position| {
         safe(
@@ -429,7 +427,7 @@ pub fn flee(
 ) -> HashSet<Direction> {
     const ENEMY_AVOIDANCE_RANGE: usize = 2;
 
-    let mut result = HashSet::new();
+    let mut result = HashSet::default();
 
     let safe = |position| {
         safe(
@@ -511,7 +509,7 @@ pub fn hunt_players(
     let mut rng = rand::thread_rng();
     let mut minf = (map_size.rows + map_size.columns) as f32;
     let mut target = None;
-    let mut result = HashSet::new();
+    let mut result = HashSet::default();
 
     if player_positions_entities.len() > 1 {
         let enemy_positions = player_positions_entities

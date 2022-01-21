@@ -1,6 +1,4 @@
-use std::collections::HashSet;
-
-use bevy::prelude::*;
+use bevy::{prelude::*, utils::HashSet};
 use rand::{
     prelude::{IteratorRandom, SliceRandom},
     Rng,

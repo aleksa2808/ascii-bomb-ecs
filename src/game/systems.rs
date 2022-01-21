@@ -1,7 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    time::Duration,
-};
+use std::time::Duration;
 
 use bevy::{
     prelude::*,
@@ -9,6 +6,7 @@ use bevy::{
         camera::{Camera, CameraPlugin, CameraProjection},
         view::VisibleEntities,
     },
+    utils::{HashMap, HashSet},
 };
 use bevy_kira_audio::Audio;
 use rand::{
@@ -56,7 +54,7 @@ pub fn spawn_cameras(mut commands: Commands, map_size: Res<MapSize>) {
     };
 
     commands.spawn_bundle((
-        Transform::from_translation(Vec3::new(0.0, 0.0, projection.far() - 0.1)),
+        Transform::from_xyz(0.0, 0.0, projection.far() - 0.1),
         GlobalTransform::default(),
         VisibleEntities::default(),
         camera,
@@ -1136,7 +1134,7 @@ pub fn player_damage(
     mut ev_damage: EventReader<DamageEvent>,
     mut ev_player_death_event: EventWriter<PlayerDeathEvent>,
 ) {
-    let mut damaged_players = HashSet::new();
+    let mut damaged_players = HashSet::default();
 
     for DamageEvent { target } in ev_damage.iter() {
         if let Ok((
@@ -1244,7 +1242,7 @@ pub fn item_burn(
     mut query: Query<(Entity, &Position), With<Item>>,
     mut ev_burn: EventReader<BurnEvent>,
 ) {
-    let mut burned = HashSet::new();
+    let mut burned = HashSet::default();
 
     for BurnEvent { position } in ev_burn.iter() {
         for e in query

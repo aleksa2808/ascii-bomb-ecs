@@ -1,6 +1,4 @@
-use std::collections::HashMap;
-
-use bevy::prelude::*;
+use bevy::{prelude::*, utils::HashMap};
 use bevy_kira_audio::AudioSource;
 
 use crate::{
