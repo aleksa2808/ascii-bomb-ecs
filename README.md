@@ -33,7 +33,7 @@ After that the game should be accessible on `localhost:4000`.
 
 ## Bevy usage note
 
-While I am mostly satisfied with how the Bevy engine has been used in the project, a particular thing to note is the extensive usage of "exclusive systems". This has been done in order to ensure that when some system B runs after some system A, it sees ALL the world changes introduced by system A. I believe this is an antipattern, however at the time it was the most straightforward way to go since the reduced performance should not be a problem for this particular game.
+While I am mostly satisfied with how the Bevy engine has been used in the project, a particular thing to note is the extensive usage of "exclusive systems". This has been done in order to ensure that, when some system B runs after some system A, system B will see all of the world changes introduced by system A. I believe the current solution is an antipattern, however at the time it was the most straightforward one to implement since the reduced performance should not be a problem for this particular game.
 
 ## Screenshots
 
