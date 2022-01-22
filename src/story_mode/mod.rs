@@ -40,16 +40,22 @@ impl Plugin for StoryModePlugin {
                 .with_system(setup_boss_speech.exclusive_system()),
         )
         .add_system_set(
-            SystemSet::on_update(AppState::BossSpeech)
-                .with_system(boss_speech_update.exclusive_system()),
+            SystemSet::on_update(AppState::BossSpeech).with_system(
+                boss_speech_update
+                    .exclusive_system()
+                    .after(crate::common::Label::InputMapping),
+            ),
         )
         .add_system_set(
             SystemSet::on_enter(AppState::HighScoreNameInput)
                 .with_system(setup_high_score_name_input.exclusive_system()),
         )
         .add_system_set(
-            SystemSet::on_update(AppState::HighScoreNameInput)
-                .with_system(high_score_name_input_update.exclusive_system()),
+            SystemSet::on_update(AppState::HighScoreNameInput).with_system(
+                high_score_name_input_update
+                    .exclusive_system()
+                    .after(crate::common::Label::InputMapping),
+            ),
         );
 
         add_common_game_systems(app, AppState::StoryModeInGame);

@@ -41,12 +41,14 @@ impl Plugin for MainMenuPlugin {
                     .with_system(
                         menu_navigation
                             .exclusive_system()
-                            .label(MenuLabel::Navigation),
+                            .label(MenuLabel::Navigation)
+                            .after(crate::common::Label::InputMapping),
                     )
                     .with_system(
                         menu_demo_mode_trigger
                             .exclusive_system()
-                            .after(MenuLabel::Navigation),
+                            .after(MenuLabel::Navigation)
+                            .after(crate::common::Label::InputMapping),
                     )
                     .with_system(animate_menu_background.exclusive_system()),
             );
