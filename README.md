@@ -4,7 +4,9 @@ Port of the [ascii-bomb](https://github.com/aleksa2808/ascii-bomb) game in Rust.
 
 I ditched the `pdcurses` library used in the original and instead went with the [Bevy engine](https://bevyengine.org). This proved great for learning about the ECS paradigm, but it also made a [web build](https://aleksa2808.github.io/ascii-bomb-ecs/) possible!
 
-## Native build
+## Build
+
+### Native
 
 From the root folder run:
 
@@ -12,7 +14,7 @@ From the root folder run:
 cargo run --release
 ```
 
-## Web build
+### Web
 
 From the root folder run:
 
@@ -34,6 +36,10 @@ After that the game should be accessible on `localhost:4000`.
 ## Bevy usage note
 
 While I am mostly satisfied with how the Bevy engine has been used in the project, a particular thing to note is the extensive usage of "exclusive systems". This has been done in order to ensure that, when some system B runs after some system A, system B will see all of the world changes introduced by system A. I believe the current solution is an antipattern, however at the time it was the most straightforward one to implement since the reduced performance should not be a problem for this particular game.
+
+## Battle mode showcase
+
+![Battle mode gif](doc/battle_mode.gif)
 
 ## Screenshots
 
