@@ -1,4 +1,4 @@
-import * as __wbg_star0 from './snippets/ascii-bomb-ecs-de74ae6655855536/web/wasm_callables.js';
+import * as __wbg_star0 from './snippets/ascii-bomb-ecs-de74ae6655855536/src/wasm_callables.js';
 
 const lAudioContext = (typeof AudioContext !== 'undefined' ? AudioContext : (typeof webkitAudioContext !== 'undefined' ? webkitAudioContext : undefined));
 let wasm;
@@ -1631,7 +1631,7 @@ async function init(input) {
         var ret = makeMutClosure(arg0, arg1, 11366, __wbg_adapter_60);
         return addHeapObject(ret);
     };
-    imports['./snippets/ascii-bomb-ecs-de74ae6655855536/web/wasm_callables.js'] = __wbg_star0;
+    imports['./snippets/ascii-bomb-ecs-de74ae6655855536/src/wasm_callables.js'] = __wbg_star0;
 
     if (typeof input === 'string' || (typeof Request === 'function' && input instanceof Request) || (typeof URL === 'function' && input instanceof URL)) {
         input = fetch(input);
