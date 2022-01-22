@@ -29,7 +29,7 @@ pub fn set_input_active(input: u8) {
 }
 
 // callable JavaScript functions
-#[wasm_bindgen(module = "/web/wasm_callables.js")]
+#[wasm_bindgen(module = "/src/wasm_callables.js")]
 extern "C" {
     pub fn doneLoading();
 }

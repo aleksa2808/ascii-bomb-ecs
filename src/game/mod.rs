@@ -181,6 +181,8 @@ impl Plugin for GamePlugin {
             )
             .add_system_set(SystemSet::on_enter(AppState::Paused).with_system(hud_indicate_pause))
             .add_system_set(
+                // these 2 do not need to be marked as .after(InputMapping) since they
+                // are regular systems that already run after exclusive ones
                 SystemSet::on_update(AppState::Paused)
                     .with_system(pop_state_on_enter)
                     .with_system(pop_state_fallthrough_on_esc),
