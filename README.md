@@ -62,3 +62,7 @@ While I am mostly satisfied with how the Bevy engine has been used in the projec
 ![Leaderboard](doc/leaderboard.png)
 
 ![Battle mode #2](doc/battle_mode2.png)
+
+### Mobile controls
+
+![Mobile controls](doc/mobile.png)
