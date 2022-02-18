@@ -1,10 +1,10 @@
 use std::time::Duration;
 
 use bevy::{prelude::*, utils::HashSet};
-use bevy_kira_audio::Audio;
 use rand::Rng;
 
 use crate::{
+    audio::Audio,
     common::{
         constants::{COLORS, PIXEL_SCALE},
         resources::{Fonts, GameOption, GameOptionStore},
@@ -35,7 +35,7 @@ pub fn setup_secret_mode(
     // TODO: Audio will start playing only when the asset is loaded and decoded, which might be after
     // the mode is finished. However, waiting for it to load is VERY slow in debug builds, so there needs
     // to be a more granular loading wait implemented before the states that need certain assets.
-    audio.play_looped(sounds.what_is_f.clone());
+    audio.play_looped(sounds.what_is_f);
 
     const PATTERN: &str = r#"
 *              *                  *****       ********************************************

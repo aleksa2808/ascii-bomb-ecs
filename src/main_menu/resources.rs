@@ -1,7 +1,7 @@
 use bevy::{prelude::*, utils::HashMap};
-use bevy_kira_audio::AudioSource;
 
 use crate::{
+    audio::{SoundHandles, SoundID},
     common::{constants::COLORS, resources::GameOption},
     game::types::BotDifficulty,
     loading::resources::AssetsLoading,
@@ -24,27 +24,29 @@ impl Default for MenuColors {
 }
 
 pub struct MainMenuSoundEffects {
-    pub confirm: Handle<AudioSource>,
-    pub select: Handle<AudioSource>,
+    pub confirm: SoundID,
+    pub select: SoundID,
 }
 
 impl FromWorld for MainMenuSoundEffects {
     fn from_world(world: &mut World) -> Self {
         let asset_server = world.get_resource::<AssetServer>().unwrap();
 
-        let main_menu_sound_effects = MainMenuSoundEffects {
-            confirm: asset_server.load("sounds/confirm.wav"),
-            select: asset_server.load("sounds/select.wav"),
-        };
+        let confirm_handle = asset_server.load("sounds/confirm.wav");
+        let select_handle = asset_server.load("sounds/select.wav");
 
         if let Some(mut assets_loading) = world.get_resource_mut::<AssetsLoading>() {
             assets_loading.0.append(&mut vec![
-                main_menu_sound_effects.confirm.clone_untyped(),
-                main_menu_sound_effects.select.clone_untyped(),
+                confirm_handle.clone_untyped(),
+                select_handle.clone_untyped(),
             ]);
         }
 
-        main_menu_sound_effects
+        let mut sound_handles = world.get_resource_mut::<SoundHandles>().unwrap();
+        Self {
+            confirm: sound_handles.add_handle(confirm_handle),
+            select: sound_handles.add_handle(select_handle),
+        }
     }
 }
 

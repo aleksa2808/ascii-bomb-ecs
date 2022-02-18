@@ -1,27 +1,29 @@
 use bevy::{core::Timer, prelude::*};
-use bevy_kira_audio::AudioSource;
 
-use crate::{game::types::Cooldown, loading::resources::AssetsLoading};
+use crate::{
+    audio::{SoundHandles, SoundID},
+    game::types::Cooldown,
+    loading::resources::AssetsLoading,
+};
 
 pub struct SecretModeMusic {
-    pub what_is_f: Handle<AudioSource>,
+    pub what_is_f: SoundID,
 }
 
 impl FromWorld for SecretModeMusic {
     fn from_world(world: &mut World) -> Self {
         let asset_server = world.get_resource::<AssetServer>().unwrap();
 
-        let secret_mode_music = SecretModeMusic {
-            what_is_f: asset_server.load("sounds/what_is_f.ogg"),
-        };
+        let what_is_f_handle = asset_server.load("sounds/what_is_f.ogg");
 
         if let Some(mut assets_loading) = world.get_resource_mut::<AssetsLoading>() {
-            assets_loading
-                .0
-                .push(secret_mode_music.what_is_f.clone_untyped());
+            assets_loading.0.push(what_is_f_handle.clone_untyped());
         }
 
-        secret_mode_music
+        let mut sound_handles = world.get_resource_mut::<SoundHandles>().unwrap();
+        SecretModeMusic {
+            what_is_f: sound_handles.add_handle(what_is_f_handle),
+        }
     }
 }
 

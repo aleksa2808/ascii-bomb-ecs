@@ -1,7 +1,6 @@
 use bevy::prelude::*;
-use bevy_kira_audio::Audio;
 
-use crate::common::types::InputAction;
+use crate::{audio::Audio, common::types::InputAction};
 
 use super::resources::{GameOption, GameOptionStore, InputActionStatusTracker};
 

@@ -1,7 +1,7 @@
 use bevy::{app::AppExit, prelude::*, utils::HashMap};
-use bevy_kira_audio::Audio;
 
 use crate::{
+    audio::Audio,
     battle_mode::BattleModeConfiguration,
     common::{
         constants::{COLORS, PIXEL_SCALE},
@@ -365,7 +365,7 @@ pub fn menu_navigation(
         }
     } else {
         if inputs.is_active(InputAction::Return) || inputs.is_active(InputAction::Space) {
-            audio.play(sounds.confirm.clone());
+            audio.play(sounds.confirm);
             match menu_state.get_enter_action() {
                 MenuAction::SwitchMenu(menu_id) => {
                     menu_state.switch_menu(menu_id);
@@ -433,12 +433,12 @@ pub fn menu_navigation(
         if inputs.is_active(InputAction::Down) {
             match menu_state.get_current_menu_mut() {
                 MenuType::SelectableItems(selectable_items) => {
-                    audio.play(sounds.select.clone());
+                    audio.play(sounds.select);
                     selectable_items.cycle_cursor_up();
                     menu_changed = true;
                 }
                 MenuType::ToggleableOptions(toggleable_options) => {
-                    audio.play(sounds.select.clone());
+                    audio.play(sounds.select);
                     toggleable_options.cycle_cursor_up();
                     menu_changed = true;
                 }
@@ -449,12 +449,12 @@ pub fn menu_navigation(
         if inputs.is_active(InputAction::Up) {
             match menu_state.get_current_menu_mut() {
                 MenuType::SelectableItems(selectable_items) => {
-                    audio.play(sounds.select.clone());
+                    audio.play(sounds.select);
                     selectable_items.cycle_cursor_down();
                     menu_changed = true;
                 }
                 MenuType::ToggleableOptions(toggleable_options) => {
-                    audio.play(sounds.select.clone());
+                    audio.play(sounds.select);
                     toggleable_options.cycle_cursor_down();
                     menu_changed = true;
                 }
