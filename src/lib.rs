@@ -1,3 +1,4 @@
+mod audio;
 mod battle_mode;
 mod common;
 mod game;
@@ -11,10 +12,11 @@ mod story_mode;
 mod web;
 
 use bevy::prelude::*;
-use bevy_kira_audio::AudioPlugin;
+#[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
 use crate::{
+    audio::AudioPlugin,
     battle_mode::BattleModePlugin,
     common::CommonPlugin,
     game::GamePlugin,
@@ -49,7 +51,7 @@ pub enum AppState {
     SecretModeInGame,
 }
 
-#[wasm_bindgen]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 pub fn run() {
     let mut app = App::new();
 

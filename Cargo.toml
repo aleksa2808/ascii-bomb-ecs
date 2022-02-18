@@ -9,14 +9,14 @@ name = "ascii_bomb_ecs_lib"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-bevy_kira_audio = { version = "0.8", features = ["ogg", "wav"] }
 rand = "0.8"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-wasm-bindgen = "0.2"
-once_cell = "1.8.0"
 parking_lot = "0.11.2"
 cfg-if = "1.0"
+rodio = { version = "0.14", default-features = false, features = ["wav", "vorbis"] }
+anyhow = "1.0"
+itertools = "0.10"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 bevy = { version = "0.6", default-features = false, features = [
@@ -26,10 +26,21 @@ bevy = { version = "0.6", default-features = false, features = [
     "render",
     "x11",
 ] }
+kira = "0.5.3"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 bevy = { version = "0.6", default-features = false, features = [
     "bevy_winit",
     "png",
     "render",
+] }
+once_cell = "1.8.0"
+wasm-bindgen = "0.2"
+web-sys = { version = "0.3", features = [
+    "AudioBuffer",
+    "AudioBufferSourceNode",
+    "AudioContext",
+    "AudioDestinationNode",
+    "AudioParam",
+    "GainNode",
 ] }

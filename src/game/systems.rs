@@ -8,13 +8,13 @@ use bevy::{
     },
     utils::{HashMap, HashSet},
 };
-use bevy_kira_audio::Audio;
 use rand::{
     prelude::{IteratorRandom, SliceRandom},
     Rng,
 };
 
 use crate::{
+    audio::Audio,
     common::{
         constants::{COLORS, PIXEL_SCALE},
         resources::{Fonts, InputActionStatusTracker},
@@ -169,8 +169,7 @@ pub fn handle_user_input(
     }
 
     if inputs.is_active(InputAction::Return) && game_context.pausable {
-        audio.stop();
-        audio.play(sounds.pause.clone());
+        audio.play(sounds.pause);
         state.push(AppState::Paused).unwrap();
         inputs.clear();
     }
@@ -969,8 +968,7 @@ pub fn bomb_update(
         }
 
         if !sound_played {
-            audio.stop();
-            audio.play(sounds.boom.clone());
+            audio.play(sounds.boom);
             sound_played = true;
         }
 

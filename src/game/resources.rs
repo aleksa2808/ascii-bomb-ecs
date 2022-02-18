@@ -1,7 +1,10 @@
 use bevy::prelude::*;
-use bevy_kira_audio::AudioSource;
 
-use crate::{common::constants::COLORS, loading::resources::AssetsLoading};
+use crate::{
+    audio::{SoundHandles, SoundID},
+    common::constants::COLORS,
+    loading::resources::AssetsLoading,
+};
 
 use super::{
     components::{Penguin, Position},
@@ -172,27 +175,29 @@ impl FromWorld for GameTextures {
 }
 
 pub struct Sounds {
-    pub boom: Handle<AudioSource>,
-    pub pause: Handle<AudioSource>,
+    pub boom: SoundID,
+    pub pause: SoundID,
 }
 
 impl FromWorld for Sounds {
     fn from_world(world: &mut World) -> Self {
         let asset_server = world.get_resource::<AssetServer>().unwrap();
 
-        let sounds = Sounds {
-            boom: asset_server.load("sounds/boom.wav"),
-            pause: asset_server.load("sounds/pause.wav"),
-        };
+        let boom_handle = asset_server.load("sounds/boom.wav");
+        let pause_handle = asset_server.load("sounds/pause.wav");
 
         if let Some(mut assets_loading) = world.get_resource_mut::<AssetsLoading>() {
             assets_loading.0.append(&mut vec![
-                sounds.boom.clone_untyped(),
-                sounds.pause.clone_untyped(),
+                boom_handle.clone_untyped(),
+                pause_handle.clone_untyped(),
             ]);
         }
 
-        sounds
+        let mut sound_handles = world.get_resource_mut::<SoundHandles>().unwrap();
+        Self {
+            boom: sound_handles.add_handle(boom_handle),
+            pause: sound_handles.add_handle(pause_handle),
+        }
     }
 }
 
