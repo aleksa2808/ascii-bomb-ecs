@@ -1,8 +1,7 @@
 [package]
 name = "ascii-bomb-ecs"
 version = "0.1.0"
-edition = "2018"
-resolver = "2"
+edition = "2021"
 
 [lib]
 name = "ascii_bomb_ecs_lib"
