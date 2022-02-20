@@ -16,7 +16,6 @@ init("./ascii_bomb_ecs_lib_bg.wasm").then(function (_wasm) {
     }
 });
 
-// pray that this works :-)
 const isTouchDevice = 'ontouchstart' in document.documentElement;
 
 let canvasContainerWidth = undefined;
@@ -98,19 +97,36 @@ function updateCanvasContainerSize() {
 
 window.onresize = updateCanvasContainerSize;
 
+// prevents pinch-to-zoom on iOS Safari
+document.addEventListener('touchmove', function (event) {
+    event.preventDefault();
+}, { passive: false });
+// prevents double tap to zoom on iOS Safari
+document.addEventListener('dblclick', function (event) {
+    event.preventDefault();
+}, { passive: false });
+
 function startGame() {
     document.getElementById('button-box').remove();
     document.getElementById('game-container').removeAttribute("hidden");
 
     if (isTouchDevice) {
-        // go fullscreen
-        let elem = document.documentElement;
-        if (elem.requestFullscreen) {
-            elem.requestFullscreen();
-        } else if (elem.webkitRequestFullscreen) { /* Safari */
-            elem.webkitRequestFullscreen();
-        } else if (elem.msRequestFullscreen) { /* IE11 */
-            elem.msRequestFullscreen();
+        if (document.fullscreenEnabled) {
+            // go fullscreen
+            let elem = document.documentElement;
+            if (elem.requestFullscreen) {
+                elem.requestFullscreen();
+            } else if (elem.webkitRequestFullscreen) { /* Safari */
+                elem.webkitRequestFullscreen();
+            } else if (elem.msRequestFullscreen) { /* IE11 */
+                elem.msRequestFullscreen();
+            }
+        }
+        else {
+            // disable the fullscreen button
+            let elem = document.getElementById('button-fullscreen');
+            elem.classList.add('grey');
+            elem.removeAttribute('onpointerclick');
         }
     } else {
         // remove on-screen controls
