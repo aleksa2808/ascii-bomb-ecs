@@ -1,4 +1,4 @@
-use bevy::{app::Events, prelude::*, render::camera::Camera};
+use bevy::{ecs::event::Events, prelude::*, render::camera::Camera};
 
 use crate::{
     common::{
@@ -183,13 +183,13 @@ pub fn story_mode_manager(
     game_option_store: Res<GameOptionStore>,
     persistent_high_scores: Res<PersistentHighScores>,
     mut state: ResMut<State<AppState>>,
-    mut q: QuerySet<(
-        QueryState<
+    mut p: ParamSet<(
+        Query<
             (Entity, &mut Handle<Image>, &BaseTexture, &mut BombSatchel),
             (With<Player>, With<Protagonist>),
         >,
         // doesn't need to be in here, but putting it outside throws errors (possibly because of too many arguments)
-        QueryState<
+        Query<
             (
                 Entity,
                 &Penguin,
@@ -200,11 +200,11 @@ pub fn story_mode_manager(
             ),
             (With<Player>, With<Protagonist>),
         >,
-        QueryState<&mut UiColor, With<HUDRoot>>,
+        Query<&mut UiColor, With<HUDRoot>>,
     )>,
-    mut q2: QuerySet<(
-        QueryState<&mut Text, With<BottomLeftDisplay2>>,
-        QueryState<&mut Text, With<GameTimerDisplay>>,
+    mut p2: ParamSet<(
+        Query<&mut Text, With<BottomLeftDisplay2>>,
+        Query<&mut Text, With<GameTimerDisplay>>,
     )>,
     query: Query<Entity, With<PenguinPortrait>>,
     query2: Query<Entity, (Without<Camera>, Without<UIComponent>, Without<Protagonist>)>,
@@ -213,7 +213,7 @@ pub fn story_mode_manager(
     loop {
         match story_mode_context.state {
             StoryModeState::LevelSetup => {
-                let mut tmp = q.q1();
+                let mut tmp = p.p1();
                 let (
                     player_entity,
                     player_penguin_tag,
@@ -243,9 +243,7 @@ pub fn story_mode_manager(
                 sprite.flip_x = false;
 
                 // make the player temporarily immortal
-                commands
-                    .entity(player_entity)
-                    .insert_bundle(ImmortalBundle::default());
+                commands.entity(player_entity).insert(Immortal::default());
 
                 let mob_spawn_positions = spawn_story_mode_mobs(
                     &mut commands,
@@ -313,7 +311,7 @@ pub fn story_mode_manager(
 
                 game_timer.0.reset();
                 // update HUD clock
-                q2.q1().single_mut().sections[0].value =
+                p2.p1().single_mut().sections[0].value =
                     format_hud_time(game_timer.0.duration().as_secs_f32().ceil() as usize);
 
                 story_mode_context.level_outcome = None;
@@ -358,7 +356,7 @@ pub fn story_mode_manager(
                         game_score.0 += 5
                             * (game_timer.0.duration() - game_timer.0.elapsed()).as_secs() as usize;
                         // update HUD points
-                        q2.q0().single_mut().sections[0].value = format_hud_points(game_score.0);
+                        p2.p0().single_mut().sections[0].value = format_hud_points(game_score.0);
 
                         match (story_mode_context.level, world_id.0) {
                             (Level::BossRoom, 3) => {
@@ -372,7 +370,7 @@ pub fn story_mode_manager(
                             (Level::BossRoom, _) => {
                                 world_id.0 += 1;
                                 story_mode_context.level = Level::Regular(1);
-                                *q.q2().single_mut() =
+                                *p.p2().single_mut() =
                                     hud_colors.get_background_color(*world_id).into();
                                 game_textures.set_map_textures(*world_id);
                             }
@@ -385,7 +383,7 @@ pub fn story_mode_manager(
                             }
                         };
 
-                        let mut tmp = q.q0();
+                        let mut tmp = p.p0();
                         let (player_entity, mut player_texture, base_texture, mut bomb_satchel) =
                             tmp.single_mut();
 
@@ -466,9 +464,9 @@ pub fn hud_points_indicator_update(
 pub fn finish_level(
     mut story_mode_context: ResMut<StoryModeContext>,
     game_timer: Res<GameTimer>,
-    mut q: QuerySet<(
-        QueryState<(&mut Position, &TeamID), (With<Player>, With<Protagonist>)>,
-        QueryState<&Position, With<Exit>>,
+    mut p: ParamSet<(
+        Query<(&mut Position, &TeamID), (With<Player>, With<Protagonist>)>,
+        Query<&Position, With<Exit>>,
     )>,
     query: Query<&Protagonist>,
     query2: Query<&TeamID, With<Player>>,
@@ -479,9 +477,9 @@ pub fn finish_level(
     match story_mode_context.level {
         Level::Regular(_) => {
             // if an exit is spawned...
-            if let Ok(exit_position) = q.q1().get_single().map(|p| *p) {
+            if let Ok(exit_position) = p.p1().get_single().map(|p| *p) {
                 // ...check if a protagonist reached it when all the enemies are dead
-                if q.q0().iter_mut().any(|(pp, ptid)| {
+                if p.p0().iter_mut().any(|(pp, ptid)| {
                     *pp == exit_position && !query2.iter().any(|tid| tid.0 != ptid.0)
                 }) {
                     level_outcome = Some(LevelOutcome::Win);
@@ -490,7 +488,7 @@ pub fn finish_level(
         }
         Level::BossRoom => {
             // if a protagonist killed all the enemies
-            if q.q0()
+            if p.p0()
                 .iter_mut()
                 .any(|(_, ptid)| !query2.iter().any(|tid| tid.0 != ptid.0))
             {

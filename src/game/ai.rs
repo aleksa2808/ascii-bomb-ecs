@@ -234,11 +234,11 @@ pub fn can_kill(
 ) -> bool {
     for position in enemy_positions {
         if (position.y == bomb_position.y
-            && (position.x - bomb_position.x).abs() as usize <= bomb_range
+            && (position.x - bomb_position.x).unsigned_abs() <= bomb_range
             && !(stone_wall_positions.contains(&position.offset(Direction::Right, 1))
                 && stone_wall_positions.contains(&position.offset(Direction::Left, 1))))
             || (position.x == bomb_position.x
-                && (position.y - bomb_position.y).abs() as usize <= bomb_range
+                && (position.y - bomb_position.y).unsigned_abs() <= bomb_range
                 && !(stone_wall_positions.contains(&position.offset(Direction::Down, 1))
                     && stone_wall_positions.contains(&position.offset(Direction::Up, 1))))
         {
@@ -251,8 +251,8 @@ pub fn can_kill(
 
 pub fn players_in_range(position: Position, player_positions: &[Position], range: usize) -> bool {
     for player_position in player_positions {
-        if (player_position.y - position.y).abs() as usize <= range
-            && (player_position.x - position.x).abs() as usize <= range
+        if (player_position.y - position.y).unsigned_abs() <= range
+            && (player_position.x - position.x).unsigned_abs() <= range
         {
             return true;
         }

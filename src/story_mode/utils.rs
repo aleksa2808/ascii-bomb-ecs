@@ -88,8 +88,8 @@ pub fn spawn_story_mode_mobs(
         };
 
         let mob_spawn_position = Position {
-            x: x[(i as usize + bias) % 6] as isize,
-            y: y[(i as usize + bias) % 6] as isize,
+            x: x[(i + bias) % 6] as isize,
+            y: y[(i + bias) % 6] as isize,
         };
         mob_spawn_positions.push(mob_spawn_position);
 

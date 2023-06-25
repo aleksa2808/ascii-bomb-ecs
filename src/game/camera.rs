@@ -8,6 +8,7 @@ use bevy::{
 
 #[derive(Component)]
 pub struct SimpleOrthoProjection {
+    pub near: f32,
     far: f32,
     aspect: f32,
     flag: bool,
@@ -30,7 +31,7 @@ impl CameraProjection for SimpleOrthoProjection {
             right * self.multiplier,
             -bottom * self.multiplier,
             0.0,
-            0.0,
+            self.near,
             self.far,
         )
     }
@@ -59,6 +60,7 @@ impl SimpleOrthoProjection {
     pub fn new(map_pixel_height: f32, map_pixel_width: f32) -> Self {
         let perfect_aspect_ratio = map_pixel_width / map_pixel_height;
         SimpleOrthoProjection {
+            near: 0.0,
             far: 1000.0,
             aspect: 1.0,
             flag: true,

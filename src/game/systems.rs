@@ -3,7 +3,8 @@ use std::time::Duration;
 use bevy::{
     prelude::*,
     render::{
-        camera::{Camera, CameraPlugin, CameraProjection},
+        camera::{Camera, Camera2d, CameraProjection},
+        primitives::Frustum,
         view::VisibleEntities,
     },
     utils::{HashMap, HashSet},
@@ -47,18 +48,28 @@ pub fn spawn_cameras(mut commands: Commands, map_size: Res<MapSize>) {
         (map_size.rows * TILE_HEIGHT) as f32,
         (map_size.columns * TILE_WIDTH) as f32,
     );
-    let cam_name = CameraPlugin::CAMERA_2D;
     let camera = Camera {
-        name: Some(cam_name.to_string()),
-        ..Default::default()
+        near: projection.near,
+        far: projection.far(),
+        ..default()
     };
+    let transform = Transform::from_xyz(0.0, 0.0, projection.far() - 0.1);
+    let view_projection = projection.get_projection_matrix() * transform.compute_matrix().inverse();
+    let frustum = Frustum::from_view_projection(
+        &view_projection,
+        &transform.translation,
+        &transform.back(),
+        projection.far(),
+    );
 
     commands.spawn_bundle((
-        Transform::from_xyz(0.0, 0.0, projection.far() - 0.1),
-        GlobalTransform::default(),
-        VisibleEntities::default(),
         camera,
         projection,
+        frustum,
+        VisibleEntities::default(),
+        transform,
+        GlobalTransform::default(),
+        Camera2d,
     ));
 
     commands.spawn_bundle(UiCameraBundle::default());
@@ -537,8 +548,8 @@ pub fn bot_ai(
 pub fn player_move(
     mut commands: Commands,
     mut ev_player_action: EventReader<PlayerActionEvent>,
-    mut q: QuerySet<(
-        QueryState<
+    mut p: ParamSet<(
+        Query<
             (
                 &mut Position,
                 &mut Sprite,
@@ -548,7 +559,7 @@ pub fn player_move(
             ),
             With<Player>,
         >,
-        QueryState<(
+        Query<(
             Entity,
             &Solid,
             &Position,
@@ -558,8 +569,8 @@ pub fn player_move(
     )>,
     mut query2: Query<&mut Transform>,
 ) {
-    let solids: HashMap<Position, (Entity, bool, bool)> = q
-        .q1()
+    let solids: HashMap<Position, (Entity, bool, bool)> = p
+        .p1()
         .iter()
         .map(|(e, _, p, d, b)| (*p, (e, d.is_some(), b.is_some())))
         .collect();
@@ -572,7 +583,7 @@ pub fn player_move(
         }
     }) {
         if let Ok((mut position, mut sprite, wall_hack, bomb_push, mut move_cooldown)) =
-            q.q0().get_mut(entity)
+            p.p0().get_mut(entity)
         {
             // visual / sprite flipping
             match direction {
@@ -619,23 +630,23 @@ pub fn player_move(
 
 pub fn moving_object_update(
     mut commands: Commands,
-    mut q: QuerySet<(
-        QueryState<(
+    mut p: ParamSet<(
+        Query<(
             Entity,
             &Moving,
             &mut MoveCooldown,
             &mut Position,
             &mut Transform,
         )>,
-        QueryState<&Position, Or<(With<Solid>, With<Item>, With<Player>, With<Exit>)>>,
+        Query<&Position, Or<(With<Solid>, With<Item>, With<Player>, With<Exit>)>>,
     )>,
 ) {
-    let moving_object_entities: Vec<Entity> = q.q0().iter_mut().map(|(e, _, _, _, _)| e).collect();
+    let moving_object_entities: Vec<Entity> = p.p0().iter_mut().map(|(e, _, _, _, _)| e).collect();
 
     for entity in moving_object_entities {
-        let impassable_positions: HashSet<Position> = q.q1().iter().copied().collect();
+        let impassable_positions: HashSet<Position> = p.p1().iter().copied().collect();
 
-        let mut tmp = q.q0();
+        let mut tmp = p.p0();
         let (entity, moving, mut move_cooldown, mut position, mut transform) =
             tmp.get_mut(entity).unwrap();
 
@@ -675,7 +686,7 @@ pub fn pick_up_item(
                 Item::Upgrade(Upgrade::RangeUp) => bomb_satchel.bomb_range += 1,
                 Item::Upgrade(Upgrade::LivesUp) => h.lives += 1,
                 Item::Power(Power::Immortal) => {
-                    commands.entity(pe).insert_bundle(ImmortalBundle::default());
+                    commands.entity(pe).insert(Immortal::default());
                 }
                 Item::Power(Power::WallHack) => {
                     commands.entity(pe).insert(WallHack);
@@ -760,9 +771,10 @@ pub fn bomb_drop(
                                 ),
                                 ..Default::default()
                             })
-                            .insert(Fuse)
-                            .insert(ColorComponent(fuse_color))
-                            .insert(Timer::from_seconds(0.1, true));
+                            .insert(Fuse {
+                                color: fuse_color,
+                                animation_timer: Timer::from_seconds(0.1, true),
+                            });
                     });
             }
         }
@@ -773,20 +785,11 @@ pub fn animate_fuse(
     time: Res<Time>,
     fonts: Res<Fonts>,
     query: Query<&Bomb>,
-    mut query2: Query<
-        (
-            &Parent,
-            &mut Text,
-            &ColorComponent,
-            &mut Timer,
-            &mut Transform,
-        ),
-        With<Fuse>,
-    >,
+    mut query2: Query<(&Parent, &mut Text, &mut Fuse, &mut Transform)>,
 ) {
-    for (parent, mut text, fuse_color, mut timer, mut transform) in query2.iter_mut() {
-        timer.tick(time.delta());
-        let percent_left = timer.percent_left();
+    for (parent, mut text, mut fuse, mut transform) in query2.iter_mut() {
+        fuse.animation_timer.tick(time.delta());
+        let percent_left = fuse.animation_timer.percent_left();
         let fuse_char = match percent_left {
             _ if (0.0..0.33).contains(&percent_left) => 'x',
             _ if (0.33..0.66).contains(&percent_left) => '+',
@@ -805,7 +808,7 @@ pub fn animate_fuse(
                         style: TextStyle {
                             font: fonts.mono.clone(),
                             font_size: 2.0 * PIXEL_SCALE as f32,
-                            color: fuse_color.0,
+                            color: fuse.color,
                         },
                     },
                     TextSection {
@@ -828,7 +831,7 @@ pub fn animate_fuse(
                         style: TextStyle {
                             font: fonts.mono.clone(),
                             font_size: 2.0 * PIXEL_SCALE as f32,
-                            color: fuse_color.0,
+                            color: fuse.color,
                         },
                     },
                     TextSection {
@@ -850,7 +853,7 @@ pub fn animate_fuse(
                     style: TextStyle {
                         font: fonts.mono.clone(),
                         font_size: 2.0 * PIXEL_SCALE as f32,
-                        color: fuse_color.0,
+                        color: fuse.color,
                     },
                 }];
                 let translation = &mut transform.translation;
@@ -1025,33 +1028,29 @@ pub fn immortality_tick(
         immortal.timer.tick(time.delta());
 
         if immortal.timer.just_finished() {
-            commands.entity(entity).remove_bundle::<ImmortalBundle>();
+            commands.entity(entity).remove::<Immortal>();
         }
     }
 }
 
 pub fn animate_immortality(
     time: Res<Time>,
-    mut q: QuerySet<(
-        QueryState<
-            (
-                &Immortal,
-                &mut Timer,
-                &mut Handle<Image>,
-                &BaseTexture,
-                &ImmortalTexture,
-            ),
-            With<Immortal>,
-        >,
-        QueryState<(&mut Handle<Image>, &BaseTexture)>,
+    mut p: ParamSet<(
+        Query<(
+            &mut Immortal,
+            &mut Handle<Image>,
+            &BaseTexture,
+            &ImmortalTexture,
+        )>,
+        Query<(&mut Handle<Image>, &BaseTexture)>,
     )>,
     removals: RemovedComponents<Immortal>,
 ) {
     // animate currently immortal players
-    for (immortal, mut timer, mut texture, base_texture, immortal_texture) in q.q0().iter_mut() {
+    for (mut immortal, mut texture, base_texture, immortal_texture) in p.p0().iter_mut() {
         if !immortal.timer.finished() {
-            timer.tick(time.delta());
-            let percent_left = timer.percent_left();
+            immortal.animation_timer.tick(time.delta());
+            let percent_left = immortal.animation_timer.percent_left();
             match percent_left {
                 _ if (0.5..=1.0).contains(&percent_left) => {
                     *texture = immortal_texture.0.clone();
@@ -1065,7 +1064,7 @@ pub fn animate_immortality(
 
     // revert the texture of players that stopped being immortal
     for entity in removals.iter() {
-        if let Ok((mut texture, base_texture)) = q.q1().get_mut(entity) {
+        if let Ok((mut texture, base_texture)) = p.p1().get_mut(entity) {
             *texture = base_texture.0.clone();
         }
     }
@@ -1191,7 +1190,7 @@ pub fn player_damage(
             }
 
             if gain_immortality {
-                commands.entity(pe).insert_bundle(ImmortalBundle::default());
+                commands.entity(pe).insert(Immortal::default());
                 *texture = immortal_texture.0.clone();
             }
         }
@@ -1323,7 +1322,7 @@ pub fn exit_burn(
                     .insert(SpawnPosition(*exit_position))
                     .insert(MeleeAttacker)
                     .insert(TeamID(1))
-                    .insert_bundle(ImmortalBundle::default());
+                    .insert(Immortal::default());
 
                 exit.spawn_cooldown.trigger();
             }

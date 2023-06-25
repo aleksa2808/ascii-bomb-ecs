@@ -1,4 +1,4 @@
-use bevy::{app::Events, prelude::*, render::camera::Camera, utils::HashSet};
+use bevy::{ecs::event::Events, prelude::*, render::camera::Camera, utils::HashSet};
 use rand::{prelude::IteratorRandom, Rng};
 
 use crate::{
@@ -65,7 +65,6 @@ pub fn setup_battle_mode(
 
     let players: Vec<(Penguin, PenguinControlType)> =
         (0..battle_mode_configuration.amount_of_players + battle_mode_configuration.amount_of_bots)
-            .into_iter()
             .map(|i| {
                 (
                     Penguin(i),

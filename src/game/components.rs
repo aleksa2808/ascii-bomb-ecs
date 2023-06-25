@@ -2,9 +2,6 @@ use bevy::{ecs as bevy_ecs, prelude::*};
 
 use super::types::{BotDifficulty, Cooldown, Direction, Power, Upgrade};
 
-#[derive(Component)]
-pub struct ColorComponent(pub Color);
-
 // UI
 
 #[derive(Component)]
@@ -92,7 +89,10 @@ pub struct Bomb {
 }
 
 #[derive(Component)]
-pub struct Fuse;
+pub struct Fuse {
+    pub color: Color,
+    pub animation_timer: Timer,
+}
 
 #[derive(Component)]
 pub struct BombSatchel {
@@ -103,6 +103,16 @@ pub struct BombSatchel {
 #[derive(Component)]
 pub struct Immortal {
     pub timer: Timer,
+    pub animation_timer: Timer,
+}
+
+impl Default for Immortal {
+    fn default() -> Self {
+        Immortal {
+            timer: Timer::from_seconds(2.0, false),
+            animation_timer: Timer::from_seconds(0.66, true),
+        }
+    }
 }
 
 #[derive(Component)]
@@ -182,22 +192,3 @@ pub struct PenguinPortraitDisplay;
 
 #[derive(Component)]
 pub struct PenguinPortrait(pub Penguin);
-
-// Bundles
-
-#[derive(Bundle)]
-pub struct ImmortalBundle {
-    pub immortal: Immortal,
-    pub animation_timer: Timer,
-}
-
-impl Default for ImmortalBundle {
-    fn default() -> Self {
-        ImmortalBundle {
-            immortal: Immortal {
-                timer: Timer::from_seconds(2.0, false),
-            },
-            animation_timer: Timer::from_seconds(0.66, true),
-        }
-    }
-}

@@ -268,9 +268,9 @@ pub fn update_secret_mode(
     world_id: Res<WorldID>,
     mut secret_mode_context: ResMut<SecretModeContext>,
     mut state: ResMut<State<AppState>>,
-    mut q: QuerySet<(
-        QueryState<(Entity, &mut Position, &mut Transform), With<Bomb>>,
-        QueryState<&Position, With<Wall>>,
+    mut p: ParamSet<(
+        Query<(Entity, &mut Position, &mut Transform), With<Bomb>>,
+        Query<&Position, With<Wall>>,
     )>,
     mut query: Query<(Entity, &mut Handle<Image>, &mut BaseTexture), With<Player>>,
 ) {
@@ -299,8 +299,8 @@ pub fn update_secret_mode(
                 if move_cooldown.ready() {
                     move_cooldown.trigger();
 
-                    let walls: HashSet<Position> = q.q1().iter().copied().collect();
-                    for (entity, mut position, mut transform) in q.q0().iter_mut() {
+                    let walls: HashSet<Position> = p.p1().iter().copied().collect();
+                    for (entity, mut position, mut transform) in p.p0().iter_mut() {
                         let new_position = position.offset(Direction::Left, 1);
 
                         if walls.contains(&new_position) {
@@ -318,7 +318,7 @@ pub fn update_secret_mode(
                         .split('\n')
                         .skip(1)
                         .take(7)
-                        .map(|s| s.chars().nth(*round_progress as usize).unwrap() == '*');
+                        .map(|s| s.chars().nth(*round_progress).unwrap() == '*');
 
                     for (i, b) in b.enumerate() {
                         if b {
@@ -384,9 +384,10 @@ pub fn update_secret_mode(
                                             ),
                                             ..Default::default()
                                         })
-                                        .insert(Fuse)
-                                        .insert(ColorComponent(fuse_color))
-                                        .insert(Timer::from_seconds(0.1, true));
+                                        .insert(Fuse {
+                                            color: fuse_color,
+                                            animation_timer: Timer::from_seconds(0.1, true),
+                                        });
                                 });
                         }
                     }
@@ -402,9 +403,7 @@ pub fn update_secret_mode(
                         *texture = new_texture.clone();
                         *base_texture = BaseTexture(new_texture.clone());
 
-                        commands
-                            .entity(entity)
-                            .insert_bundle(ImmortalBundle::default());
+                        commands.entity(entity).insert(Immortal::default());
 
                         let current_duration = move_cooldown.duration();
                         if let Some(duration) =
