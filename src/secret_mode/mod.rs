@@ -3,7 +3,7 @@ use bevy::{ecs as bevy_ecs, prelude::*};
 use crate::{
     game::{
         add_common_game_systems,
-        systems::{resize_window, spawn_cameras},
+        systems::{resize_window, setup_penguin_portraits, spawn_cameras},
         Label,
     },
     AppState,
@@ -50,6 +50,10 @@ impl Plugin for SecretModePlugin {
                 SystemSet::on_exit(AppState::SecretMode).with_system(teardown.exclusive_system()),
             );
 
+        app.add_system_set(
+            SystemSet::on_enter(AppState::SecretModeInGame)
+                .with_system(setup_penguin_portraits.exclusive_system()),
+        );
         add_common_game_systems(app, AppState::SecretModeInGame);
         app.add_system_set(
             SystemSet::on_update(AppState::SecretModeInGame)

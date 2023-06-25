@@ -32,9 +32,6 @@ pub enum Label {
 
 pub fn add_common_game_systems(app: &mut App, state: AppState) {
     app.add_system_set(
-        SystemSet::on_enter(state).with_system(setup_penguin_portraits.exclusive_system()),
-    )
-    .add_system_set(
         SystemSet::on_update(state)
             // time effect update
             .with_system(

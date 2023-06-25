@@ -18,10 +18,7 @@ use crate::{
 };
 
 use super::{
-    constants::{BATTLE_MODE_ROUND_DURATION_SECS, ROUND_START_FREEZE_SECS},
-    resources::*,
-    types::PenguinControlType,
-    utils::*,
+    constants::BATTLE_MODE_ROUND_DURATION_SECS, resources::*, types::PenguinControlType, utils::*,
 };
 
 pub fn setup_battle_mode(
@@ -154,14 +151,10 @@ pub fn battle_mode_manager(
                     });
                     state.push(AppState::MapTransition).unwrap();
                 } else {
-                    battle_mode_context.state = BattleModeState::InGame;
-                    state.push(AppState::BattleModeInGame).unwrap();
+                    start_round(battle_mode_context, commands, state);
                 }
             }
-            BattleModeState::MapTransition => {
-                battle_mode_context.state = BattleModeState::InGame;
-                state.push(AppState::BattleModeInGame).unwrap();
-            }
+            BattleModeState::MapTransition => start_round(battle_mode_context, commands, state),
             BattleModeState::InGame => {
                 match battle_mode_context.round_outcome {
                     Some(result) => {
@@ -216,14 +209,6 @@ pub fn battle_mode_manager(
     }
 }
 
-pub fn trigger_round_start_freeze(mut commands: Commands, mut state: ResMut<State<AppState>>) {
-    commands.insert_resource(FreezeTimer(Timer::from_seconds(
-        ROUND_START_FREEZE_SECS,
-        false,
-    )));
-    state.push(AppState::RoundStartFreeze).unwrap();
-}
-
 pub fn finish_freeze(
     mut commands: Commands,
     time: Res<Time>,
@@ -233,7 +218,7 @@ pub fn finish_freeze(
     freeze_timer.0.tick(time.delta());
     if freeze_timer.0.finished() {
         commands.remove_resource::<FreezeTimer>();
-        state.pop().unwrap();
+        state.set(AppState::BattleModeInGame).unwrap();
     }
 }
 
