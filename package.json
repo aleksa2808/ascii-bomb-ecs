@@ -8,5 +8,7 @@
   ],
   "module": "ascii_bomb_ecs_lib.js",
   "types": "ascii_bomb_ecs_lib.d.ts",
-  "sideEffects": false
+  "sideEffects": [
+    "./snippets/*"
+  ]
 }
