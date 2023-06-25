@@ -4,7 +4,9 @@ use crate::{
     common::systems::clear_inputs,
     game::{
         add_common_game_systems,
-        systems::{game_timer_tick, hud_update, resize_window, spawn_cameras},
+        systems::{
+            game_timer_tick, hud_update, resize_window, setup_penguin_portraits, spawn_cameras,
+        },
         Label,
     },
     AppState,
@@ -58,6 +60,10 @@ impl Plugin for StoryModePlugin {
             ),
         );
 
+        app.add_system_set(
+            SystemSet::on_enter(AppState::StoryModeInGame)
+                .with_system(setup_penguin_portraits.exclusive_system()),
+        );
         add_common_game_systems(app, AppState::StoryModeInGame);
         app.add_system_set(SystemSet::on_exit(AppState::StoryModeInGame).with_system(clear_inputs))
             .add_system_set(

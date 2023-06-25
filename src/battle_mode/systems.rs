@@ -18,10 +18,7 @@ use crate::{
 };
 
 use super::{
-    constants::{BATTLE_MODE_ROUND_DURATION_SECS, ROUND_START_FREEZE_SECS},
-    resources::*,
-    types::PenguinControlType,
-    utils::*,
+    constants::BATTLE_MODE_ROUND_DURATION_SECS, resources::*, types::PenguinControlType, utils::*,
 };
 
 pub fn setup_battle_mode(
@@ -154,14 +151,10 @@ pub fn battle_mode_manager(
                     });
                     state.push(AppState::MapTransition).unwrap();
                 } else {
-                    battle_mode_context.state = BattleModeState::InGame;
-                    state.push(AppState::BattleModeInGame).unwrap();
+                    start_round(battle_mode_context, commands, state);
                 }
             }
-            BattleModeState::MapTransition => {
-                battle_mode_context.state = BattleModeState::InGame;
-                state.push(AppState::BattleModeInGame).unwrap();
-            }
+            BattleModeState::MapTransition => start_round(battle_mode_context, commands, state),
             BattleModeState::InGame => {
                 match battle_mode_context.round_outcome {
                     Some(result) => {
@@ -216,14 +209,6 @@ pub fn battle_mode_manager(
     }
 }
 
-pub fn trigger_round_start_freeze(mut commands: Commands, mut state: ResMut<State<AppState>>) {
-    commands.insert_resource(FreezeTimer(Timer::from_seconds(
-        ROUND_START_FREEZE_SECS,
-        false,
-    )));
-    state.push(AppState::RoundStartFreeze).unwrap();
-}
-
 pub fn finish_freeze(
     mut commands: Commands,
     time: Res<Time>,
@@ -233,7 +218,7 @@ pub fn finish_freeze(
     freeze_timer.0.tick(time.delta());
     if freeze_timer.0.finished() {
         commands.remove_resource::<FreezeTimer>();
-        state.pop().unwrap();
+        state.set(AppState::BattleModeInGame).unwrap();
     }
 }
 
@@ -315,7 +300,7 @@ pub fn setup_leaderboard_display(
                     style: Style {
                         size: Size::new(Val::Px(window.width()), Val::Px(window.height())),
                         position_type: PositionType::Absolute,
-                        position: Rect {
+                        position: UiRect {
                             left: Val::Px(0.0),
                             top: Val::Px(0.0),
                             ..Default::default()
@@ -337,7 +322,7 @@ pub fn setup_leaderboard_display(
                                         Val::Px(PIXEL_SCALE as f32),
                                     ),
                                     position_type: PositionType::Absolute,
-                                    position: Rect {
+                                    position: UiRect {
                                         left: Val::Px((x * PIXEL_SCALE) as f32),
                                         top: Val::Px((y * PIXEL_SCALE) as f32),
                                         ..Default::default()
@@ -376,7 +361,7 @@ pub fn setup_leaderboard_display(
                                         Val::Px(TILE_HEIGHT as f32),
                                     ),
                                     position_type: PositionType::Absolute,
-                                    position: Rect {
+                                    position: UiRect {
                                         left: Val::Px(4.0 * PIXEL_SCALE as f32),
                                         top: Val::Px(((6 + penguin.0 * 12) * PIXEL_SCALE) as f32),
                                         ..Default::default()
@@ -416,7 +401,7 @@ pub fn setup_leaderboard_display(
                                             Val::Px(7.0 * PIXEL_SCALE as f32),
                                         ),
                                         position_type: PositionType::Absolute,
-                                        position: Rect {
+                                        position: UiRect {
                                             top: Val::Px(
                                                 ((7 + penguin.0 * 12) * PIXEL_SCALE) as f32,
                                             ),
@@ -438,18 +423,17 @@ pub fn setup_leaderboard_display(
                                 let mut place_text = |y, x, str: &str, c: usize| {
                                     parent
                                         .spawn_bundle(TextBundle {
-                                            text: Text::with_section(
+                                            text: Text::from_section(
                                                 str.to_string(),
                                                 TextStyle {
                                                     font: fonts.mono.clone(),
                                                     font_size: 2.0 * PIXEL_SCALE as f32,
                                                     color: COLORS[c].into(),
                                                 },
-                                                TextAlignment::default(),
                                             ),
                                             style: Style {
                                                 position_type: PositionType::Absolute,
-                                                position: Rect {
+                                                position: UiRect {
                                                     top: Val::Px(y as f32 * PIXEL_SCALE as f32),
                                                     left: Val::Px(x as f32 * PIXEL_SCALE as f32),
                                                     ..Default::default()

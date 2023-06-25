@@ -36,7 +36,10 @@ pub fn map_transition_update(
 ) {
     // TODO: why is the first tick much larger? it progresses the transition further than we want
     map_transition_context.reveal_timer.tick(time.delta());
-    for _ in 0..map_transition_context.reveal_timer.times_finished() {
+    for _ in 0..map_transition_context
+        .reveal_timer
+        .times_finished_this_tick()
+    {
         if let Some(reveal_group) = map_transition_context.wall_entity_reveal_groups.pop_front() {
             for entity in reveal_group {
                 query.get_mut(entity).unwrap().is_visible = true;

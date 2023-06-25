@@ -24,18 +24,17 @@ pub fn spawn_menu_type(
     match menu_type {
         MenuType::SelectableItems(selectable_items) => {
             parent.spawn_bundle(TextBundle {
-                text: Text::with_section(
+                text: Text::from_section(
                     selectable_items.get_item_names().join("\n\n"),
                     TextStyle {
                         font: fonts.mono.clone(),
                         font_size: 2.0 * PIXEL_SCALE as f32,
                         color: menu_colors.modal_foreground_color,
                     },
-                    TextAlignment::default(),
                 ),
                 style: Style {
                     position_type: PositionType::Absolute,
-                    position: Rect {
+                    position: UiRect {
                         top: Val::Px(2.0 * PIXEL_SCALE as f32),
                         left: Val::Px(3.0 * PIXEL_SCALE as f32),
                         ..Default::default()
@@ -48,18 +47,17 @@ pub fn spawn_menu_type(
             // spawn cursor
             parent
                 .spawn_bundle(TextBundle {
-                    text: Text::with_section(
+                    text: Text::from_section(
                         "»",
                         TextStyle {
                             font: fonts.mono.clone(),
                             font_size: 2.0 * PIXEL_SCALE as f32,
                             color: menu_colors.modal_foreground_color,
                         },
-                        TextAlignment::default(),
                     ),
                     style: Style {
                         position_type: PositionType::Absolute,
-                        position: Rect {
+                        position: UiRect {
                             top: Val::Px(
                                 ((2 + selectable_items.get_cursor_position() * 4) * PIXEL_SCALE)
                                     as f32,
@@ -75,7 +73,7 @@ pub fn spawn_menu_type(
         }
         MenuType::ToggleableOptions(toggleable_options) => {
             parent.spawn_bundle(TextBundle {
-                text: Text::with_section(
+                text: Text::from_section(
                     toggleable_options
                         .get_options()
                         .iter()
@@ -101,11 +99,10 @@ pub fn spawn_menu_type(
                         font_size: 2.0 * PIXEL_SCALE as f32,
                         color: menu_colors.modal_foreground_color,
                     },
-                    TextAlignment::default(),
                 ),
                 style: Style {
                     position_type: PositionType::Absolute,
-                    position: Rect {
+                    position: UiRect {
                         top: Val::Px(2.0 * PIXEL_SCALE as f32),
                         left: Val::Px(3.0 * PIXEL_SCALE as f32),
                         ..Default::default()
@@ -118,18 +115,17 @@ pub fn spawn_menu_type(
             // spawn cursor
             parent
                 .spawn_bundle(TextBundle {
-                    text: Text::with_section(
+                    text: Text::from_section(
                         "»",
                         TextStyle {
                             font: fonts.mono.clone(),
                             font_size: 2.0 * PIXEL_SCALE as f32,
                             color: menu_colors.modal_foreground_color,
                         },
-                        TextAlignment::default(),
                     ),
                     style: Style {
                         position_type: PositionType::Absolute,
-                        position: Rect {
+                        position: UiRect {
                             top: Val::Px(
                                 ((2 + toggleable_options.get_cursor_position() * 4) * PIXEL_SCALE)
                                     as f32,
@@ -145,18 +141,17 @@ pub fn spawn_menu_type(
         }
         MenuType::StaticText(static_text) | MenuType::ControlsScreen(static_text) => {
             parent.spawn_bundle(TextBundle {
-                text: Text::with_section(
+                text: Text::from_section(
                     *static_text,
                     TextStyle {
                         font: fonts.mono.clone(),
                         font_size: 2.0 * PIXEL_SCALE as f32,
                         color: menu_colors.modal_foreground_color,
                     },
-                    TextAlignment::default(),
                 ),
                 style: Style {
                     position_type: PositionType::Absolute,
-                    position: Rect {
+                    position: UiRect {
                         top: Val::Px(2.0 * PIXEL_SCALE as f32),
                         left: Val::Px(PIXEL_SCALE as f32),
                         ..Default::default()
@@ -175,7 +170,7 @@ pub fn spawn_menu_type(
                             Val::Px(2.0 * PIXEL_SCALE as f32),
                         ),
                         position_type: PositionType::Absolute,
-                        position: Rect {
+                        position: UiRect {
                             left: Val::Px(15.0 * PIXEL_SCALE as f32),
                             top: Val::Px(32.0 * PIXEL_SCALE as f32),
                             ..Default::default()
@@ -187,18 +182,17 @@ pub fn spawn_menu_type(
                 })
                 .with_children(|parent| {
                     parent.spawn_bundle(TextBundle {
-                        text: Text::with_section(
+                        text: Text::from_section(
                             "CONTINUE",
                             TextStyle {
                                 font: fonts.mono.clone(),
                                 font_size: 2.0 * PIXEL_SCALE as f32,
                                 color: menu_colors.modal_background_color,
                             },
-                            TextAlignment::default(),
                         ),
                         style: Style {
                             position_type: PositionType::Absolute,
-                            position: Rect {
+                            position: UiRect {
                                 top: Val::Px(0.0),
                                 left: Val::Px(0.0),
                                 ..Default::default()
@@ -211,18 +205,17 @@ pub fn spawn_menu_type(
         }
         MenuType::HallOfFame => {
             parent.spawn_bundle(TextBundle {
-                text: Text::with_section(
+                text: Text::from_section(
                     "HIGH-SCORES",
                     TextStyle {
                         font: fonts.mono.clone(),
                         font_size: 2.0 * PIXEL_SCALE as f32,
                         color: menu_colors.modal_foreground_color,
                     },
-                    TextAlignment::default(),
                 ),
                 style: Style {
                     position_type: PositionType::Absolute,
-                    position: Rect {
+                    position: UiRect {
                         top: Val::Px(2.0 * PIXEL_SCALE as f32),
                         left: Val::Px(13.0 * PIXEL_SCALE as f32),
                         ..Default::default()
@@ -243,18 +236,17 @@ pub fn spawn_menu_type(
                 .collect::<Vec<String>>()
                 .join("\n");
             parent.spawn_bundle(TextBundle {
-                text: Text::with_section(
+                text: Text::from_section(
                     high_scores_text,
                     TextStyle {
                         font: fonts.mono.clone(),
                         font_size: 2.0 * PIXEL_SCALE as f32,
                         color: menu_colors.modal_foreground_color,
                     },
-                    TextAlignment::default(),
                 ),
                 style: Style {
                     position_type: PositionType::Absolute,
-                    position: Rect {
+                    position: UiRect {
                         top: Val::Px(6.0 * PIXEL_SCALE as f32),
                         left: Val::Px(PIXEL_SCALE as f32),
                         ..Default::default()
@@ -273,7 +265,7 @@ pub fn spawn_menu_type(
                             Val::Px(2.0 * PIXEL_SCALE as f32),
                         ),
                         position_type: PositionType::Absolute,
-                        position: Rect {
+                        position: UiRect {
                             left: Val::Px(15.0 * PIXEL_SCALE as f32),
                             top: Val::Px(32.0 * PIXEL_SCALE as f32),
                             ..Default::default()
@@ -285,18 +277,17 @@ pub fn spawn_menu_type(
                 })
                 .with_children(|parent| {
                     parent.spawn_bundle(TextBundle {
-                        text: Text::with_section(
+                        text: Text::from_section(
                             "CONTINUE",
                             TextStyle {
                                 font: fonts.mono.clone(),
                                 font_size: 2.0 * PIXEL_SCALE as f32,
                                 color: menu_colors.modal_background_color,
                             },
-                            TextAlignment::default(),
                         ),
                         style: Style {
                             position_type: PositionType::Absolute,
-                            position: Rect {
+                            position: UiRect {
                                 top: Val::Px(0.0),
                                 left: Val::Px(0.0),
                                 ..Default::default()
@@ -324,12 +315,12 @@ pub fn spawn_battle_mode_sub_menu_modal(
                     Val::Px(14.0 * PIXEL_SCALE as f32),
                 ),
                 position_type: PositionType::Absolute,
-                position: Rect {
+                position: UiRect {
                     left: Val::Px(6.0 * PIXEL_SCALE as f32),
                     top: Val::Px(12.0 * PIXEL_SCALE as f32),
                     ..Default::default()
                 },
-                border: Rect {
+                border: UiRect {
                     left: Val::Px(PIXEL_SCALE as f32),
                     top: Val::Px(2.0 * PIXEL_SCALE as f32),
                     right: Val::Px(PIXEL_SCALE as f32),
@@ -343,7 +334,7 @@ pub fn spawn_battle_mode_sub_menu_modal(
         .with_children(|parent| {
             // spawn modal border
             parent.spawn_bundle(TextBundle {
-                text: Text::with_section(
+                text: Text::from_section(
                     r#"
 ┌────────────────────────┐
 │                        │
@@ -358,11 +349,10 @@ pub fn spawn_battle_mode_sub_menu_modal(
                         font_size: 2.0 * PIXEL_SCALE as f32,
                         color: menu_colors.modal_background_color,
                     },
-                    TextAlignment::default(),
                 ),
                 style: Style {
                     position_type: PositionType::Absolute,
-                    position: Rect {
+                    position: UiRect {
                         top: Val::Px(-2.0 * PIXEL_SCALE as f32),
                         left: Val::Px(-1.0 * PIXEL_SCALE as f32),
                         ..Default::default()
@@ -396,7 +386,7 @@ pub fn spawn_battle_mode_sub_menu_content(
     menu_colors: &MenuColors,
 ) {
     parent.spawn_bundle(TextBundle {
-        text: Text::with_section(
+        text: Text::from_section(
             match sub_menu_state.step {
                 BattleModeSubMenuStep::AmountOfPlayers => "AMOUNT OF PLAYERS:",
                 BattleModeSubMenuStep::AmountOfBots => "AMOUNT OF BOTS:",
@@ -408,11 +398,10 @@ pub fn spawn_battle_mode_sub_menu_content(
                 font_size: 2.0 * PIXEL_SCALE as f32,
                 color: menu_colors.modal_foreground_color,
             },
-            TextAlignment::default(),
         ),
         style: Style {
             position_type: PositionType::Absolute,
-            position: Rect {
+            position: UiRect {
                 top: Val::Px(2.0 * PIXEL_SCALE as f32),
                 left: Val::Px(PIXEL_SCALE as f32),
                 ..Default::default()
@@ -423,7 +412,7 @@ pub fn spawn_battle_mode_sub_menu_content(
     });
 
     parent.spawn_bundle(TextBundle {
-        text: Text::with_section(
+        text: Text::from_section(
             format!(
                 "« {} »",
                 match sub_menu_state.step {
@@ -448,11 +437,10 @@ pub fn spawn_battle_mode_sub_menu_content(
                 font_size: 2.0 * PIXEL_SCALE as f32,
                 color: menu_colors.modal_foreground_color,
             },
-            TextAlignment::default(),
         ),
         style: Style {
             position_type: PositionType::Absolute,
-            position: Rect {
+            position: UiRect {
                 top: Val::Px(4.0 * PIXEL_SCALE as f32),
                 left: Val::Px(PIXEL_SCALE as f32),
                 ..Default::default()

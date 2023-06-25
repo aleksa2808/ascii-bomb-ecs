@@ -109,7 +109,7 @@ pub fn play_queued_audio(
                     if let Some(handle) = audio_backend.sound_id_handle_map.get(sound_id) {
                         Some(handle.clone())
                     } else if let Some(sound) =
-                        sounds.get(sound_handles.0.get(sound_id).unwrap().clone())
+                        sounds.get(&sound_handles.0.get(sound_id).unwrap().clone())
                     {
                         let sound_handle = audio_backend
                             .audio_manager

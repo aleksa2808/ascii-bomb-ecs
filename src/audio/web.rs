@@ -86,7 +86,7 @@ pub fn prepare_webaudio_buffers(
             num_of_channels: channels,
             sample_rate,
             channel_data,
-        } = sounds.get(sound_handle.clone()).unwrap();
+        } = sounds.get(&sound_handle.clone()).unwrap();
 
         let buffer = audio_backend
             .audio_context

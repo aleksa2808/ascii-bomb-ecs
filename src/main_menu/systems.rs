@@ -42,7 +42,7 @@ pub fn setup_menu(
     game_option_store: Res<GameOptionStore>,
     persistent_high_scores: Res<PersistentHighScores>,
 ) {
-    commands.spawn_bundle(UiCameraBundle::default());
+    commands.spawn_bundle(Camera2dBundle::default());
 
     let mut menu_background_animation_context = None;
     commands
@@ -64,18 +64,17 @@ pub fn setup_menu(
 |____/ \____/|_|  |_|____/|______|_|  \_\_|  |_/_/    \_\_| \_|
 "#;
             parent.spawn_bundle(TextBundle {
-                text: Text::with_section(
+                text: Text::from_section(
                     title_text.to_string(),
                     TextStyle {
                         font: fonts.mono.clone(),
                         font_size: 2.0 * PIXEL_SCALE as f32,
                         color: COLORS[15].into(),
                     },
-                    TextAlignment::default(),
                 ),
                 style: Style {
                     position_type: PositionType::Absolute,
-                    position: Rect {
+                    position: UiRect {
                         top: Val::Px(12.0 * PIXEL_SCALE as f32),
                         left: Val::Px(17.0 * PIXEL_SCALE as f32),
                         ..Default::default()
@@ -88,18 +87,17 @@ pub fn setup_menu(
             let mut place_text = |y, x, str: &str, c: usize| {
                 parent
                     .spawn_bundle(TextBundle {
-                        text: Text::with_section(
+                        text: Text::from_section(
                             str.to_string(),
                             TextStyle {
                                 font: fonts.mono.clone(),
                                 font_size: 2.0 * PIXEL_SCALE as f32,
                                 color: COLORS[c].into(),
                             },
-                            TextAlignment::default(),
                         ),
                         style: Style {
                             position_type: PositionType::Absolute,
-                            position: Rect {
+                            position: UiRect {
                                 top: Val::Px(y as f32 * 2.0 * PIXEL_SCALE as f32),
                                 left: Val::Px(x as f32 * PIXEL_SCALE as f32),
                                 ..Default::default()
@@ -191,12 +189,12 @@ __██__
                             Val::Px(40.0 * PIXEL_SCALE as f32),
                         ),
                         position_type: PositionType::Absolute,
-                        position: Rect {
+                        position: UiRect {
                             left: Val::Px(30.0 * PIXEL_SCALE as f32),
                             top: Val::Px(36.0 * PIXEL_SCALE as f32),
                             ..Default::default()
                         },
-                        border: Rect {
+                        border: UiRect {
                             left: Val::Px(PIXEL_SCALE as f32),
                             top: Val::Px(2.0 * PIXEL_SCALE as f32),
                             right: Val::Px(PIXEL_SCALE as f32),
@@ -210,7 +208,7 @@ __██__
                 .with_children(|parent| {
                     // spawn modal border
                     parent.spawn_bundle(TextBundle {
-                        text: Text::with_section(
+                        text: Text::from_section(
                             r#"
 ┌──────────────────────────────────────┐
 │                                      │
@@ -238,11 +236,10 @@ __██__
                                 font_size: 2.0 * PIXEL_SCALE as f32,
                                 color: menu_colors.modal_background_color,
                             },
-                            TextAlignment::default(),
                         ),
                         style: Style {
                             position_type: PositionType::Absolute,
-                            position: Rect {
+                            position: UiRect {
                                 top: Val::Px(-2.0 * PIXEL_SCALE as f32),
                                 left: Val::Px(-1.0 * PIXEL_SCALE as f32),
                                 ..Default::default()

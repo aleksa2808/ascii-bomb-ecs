@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use bevy::{core::Timer, prelude::Entity};
+use bevy::{prelude::Entity, time::Timer};
 
 pub struct MapTransitionInput {
     pub wall_entity_reveal_groups: Vec<Vec<Entity>>,

@@ -21,7 +21,7 @@ pub fn get_x(x: isize) -> f32 {
 }
 
 pub fn get_y(y: isize) -> f32 {
-    -(TILE_HEIGHT as f32 / 2.0 + (HUD_HEIGHT as isize + y * TILE_HEIGHT as isize) as f32)
+    -(TILE_HEIGHT as f32 / 2.0 + (y * TILE_HEIGHT as isize) as f32)
 }
 
 pub fn format_hud_time(remaining_seconds: usize) -> String {
@@ -46,7 +46,7 @@ pub fn init_hud(
         style: Style {
             size: Size::new(Val::Px(width), Val::Px(HUD_HEIGHT as f32)),
             position_type: PositionType::Absolute,
-            position: Rect {
+            position: UiRect {
                 left: Val::Px(0.0),
                 top: Val::Px(0.0),
                 ..Default::default()
@@ -74,7 +74,7 @@ pub fn init_hud(
                                 Val::Px(2.0 * PIXEL_SCALE as f32),
                             ),
                             position_type: PositionType::Absolute,
-                            position: Rect {
+                            position: UiRect {
                                 left: Val::Px(width / 2.0 - 3.0 * PIXEL_SCALE as f32),
                                 top: Val::Px(12.0 * PIXEL_SCALE as f32),
                                 ..Default::default()
@@ -88,18 +88,17 @@ pub fn init_hud(
                     .with_children(|parent| {
                         parent
                             .spawn_bundle(TextBundle {
-                                text: Text::with_section(
+                                text: Text::from_section(
                                     "",
                                     TextStyle {
                                         font: fonts.mono.clone(),
                                         font_size: 2.0 * PIXEL_SCALE as f32,
                                         color: COLORS[15].into(),
                                     },
-                                    TextAlignment::default(),
                                 ),
                                 style: Style {
                                     position_type: PositionType::Absolute,
-                                    position: Rect {
+                                    position: UiRect {
                                         top: Val::Px(0.0),
                                         left: Val::Px(0.0),
                                         ..Default::default()
@@ -134,12 +133,12 @@ pub fn init_penguin_portraits(
                         Val::Px(10.0 * PIXEL_SCALE as f32),
                     ),
                     position_type: PositionType::Absolute,
-                    position: Rect {
+                    position: UiRect {
                         left: Val::Px(((5 + 12 * penguin.0) * PIXEL_SCALE) as f32),
                         top: Val::Px(PIXEL_SCALE as f32),
                         ..Default::default()
                     },
-                    border: Rect {
+                    border: UiRect {
                         left: Val::Px(PIXEL_SCALE as f32),
                         top: Val::Px(PIXEL_SCALE as f32),
                         right: Val::Px(PIXEL_SCALE as f32),

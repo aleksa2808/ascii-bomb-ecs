@@ -2,11 +2,6 @@ use std::time::Duration;
 
 use bevy::{
     prelude::*,
-    render::{
-        camera::{Camera, Camera2d, CameraProjection},
-        primitives::Frustum,
-        view::VisibleEntities,
-    },
     utils::{HashMap, HashSet},
 };
 use rand::{
@@ -26,7 +21,6 @@ use crate::{
 
 use super::{
     ai::*,
-    camera::SimpleOrthoProjection,
     components::*,
     constants::*,
     events::*,
@@ -44,35 +38,14 @@ pub fn resize_window(mut windows: ResMut<Windows>, map_size: Res<MapSize>) {
 }
 
 pub fn spawn_cameras(mut commands: Commands, map_size: Res<MapSize>) {
-    let projection = SimpleOrthoProjection::new(
-        (map_size.rows * TILE_HEIGHT) as f32,
-        (map_size.columns * TILE_WIDTH) as f32,
-    );
-    let camera = Camera {
-        near: projection.near,
-        far: projection.far(),
+    commands.spawn_bundle(Camera2dBundle {
+        transform: Transform::from_xyz(
+            ((map_size.columns * TILE_WIDTH) as f32) / 2.0,
+            -((map_size.rows * TILE_HEIGHT - HUD_HEIGHT) as f32 / 2.0),
+            999.9,
+        ),
         ..default()
-    };
-    let transform = Transform::from_xyz(0.0, 0.0, projection.far() - 0.1);
-    let view_projection = projection.get_projection_matrix() * transform.compute_matrix().inverse();
-    let frustum = Frustum::from_view_projection(
-        &view_projection,
-        &transform.translation,
-        &transform.back(),
-        projection.far(),
-    );
-
-    commands.spawn_bundle((
-        camera,
-        projection,
-        frustum,
-        VisibleEntities::default(),
-        transform,
-        GlobalTransform::default(),
-        Camera2d,
-    ));
-
-    commands.spawn_bundle(UiCameraBundle::default());
+    });
 }
 
 pub fn setup_penguin_portraits(
@@ -740,18 +713,18 @@ pub fn bomb_drop(
                     .with_children(|parent| {
                         let fuse_color = COLORS[if world_id.0 == 2 { 12 } else { 14 }].into();
 
-                        let mut text = Text::with_section(
+                        let mut text = Text::from_section(
                             '*',
                             TextStyle {
                                 font: fonts.mono.clone(),
                                 font_size: 2.0 * PIXEL_SCALE as f32,
                                 color: fuse_color,
                             },
-                            TextAlignment {
-                                vertical: VerticalAlign::Center,
-                                horizontal: HorizontalAlign::Center,
-                            },
-                        );
+                        )
+                        .with_alignment(TextAlignment {
+                            vertical: VerticalAlign::Center,
+                            horizontal: HorizontalAlign::Center,
+                        });
                         text.sections.push(TextSection {
                             value: "┐\n │".into(),
                             style: TextStyle {
@@ -797,7 +770,7 @@ pub fn animate_fuse(
             _ => unreachable!(),
         };
 
-        let bomb = query.get(parent.0).unwrap();
+        let bomb = query.get(parent.get()).unwrap();
         let percent_left = bomb.timer.percent_left();
 
         match percent_left {

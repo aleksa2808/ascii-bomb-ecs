@@ -86,7 +86,7 @@ pub fn setup_secret_mode(
                                     Val::Px(2.0 * PIXEL_SCALE as f32),
                                 ),
                                 position_type: PositionType::Absolute,
-                                position: Rect {
+                                position: UiRect {
                                     left: Val::Px(hud_width / 2.0 - 20.0 * PIXEL_SCALE as f32),
                                     top: Val::Px(6.0 * PIXEL_SCALE as f32),
                                     ..Default::default()
@@ -100,18 +100,17 @@ pub fn setup_secret_mode(
                         .with_children(|parent| {
                             parent
                                 .spawn_bundle(TextBundle {
-                                    text: Text::with_section(
+                                    text: Text::from_section(
                                         "Hope you had fun with this little game! ^_^",
                                         TextStyle {
                                             font: fonts.mono.clone(),
                                             font_size: 2.0 * PIXEL_SCALE as f32,
                                             color: COLORS[15].into(),
                                         },
-                                        TextAlignment::default(),
                                     ),
                                     style: Style {
                                         position_type: PositionType::Absolute,
-                                        position: Rect {
+                                        position: UiRect {
                                             top: Val::Px(0.0),
                                             left: Val::Px(0.0),
                                             ..Default::default()
@@ -131,7 +130,7 @@ pub fn setup_secret_mode(
                                     Val::Px(2.0 * PIXEL_SCALE as f32),
                                 ),
                                 position_type: PositionType::Absolute,
-                                position: Rect {
+                                position: UiRect {
                                     left: Val::Px(hud_width / 2.0 + 10.0 * PIXEL_SCALE as f32),
                                     top: Val::Px(10.0 * PIXEL_SCALE as f32),
                                     ..Default::default()
@@ -145,18 +144,17 @@ pub fn setup_secret_mode(
                         .with_children(|parent| {
                             parent
                                 .spawn_bundle(TextBundle {
-                                    text: Text::with_section(
+                                    text: Text::from_section(
                                         "Now RUN!",
                                         TextStyle {
                                             font: fonts.mono.clone(),
                                             font_size: 2.0 * PIXEL_SCALE as f32,
                                             color: COLORS[15].into(),
                                         },
-                                        TextAlignment::default(),
                                     ),
                                     style: Style {
                                         position_type: PositionType::Absolute,
-                                        position: Rect {
+                                        position: UiRect {
                                             top: Val::Px(0.0),
                                             left: Val::Px(0.0),
                                             ..Default::default()
@@ -353,18 +351,18 @@ pub fn update_secret_mode(
                                     let fuse_color =
                                         COLORS[if world_id.0 == 2 { 12 } else { 14 }].into();
 
-                                    let mut text = Text::with_section(
+                                    let mut text = Text::from_section(
                                         '*',
                                         TextStyle {
                                             font: fonts.mono.clone(),
                                             font_size: 2.0 * PIXEL_SCALE as f32,
                                             color: fuse_color,
                                         },
-                                        TextAlignment {
-                                            vertical: VerticalAlign::Center,
-                                            horizontal: HorizontalAlign::Center,
-                                        },
-                                    );
+                                    )
+                                    .with_alignment(TextAlignment {
+                                        vertical: VerticalAlign::Center,
+                                        horizontal: HorizontalAlign::Center,
+                                    });
                                     text.sections.push(TextSection {
                                         value: "┐\n │".into(),
                                         style: TextStyle {

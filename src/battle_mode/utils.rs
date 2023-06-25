@@ -1,14 +1,21 @@
 use bevy::prelude::*;
 
-use crate::game::{
-    components::*,
-    constants::{TILE_HEIGHT, TILE_WIDTH},
-    resources::*,
-    types::{BotDifficulty, Cooldown},
-    utils::{get_x, get_y},
+use crate::{
+    game::{
+        components::*,
+        constants::{TILE_HEIGHT, TILE_WIDTH},
+        resources::*,
+        types::{BotDifficulty, Cooldown},
+        utils::{get_x, get_y},
+    },
+    AppState,
 };
 
-use super::types::PenguinControlType;
+use super::{
+    constants::ROUND_START_FREEZE_SECS,
+    resources::{BattleModeContext, BattleModeState, FreezeTimer},
+    types::PenguinControlType,
+};
 
 pub fn spawn_battle_mode_players(
     commands: &mut Commands,
@@ -116,4 +123,17 @@ pub fn get_battle_mode_map_size_fill(player_count: usize) -> (MapSize, f32) {
             60.0,
         )
     }
+}
+
+pub fn start_round(
+    mut battle_mode_context: ResMut<BattleModeContext>,
+    mut commands: Commands,
+    mut state: ResMut<State<AppState>>,
+) {
+    battle_mode_context.state = BattleModeState::InGame;
+    commands.insert_resource(FreezeTimer(Timer::from_seconds(
+        ROUND_START_FREEZE_SECS,
+        false,
+    )));
+    state.push(AppState::RoundStartFreeze).unwrap();
 }

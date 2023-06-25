@@ -10,7 +10,8 @@ use crate::{
     game::{
         add_common_game_systems,
         systems::{
-            game_timer_tick, hud_update, resize_window, spawn_cameras, wall_of_death_update,
+            game_timer_tick, hud_update, resize_window, setup_penguin_portraits, spawn_cameras,
+            wall_of_death_update,
         },
         Label,
     },
@@ -39,6 +40,10 @@ impl Plugin for BattleModePlugin {
                     .with_system(battle_mode_manager.exclusive_system()),
             )
             .add_system_set(
+                SystemSet::on_enter(AppState::RoundStartFreeze)
+                    .with_system(setup_penguin_portraits.exclusive_system()),
+            )
+            .add_system_set(
                 SystemSet::on_update(AppState::RoundStartFreeze)
                     .with_system(finish_freeze.exclusive_system()),
             )
@@ -53,10 +58,6 @@ impl Plugin for BattleModePlugin {
 
         add_common_game_systems(app, AppState::BattleModeInGame);
         app.add_system_set(
-            SystemSet::on_enter(AppState::BattleModeInGame)
-                .with_system(trigger_round_start_freeze.exclusive_system()),
-        )
-        .add_system_set(
             SystemSet::on_update(AppState::BattleModeInGame)
                 .with_system(game_timer_tick.exclusive_system().label(Label::TimeUpdate))
                 .with_system(
