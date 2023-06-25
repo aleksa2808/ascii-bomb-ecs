@@ -1,11 +1,10 @@
-use bevy::{ecs as bevy_ecs, prelude::*, render::camera::camera_system};
+use bevy::{ecs as bevy_ecs, prelude::*};
 
 use crate::AppState;
 
-use self::{camera::SimpleOrthoProjection, events::*, resources::*, systems::*};
+use self::{events::*, resources::*, systems::*};
 
 mod ai;
-pub mod camera;
 pub mod components;
 pub mod constants;
 pub mod events;
@@ -175,10 +174,6 @@ impl Plugin for GamePlugin {
             .add_event::<DamageEvent>()
             .add_event::<BurnEvent>()
             .add_event::<PlayerDeathEvent>()
-            .add_system_to_stage(
-                CoreStage::PostUpdate,
-                camera_system::<SimpleOrthoProjection>,
-            )
             .add_system_set(SystemSet::on_enter(AppState::Paused).with_system(hud_indicate_pause))
             .add_system_set(
                 // these 2 do not need to be marked as .after(InputMapping) since they

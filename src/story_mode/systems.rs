@@ -100,18 +100,17 @@ pub fn setup_story_mode(
                     // lives display
                     parent
                         .spawn_bundle(TextBundle {
-                            text: Text::with_section(
+                            text: Text::from_section(
                                 format_hud_lives(player_lives),
                                 TextStyle {
                                     font: fonts.mono.clone(),
                                     font_size: 2.0 * PIXEL_SCALE as f32,
                                     color: COLORS[0].into(),
                                 },
-                                TextAlignment::default(),
                             ),
                             style: Style {
                                 position_type: PositionType::Absolute,
-                                position: Rect {
+                                position: UiRect {
                                     top: Val::Px(12.0 * PIXEL_SCALE as f32),
                                     left: Val::Px(6.0 * PIXEL_SCALE as f32),
                                     ..Default::default()
@@ -126,18 +125,17 @@ pub fn setup_story_mode(
                     // points display
                     parent
                         .spawn_bundle(TextBundle {
-                            text: Text::with_section(
+                            text: Text::from_section(
                                 format_hud_points(player_points),
                                 TextStyle {
                                     font: fonts.mono.clone(),
                                     font_size: 2.0 * PIXEL_SCALE as f32,
                                     color: COLORS[0].into(),
                                 },
-                                TextAlignment::default(),
                             ),
                             style: Style {
                                 position_type: PositionType::Absolute,
-                                position: Rect {
+                                position: UiRect {
                                     top: Val::Px(12.0 * PIXEL_SCALE as f32),
                                     left: Val::Px(16.0 * PIXEL_SCALE as f32),
                                     ..Default::default()
@@ -527,7 +525,7 @@ pub fn setup_boss_speech(
                     style: Style {
                         size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
                         position_type: PositionType::Absolute,
-                        position: Rect {
+                        position: UiRect {
                             left: Val::Px(0.0),
                             top: Val::Px(0.0),
                             ..Default::default()
@@ -542,7 +540,7 @@ pub fn setup_boss_speech(
                     // dialog border
                     parent
                         .spawn_bundle(TextBundle {
-                            text: Text::with_section(
+                            text: Text::from_section(
                                 r#"
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
 │                                                                                        │
@@ -557,11 +555,10 @@ pub fn setup_boss_speech(
                                     font_size: 2.0 * PIXEL_SCALE as f32,
                                     color: COLORS[15].into(), // TODO: is this the right color?
                                 },
-                                TextAlignment::default(),
                             ),
                             style: Style {
                                 position_type: PositionType::Absolute,
-                                position: Rect {
+                                position: UiRect {
                                     top: Val::Px(0.0),
                                     left: Val::Px(0.0),
                                     ..Default::default()
@@ -581,12 +578,12 @@ pub fn setup_boss_speech(
                                     Val::Px(10.0 * PIXEL_SCALE as f32),
                                 ),
                                 position_type: PositionType::Absolute,
-                                position: Rect {
+                                position: UiRect {
                                     left: Val::Px(4.0 * PIXEL_SCALE as f32),
                                     top: Val::Px(2.0 * PIXEL_SCALE as f32),
                                     ..Default::default()
                                 },
-                                border: Rect {
+                                border: UiRect {
                                     left: Val::Px(PIXEL_SCALE as f32),
                                     top: Val::Px(PIXEL_SCALE as f32),
                                     right: Val::Px(PIXEL_SCALE as f32),
@@ -638,18 +635,17 @@ pub fn setup_boss_speech(
                     speech_text = Some(
                         parent
                             .spawn_bundle(TextBundle {
-                                text: Text::with_section(
+                                text: Text::from_section(
                                     boss_speech_script.get_current_line_state(),
                                     TextStyle {
                                         font: fonts.mono.clone(),
                                         font_size: 2.0 * PIXEL_SCALE as f32,
                                         color: COLORS[15].into(), // TODO: is this the right color?
                                     },
-                                    TextAlignment::default(),
                                 ),
                                 style: Style {
                                     position_type: PositionType::Absolute,
-                                    position: Rect {
+                                    position: UiRect {
                                         top: Val::Px(6.0 * PIXEL_SCALE as f32),
                                         left: Val::Px(16.0 * PIXEL_SCALE as f32),
                                         ..Default::default()
@@ -737,7 +733,7 @@ pub fn setup_high_score_name_input(
                             Val::Px(10.0 * PIXEL_SCALE as f32),
                         ),
                         position_type: PositionType::Absolute,
-                        position: Rect {
+                        position: UiRect {
                             left: Val::Px(
                                 ((map_size.columns * (TILE_WIDTH / PIXEL_SCALE) / 2 - 15)
                                     * PIXEL_SCALE) as f32,
@@ -761,7 +757,7 @@ pub fn setup_high_score_name_input(
                     // dialog border
                     parent
                         .spawn_bundle(TextBundle {
-                            text: Text::with_section(
+                            text: Text::from_section(
                                 r#"
 ┌────────────────────────────┐
 │                            │
@@ -774,11 +770,10 @@ pub fn setup_high_score_name_input(
                                     font_size: 2.0 * PIXEL_SCALE as f32,
                                     color: COLORS[15].into(), // TODO: is this the right color?
                                 },
-                                TextAlignment::default(),
                             ),
                             style: Style {
                                 position_type: PositionType::Absolute,
-                                position: Rect {
+                                position: UiRect {
                                     top: Val::Px(0.0),
                                     left: Val::Px(0.0),
                                     ..Default::default()
@@ -793,18 +788,17 @@ pub fn setup_high_score_name_input(
                     name_text = Some(
                         parent
                             .spawn_bundle(TextBundle {
-                                text: Text::with_section(
+                                text: Text::from_section(
                                     "",
                                     TextStyle {
                                         font: fonts.mono.clone(),
                                         font_size: 2.0 * PIXEL_SCALE as f32,
                                         color: COLORS[15].into(), // TODO: is this the right color?
                                     },
-                                    TextAlignment::default(),
                                 ),
                                 style: Style {
                                     position_type: PositionType::Absolute,
-                                    position: Rect {
+                                    position: UiRect {
                                         top: Val::Px(4.0 * PIXEL_SCALE as f32),
                                         left: Val::Px(8.0 * PIXEL_SCALE as f32),
                                         ..Default::default()

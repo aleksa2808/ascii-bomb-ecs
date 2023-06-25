@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use bevy::{core::Timer, prelude::Entity};
+use bevy::{prelude::Entity, time::Timer};
 
 use crate::game::components::Penguin;
 
@@ -52,7 +52,8 @@ impl BossSpeechScript {
     pub fn tick(&mut self, delta: Duration) {
         self.line_timer.tick(delta);
         if self.line_in_progress() {
-            self.line_character = (self.line_character + self.line_timer.times_finished() as usize)
+            self.line_character = (self.line_character
+                + self.line_timer.times_finished_this_tick() as usize)
                 .min(self.get_current_line().len() - 1);
             if !self.line_in_progress() {
                 self.line_timer.pause();

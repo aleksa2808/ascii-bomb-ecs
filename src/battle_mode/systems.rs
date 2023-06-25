@@ -315,7 +315,7 @@ pub fn setup_leaderboard_display(
                     style: Style {
                         size: Size::new(Val::Px(window.width()), Val::Px(window.height())),
                         position_type: PositionType::Absolute,
-                        position: Rect {
+                        position: UiRect {
                             left: Val::Px(0.0),
                             top: Val::Px(0.0),
                             ..Default::default()
@@ -337,7 +337,7 @@ pub fn setup_leaderboard_display(
                                         Val::Px(PIXEL_SCALE as f32),
                                     ),
                                     position_type: PositionType::Absolute,
-                                    position: Rect {
+                                    position: UiRect {
                                         left: Val::Px((x * PIXEL_SCALE) as f32),
                                         top: Val::Px((y * PIXEL_SCALE) as f32),
                                         ..Default::default()
@@ -376,7 +376,7 @@ pub fn setup_leaderboard_display(
                                         Val::Px(TILE_HEIGHT as f32),
                                     ),
                                     position_type: PositionType::Absolute,
-                                    position: Rect {
+                                    position: UiRect {
                                         left: Val::Px(4.0 * PIXEL_SCALE as f32),
                                         top: Val::Px(((6 + penguin.0 * 12) * PIXEL_SCALE) as f32),
                                         ..Default::default()
@@ -416,7 +416,7 @@ pub fn setup_leaderboard_display(
                                             Val::Px(7.0 * PIXEL_SCALE as f32),
                                         ),
                                         position_type: PositionType::Absolute,
-                                        position: Rect {
+                                        position: UiRect {
                                             top: Val::Px(
                                                 ((7 + penguin.0 * 12) * PIXEL_SCALE) as f32,
                                             ),
@@ -438,18 +438,17 @@ pub fn setup_leaderboard_display(
                                 let mut place_text = |y, x, str: &str, c: usize| {
                                     parent
                                         .spawn_bundle(TextBundle {
-                                            text: Text::with_section(
+                                            text: Text::from_section(
                                                 str.to_string(),
                                                 TextStyle {
                                                     font: fonts.mono.clone(),
                                                     font_size: 2.0 * PIXEL_SCALE as f32,
                                                     color: COLORS[c].into(),
                                                 },
-                                                TextAlignment::default(),
                                             ),
                                             style: Style {
                                                 position_type: PositionType::Absolute,
-                                                position: Rect {
+                                                position: UiRect {
                                                     top: Val::Px(y as f32 * PIXEL_SCALE as f32),
                                                     left: Val::Px(x as f32 * PIXEL_SCALE as f32),
                                                     ..Default::default()

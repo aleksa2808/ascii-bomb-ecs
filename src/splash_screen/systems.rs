@@ -15,7 +15,7 @@ use super::{
 };
 
 pub fn setup_splash_screen(mut commands: Commands, fonts: Res<Fonts>) {
-    commands.spawn_bundle(UiCameraBundle::default());
+    commands.spawn_bundle(Camera2dBundle::default());
 
     let right_position = MENU_WIDTH - SPLASH_SCREEN_TEXT_RIGHT.len() * PIXEL_SCALE;
 
@@ -34,18 +34,17 @@ pub fn setup_splash_screen(mut commands: Commands, fonts: Res<Fonts>) {
             left_text = Some(
                 parent
                     .spawn_bundle(TextBundle {
-                        text: Text::with_section(
+                        text: Text::from_section(
                             SPLASH_SCREEN_TEXT_LEFT,
                             TextStyle {
                                 font: fonts.mono.clone(),
                                 font_size: 2.0 * PIXEL_SCALE as f32,
                                 color: COLORS[15].into(),
                             },
-                            TextAlignment::default(),
                         ),
                         style: Style {
                             position_type: PositionType::Absolute,
-                            position: Rect {
+                            position: UiRect {
                                 top: Val::Px((MENU_HEIGHT / 2) as f32),
                                 left: Val::Px(0.0),
                                 ..Default::default()
@@ -60,18 +59,17 @@ pub fn setup_splash_screen(mut commands: Commands, fonts: Res<Fonts>) {
             right_text = Some(
                 parent
                     .spawn_bundle(TextBundle {
-                        text: Text::with_section(
+                        text: Text::from_section(
                             SPLASH_SCREEN_TEXT_RIGHT,
                             TextStyle {
                                 font: fonts.mono.clone(),
                                 font_size: 2.0 * PIXEL_SCALE as f32,
                                 color: COLORS[15].into(),
                             },
-                            TextAlignment::default(),
                         ),
                         style: Style {
                             position_type: PositionType::Absolute,
-                            position: Rect {
+                            position: UiRect {
                                 top: Val::Px((MENU_HEIGHT / 2 + 2 * PIXEL_SCALE) as f32),
                                 left: Val::Px(right_position as f32),
                                 ..Default::default()

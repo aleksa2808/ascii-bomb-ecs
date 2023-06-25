@@ -1,4 +1,4 @@
-use bevy::{core::Timer, prelude::*, utils::HashMap};
+use bevy::{prelude::*, utils::HashMap};
 
 use crate::{
     game::{components::Penguin, types::BotDifficulty},

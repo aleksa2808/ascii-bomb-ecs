@@ -1,4 +1,4 @@
-use bevy::{core::Timer, prelude::*};
+use bevy::{prelude::*, time::Timer};
 
 use crate::{
     audio::{SoundHandles, SoundID},

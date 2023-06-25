@@ -1,4 +1,4 @@
-use bevy::{core::Timer, prelude::Entity};
+use bevy::{prelude::Entity, time::Timer};
 
 pub enum SplashScreenTextState {
     Moving(Timer),
