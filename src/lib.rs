@@ -11,7 +11,7 @@ mod story_mode;
 #[cfg(target_arch = "wasm32")]
 mod web;
 
-use bevy::prelude::*;
+use bevy::{prelude::*, render::texture::ImageSettings};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
@@ -66,6 +66,8 @@ pub fn run() {
         scale_factor_override: Some(1.0),
         ..Default::default()
     })
+    // fixes blurred textures
+    .insert_resource(ImageSettings::default_nearest())
     .add_plugins(DefaultPlugins)
     .add_plugin(AudioPlugin);
 
