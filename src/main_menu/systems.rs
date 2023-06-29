@@ -42,16 +42,16 @@ pub fn setup_menu(
     game_option_store: Res<GameOptionStore>,
     persistent_high_scores: Res<PersistentHighScores>,
 ) {
-    commands.spawn_bundle(Camera2dBundle::default());
+    commands.spawn(Camera2dBundle::default());
 
     let mut menu_background_animation_context = None;
     commands
-        .spawn_bundle(NodeBundle {
+        .spawn(NodeBundle {
             style: Style {
                 size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
                 ..Default::default()
             },
-            color: menu_colors.background_color.into(),
+            background_color: menu_colors.background_color.into(),
             ..Default::default()
         })
         .with_children(|parent| {
@@ -63,7 +63,7 @@ pub fn setup_menu(
 | |_) | |__| | |  | | |_) | |____| | \ \| |  | |/ ____ \| |\  |
 |____/ \____/|_|  |_|____/|______|_|  \_\_|  |_/_/    \_\_| \_|
 "#;
-            parent.spawn_bundle(TextBundle {
+            parent.spawn(TextBundle {
                 text: Text::from_section(
                     title_text.to_string(),
                     TextStyle {
@@ -86,7 +86,7 @@ pub fn setup_menu(
 
             let mut place_text = |y, x, str: &str, c: usize| {
                 parent
-                    .spawn_bundle(TextBundle {
+                    .spawn(TextBundle {
                         text: Text::from_section(
                             str.to_string(),
                             TextStyle {
@@ -177,12 +177,12 @@ __██__
 
             menu_background_animation_context = Some(MenuBackgroundAnimationContext {
                 entity_change_parameters,
-                timer: Timer::from_seconds(100.0, true),
+                timer: Timer::from_seconds(100.0, TimerMode::Repeating),
             });
 
             // spawn central modal
             parent
-                .spawn_bundle(NodeBundle {
+                .spawn(NodeBundle {
                     style: Style {
                         size: Size::new(
                             Val::Px(40.0 * PIXEL_SCALE as f32),
@@ -202,12 +202,12 @@ __██__
                         },
                         ..Default::default()
                     },
-                    color: menu_colors.modal_foreground_color.into(),
+                    background_color: menu_colors.modal_foreground_color.into(),
                     ..Default::default()
                 })
                 .with_children(|parent| {
                     // spawn modal border
-                    parent.spawn_bundle(TextBundle {
+                    parent.spawn(TextBundle {
                         text: Text::from_section(
                             r#"
 ┌──────────────────────────────────────┐
@@ -251,15 +251,17 @@ __██__
 
                     // spawn menu type
                     parent
-                        .spawn_bundle(NodeBundle {
-                            style: Style {
-                                size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                        .spawn((
+                            NodeBundle {
+                                style: Style {
+                                    size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                                    ..Default::default()
+                                },
+                                background_color: menu_colors.modal_background_color.into(),
                                 ..Default::default()
                             },
-                            color: menu_colors.modal_background_color.into(),
-                            ..Default::default()
-                        })
-                        .insert(MenuContentBox)
+                            MenuContentBox,
+                        ))
                         .with_children(|parent| {
                             spawn_menu_type(
                                 parent,
@@ -278,7 +280,7 @@ __██__
     if game_option_store.get(GameOption::Demo) {
         commands.insert_resource(DemoModeStartTimer(Timer::from_seconds(
             DEMO_MODE_START_TIMER_DURATION_SECS,
-            false,
+            TimerMode::Once,
         )));
     }
 }
@@ -402,7 +404,7 @@ pub fn menu_navigation(
                             if option_enabled {
                                 commands.insert_resource(DemoModeStartTimer(Timer::from_seconds(
                                     DEMO_MODE_START_TIMER_DURATION_SECS,
-                                    false,
+                                    TimerMode::Once,
                                 )));
                             } else {
                                 commands.remove_resource::<DemoModeStartTimer>();

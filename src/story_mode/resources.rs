@@ -1,6 +1,10 @@
 use std::time::Duration;
 
-use bevy::{prelude::Entity, time::Timer};
+use bevy::{
+    ecs as bevy_ecs,
+    prelude::{Entity, Resource},
+    time::{Timer, TimerMode},
+};
 
 use crate::game::components::Penguin;
 
@@ -24,6 +28,7 @@ pub enum LevelOutcome {
     Loss,
 }
 
+#[derive(Resource)]
 pub struct StoryModeContext {
     pub state: StoryModeState,
     pub level: Level,
@@ -32,6 +37,7 @@ pub struct StoryModeContext {
 }
 
 // boss speech
+#[derive(Resource)]
 pub struct BossSpeechScript {
     script: Vec<(Penguin, &'static str)>,
     line_index: usize,
@@ -45,7 +51,7 @@ impl BossSpeechScript {
             script,
             line_index: 0,
             line_character: 0,
-            line_timer: Timer::from_seconds(0.02, true),
+            line_timer: Timer::from_seconds(0.02, TimerMode::Repeating),
         }
     }
 
@@ -97,12 +103,14 @@ impl BossSpeechScript {
     }
 }
 
+#[derive(Resource)]
 pub struct BossSpeechBoxEntities {
     pub speech_box: Entity,
     pub speaker_portrait: Entity,
     pub speech_text: Entity,
 }
 
+#[derive(Resource)]
 pub struct HighScoreNameInputContext {
     pub input_box: Entity,
     pub name_text: Entity,

@@ -42,8 +42,8 @@ pub fn setup_story_mode(
         .get_penguin_texture(player_penguin_tag)
         .clone();
     let immortal_texture = game_textures.immortal_penguin.clone();
-    commands
-        .spawn_bundle(SpriteBundle {
+    commands.spawn((
+        SpriteBundle {
             texture: base_texture.clone(),
             transform: Transform::from_xyz(
                 get_x(player_spawn_position.x),
@@ -55,38 +55,41 @@ pub fn setup_story_mode(
                 ..Default::default()
             },
             ..Default::default()
-        })
-        .insert(BaseTexture(base_texture))
-        .insert(ImmortalTexture(immortal_texture))
-        .insert(Player)
-        .insert(Protagonist)
-        .insert(HumanControlled(0))
-        .insert(Health {
+        },
+        BaseTexture(base_texture),
+        ImmortalTexture(immortal_texture),
+        Player,
+        Protagonist,
+        HumanControlled(0),
+        Health {
             lives: player_lives,
             max_health: 1,
             health: 1,
-        })
-        .insert(player_spawn_position)
-        .insert(SpawnPosition(player_spawn_position))
-        .insert(BombSatchel {
+        },
+        player_spawn_position,
+        SpawnPosition(player_spawn_position),
+        BombSatchel {
             bombs_available: 1,
             bomb_range: 1,
-        })
-        .insert(player_penguin_tag)
-        .insert(TeamID(0));
+        },
+        player_penguin_tag,
+        TeamID(0),
+    ));
 
     // spawn HUD
     commands
-        .spawn_bundle(NodeBundle {
-            style: Style {
-                size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+        .spawn((
+            NodeBundle {
+                style: Style {
+                    size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                    ..Default::default()
+                },
+                background_color: Color::NONE.into(),
                 ..Default::default()
             },
-            color: Color::NONE.into(),
-            ..Default::default()
-        })
-        .insert(UIRoot)
-        .insert(UIComponent)
+            UIRoot,
+            UIComponent,
+        ))
         .with_children(|parent| {
             init_hud(
                 parent,
@@ -98,8 +101,8 @@ pub fn setup_story_mode(
                 true,
                 Some(&|parent: &mut ChildBuilder| {
                     // lives display
-                    parent
-                        .spawn_bundle(TextBundle {
+                    parent.spawn((
+                        TextBundle {
                             text: Text::from_section(
                                 format_hud_lives(player_lives),
                                 TextStyle {
@@ -118,13 +121,14 @@ pub fn setup_story_mode(
                                 ..Default::default()
                             },
                             ..Default::default()
-                        })
-                        .insert(UIComponent)
-                        .insert(BottomLeftDisplay1);
+                        },
+                        UIComponent,
+                        BottomLeftDisplay1,
+                    ));
 
                     // points display
-                    parent
-                        .spawn_bundle(TextBundle {
+                    parent.spawn((
+                        TextBundle {
                             text: Text::from_section(
                                 format_hud_points(player_points),
                                 TextStyle {
@@ -143,9 +147,10 @@ pub fn setup_story_mode(
                                 ..Default::default()
                             },
                             ..Default::default()
-                        })
-                        .insert(UIComponent)
-                        .insert(BottomLeftDisplay2);
+                        },
+                        UIComponent,
+                        BottomLeftDisplay2,
+                    ));
                 }),
             );
         });
@@ -163,7 +168,7 @@ pub fn setup_story_mode(
     commands.insert_resource(GameScore(player_points));
     commands.insert_resource(GameTimer(Timer::from_seconds(
         STORY_MODE_LEVEL_DURATION_SECS as f32,
-        false,
+        TimerMode::Once,
     )));
     commands.insert_resource(world_id);
     commands.insert_resource(map_size);
@@ -198,7 +203,7 @@ pub fn story_mode_manager(
             ),
             (With<Player>, With<Protagonist>),
         >,
-        Query<&mut UiColor, With<HUDRoot>>,
+        Query<&mut BackgroundColor, With<HUDRoot>>,
     )>,
     mut p2: ParamSet<(
         Query<&mut Text, With<BottomLeftDisplay2>>,
@@ -521,25 +526,27 @@ pub fn setup_boss_speech(
     commands.entity(query.single()).with_children(|parent| {
         speech_box = Some(
             parent
-                .spawn_bundle(NodeBundle {
-                    style: Style {
-                        size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
-                        position_type: PositionType::Absolute,
-                        position: UiRect {
-                            left: Val::Px(0.0),
-                            top: Val::Px(0.0),
+                .spawn((
+                    NodeBundle {
+                        style: Style {
+                            size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                            position_type: PositionType::Absolute,
+                            position: UiRect {
+                                left: Val::Px(0.0),
+                                top: Val::Px(0.0),
+                                ..Default::default()
+                            },
                             ..Default::default()
                         },
+                        background_color: hud_colors.black_color.into(),
                         ..Default::default()
                     },
-                    color: hud_colors.black_color.into(),
-                    ..Default::default()
-                })
-                .insert(UIComponent)
+                    UIComponent,
+                ))
                 .with_children(|parent| {
                     // dialog border
-                    parent
-                        .spawn_bundle(TextBundle {
+                    parent.spawn((
+                        TextBundle {
                             text: Text::from_section(
                                 r#"
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
@@ -566,66 +573,79 @@ pub fn setup_boss_speech(
                                 ..Default::default()
                             },
                             ..Default::default()
-                        })
-                        .insert(UIComponent);
+                        },
+                        UIComponent,
+                    ));
 
                     // player portrait
                     parent
-                        .spawn_bundle(NodeBundle {
-                            style: Style {
-                                size: Size::new(
-                                    Val::Px(8.0 * PIXEL_SCALE as f32),
-                                    Val::Px(10.0 * PIXEL_SCALE as f32),
-                                ),
-                                position_type: PositionType::Absolute,
-                                position: UiRect {
-                                    left: Val::Px(4.0 * PIXEL_SCALE as f32),
-                                    top: Val::Px(2.0 * PIXEL_SCALE as f32),
-                                    ..Default::default()
-                                },
-                                border: UiRect {
-                                    left: Val::Px(PIXEL_SCALE as f32),
-                                    top: Val::Px(PIXEL_SCALE as f32),
-                                    right: Val::Px(PIXEL_SCALE as f32),
-                                    bottom: Val::Px(PIXEL_SCALE as f32),
-                                },
-                                ..Default::default()
-                            },
-                            color: hud_colors.portrait_border_color.into(),
-                            ..Default::default()
-                        })
-                        .insert(UIComponent)
-                        .with_children(|parent| {
-                            parent
-                                .spawn_bundle(NodeBundle {
-                                    style: Style {
-                                        size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                        .spawn((
+                            NodeBundle {
+                                style: Style {
+                                    size: Size::new(
+                                        Val::Px(8.0 * PIXEL_SCALE as f32),
+                                        Val::Px(10.0 * PIXEL_SCALE as f32),
+                                    ),
+                                    position_type: PositionType::Absolute,
+                                    position: UiRect {
+                                        left: Val::Px(4.0 * PIXEL_SCALE as f32),
+                                        top: Val::Px(2.0 * PIXEL_SCALE as f32),
                                         ..Default::default()
                                     },
-                                    color: hud_colors.portrait_background_color.into(),
+                                    border: UiRect {
+                                        left: Val::Px(PIXEL_SCALE as f32),
+                                        top: Val::Px(PIXEL_SCALE as f32),
+                                        right: Val::Px(PIXEL_SCALE as f32),
+                                        bottom: Val::Px(PIXEL_SCALE as f32),
+                                    },
                                     ..Default::default()
-                                })
-                                .insert(UIComponent)
+                                },
+                                background_color: hud_colors.portrait_border_color.into(),
+                                ..Default::default()
+                            },
+                            UIComponent,
+                        ))
+                        .with_children(|parent| {
+                            parent
+                                .spawn((
+                                    NodeBundle {
+                                        style: Style {
+                                            size: Size::new(
+                                                Val::Percent(100.0),
+                                                Val::Percent(100.0),
+                                            ),
+                                            ..Default::default()
+                                        },
+                                        background_color: hud_colors
+                                            .portrait_background_color
+                                            .into(),
+                                        ..Default::default()
+                                    },
+                                    UIComponent,
+                                ))
                                 .with_children(|parent| {
                                     speaker_portrait = Some(
                                         parent
-                                            .spawn_bundle(ImageBundle {
-                                                style: Style {
-                                                    size: Size::new(
-                                                        Val::Percent(100.0),
-                                                        Val::Percent(100.0),
-                                                    ),
+                                            .spawn((
+                                                ImageBundle {
+                                                    style: Style {
+                                                        size: Size::new(
+                                                            Val::Percent(100.0),
+                                                            Val::Percent(100.0),
+                                                        ),
+                                                        ..Default::default()
+                                                    },
+                                                    image: game_textures
+                                                        .get_penguin_texture(
+                                                            boss_speech_script
+                                                                .get_current_speaker(),
+                                                        )
+                                                        .clone()
+                                                        .into(),
                                                     ..Default::default()
                                                 },
-                                                image: game_textures
-                                                    .get_penguin_texture(
-                                                        boss_speech_script.get_current_speaker(),
-                                                    )
-                                                    .clone()
-                                                    .into(),
-                                                ..Default::default()
-                                            })
-                                            .insert(UIComponent)
+                                                UIComponent,
+                                            ))
                                             .id(),
                                     );
                                 });
@@ -634,27 +654,29 @@ pub fn setup_boss_speech(
                     // speech text
                     speech_text = Some(
                         parent
-                            .spawn_bundle(TextBundle {
-                                text: Text::from_section(
-                                    boss_speech_script.get_current_line_state(),
-                                    TextStyle {
-                                        font: fonts.mono.clone(),
-                                        font_size: 2.0 * PIXEL_SCALE as f32,
-                                        color: COLORS[15].into(), // TODO: is this the right color?
-                                    },
-                                ),
-                                style: Style {
-                                    position_type: PositionType::Absolute,
-                                    position: UiRect {
-                                        top: Val::Px(6.0 * PIXEL_SCALE as f32),
-                                        left: Val::Px(16.0 * PIXEL_SCALE as f32),
+                            .spawn((
+                                TextBundle {
+                                    text: Text::from_section(
+                                        boss_speech_script.get_current_line_state(),
+                                        TextStyle {
+                                            font: fonts.mono.clone(),
+                                            font_size: 2.0 * PIXEL_SCALE as f32,
+                                            color: COLORS[15].into(), // TODO: is this the right color?
+                                        },
+                                    ),
+                                    style: Style {
+                                        position_type: PositionType::Absolute,
+                                        position: UiRect {
+                                            top: Val::Px(6.0 * PIXEL_SCALE as f32),
+                                            left: Val::Px(16.0 * PIXEL_SCALE as f32),
+                                            ..Default::default()
+                                        },
                                         ..Default::default()
                                     },
                                     ..Default::default()
                                 },
-                                ..Default::default()
-                            })
-                            .insert(UIComponent)
+                                UIComponent,
+                            ))
                             .id(),
                     );
                 })
@@ -726,37 +748,40 @@ pub fn setup_high_score_name_input(
     commands.entity(query.single()).with_children(|parent| {
         input_box = Some(
             parent
-                .spawn_bundle(NodeBundle {
-                    style: Style {
-                        size: Size::new(
-                            Val::Px(30.0 * PIXEL_SCALE as f32),
-                            Val::Px(10.0 * PIXEL_SCALE as f32),
-                        ),
-                        position_type: PositionType::Absolute,
-                        position: UiRect {
-                            left: Val::Px(
-                                ((map_size.columns * (TILE_WIDTH / PIXEL_SCALE) / 2 - 15)
-                                    * PIXEL_SCALE) as f32,
+                .spawn((
+                    NodeBundle {
+                        style: Style {
+                            size: Size::new(
+                                Val::Px(30.0 * PIXEL_SCALE as f32),
+                                Val::Px(10.0 * PIXEL_SCALE as f32),
                             ),
-                            top: Val::Px(
-                                // messy equation that produces the same results as the C code (integer divisions)
-                                ((((HUD_HEIGHT + map_size.rows * TILE_HEIGHT) / PIXEL_SCALE) / 4
-                                    * 2
-                                    - 6)
-                                    * PIXEL_SCALE) as f32,
-                            ),
+                            position_type: PositionType::Absolute,
+                            position: UiRect {
+                                left: Val::Px(
+                                    ((map_size.columns * (TILE_WIDTH / PIXEL_SCALE) / 2 - 15)
+                                        * PIXEL_SCALE) as f32,
+                                ),
+                                top: Val::Px(
+                                    // messy equation that produces the same results as the C code (integer divisions)
+                                    ((((HUD_HEIGHT + map_size.rows * TILE_HEIGHT) / PIXEL_SCALE)
+                                        / 4
+                                        * 2
+                                        - 6)
+                                        * PIXEL_SCALE) as f32,
+                                ),
+                                ..Default::default()
+                            },
                             ..Default::default()
                         },
+                        background_color: hud_colors.black_color.into(),
                         ..Default::default()
                     },
-                    color: hud_colors.black_color.into(),
-                    ..Default::default()
-                })
-                .insert(UIComponent)
+                    UIComponent,
+                ))
                 .with_children(|parent| {
                     // dialog border
-                    parent
-                        .spawn_bundle(TextBundle {
+                    parent.spawn((
+                        TextBundle {
                             text: Text::from_section(
                                 r#"
 ┌────────────────────────────┐
@@ -781,33 +806,36 @@ pub fn setup_high_score_name_input(
                                 ..Default::default()
                             },
                             ..Default::default()
-                        })
-                        .insert(UIComponent);
+                        },
+                        UIComponent,
+                    ));
 
                     // name text
                     name_text = Some(
                         parent
-                            .spawn_bundle(TextBundle {
-                                text: Text::from_section(
-                                    "",
-                                    TextStyle {
-                                        font: fonts.mono.clone(),
-                                        font_size: 2.0 * PIXEL_SCALE as f32,
-                                        color: COLORS[15].into(), // TODO: is this the right color?
-                                    },
-                                ),
-                                style: Style {
-                                    position_type: PositionType::Absolute,
-                                    position: UiRect {
-                                        top: Val::Px(4.0 * PIXEL_SCALE as f32),
-                                        left: Val::Px(8.0 * PIXEL_SCALE as f32),
+                            .spawn((
+                                TextBundle {
+                                    text: Text::from_section(
+                                        "",
+                                        TextStyle {
+                                            font: fonts.mono.clone(),
+                                            font_size: 2.0 * PIXEL_SCALE as f32,
+                                            color: COLORS[15].into(), // TODO: is this the right color?
+                                        },
+                                    ),
+                                    style: Style {
+                                        position_type: PositionType::Absolute,
+                                        position: UiRect {
+                                            top: Val::Px(4.0 * PIXEL_SCALE as f32),
+                                            left: Val::Px(8.0 * PIXEL_SCALE as f32),
+                                            ..Default::default()
+                                        },
                                         ..Default::default()
                                     },
                                     ..Default::default()
                                 },
-                                ..Default::default()
-                            })
-                            .insert(UIComponent)
+                                UIComponent,
+                            ))
                             .id(),
                     );
                 })

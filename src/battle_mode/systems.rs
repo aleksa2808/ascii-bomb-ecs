@@ -37,16 +37,18 @@ pub fn setup_battle_mode(
 
     // spawn HUD
     commands
-        .spawn_bundle(NodeBundle {
-            style: Style {
-                size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+        .spawn((
+            NodeBundle {
+                style: Style {
+                    size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                    ..Default::default()
+                },
+                background_color: Color::NONE.into(),
                 ..Default::default()
             },
-            color: Color::NONE.into(),
-            ..Default::default()
-        })
-        .insert(UIRoot)
-        .insert(UIComponent)
+            UIRoot,
+            UIComponent,
+        ))
         .with_children(|parent| {
             init_hud(
                 parent,
@@ -132,14 +134,14 @@ pub fn battle_mode_manager(
 
                 commands.insert_resource(GameTimer(Timer::from_seconds(
                     BATTLE_MODE_ROUND_DURATION_SECS as f32,
-                    false,
+                    TimerMode::Once,
                 )));
                 // update HUD clock
                 query4.single_mut().sections[0].value =
                     format_hud_time(BATTLE_MODE_ROUND_DURATION_SECS);
                 commands.insert_resource(WallOfDeath::Dormant(Timer::from_seconds(
                     BATTLE_MODE_ROUND_DURATION_SECS as f32 / 2.0,
-                    false,
+                    TimerMode::Once,
                 )));
 
                 battle_mode_context.round_outcome = None;
@@ -296,26 +298,28 @@ pub fn setup_leaderboard_display(
     commands.entity(query.single()).with_children(|parent| {
         leaderboard_display_box = Some(
             parent
-                .spawn_bundle(NodeBundle {
-                    style: Style {
-                        size: Size::new(Val::Px(window.width()), Val::Px(window.height())),
-                        position_type: PositionType::Absolute,
-                        position: UiRect {
-                            left: Val::Px(0.0),
-                            top: Val::Px(0.0),
+                .spawn((
+                    NodeBundle {
+                        style: Style {
+                            size: Size::new(Val::Px(window.width()), Val::Px(window.height())),
+                            position_type: PositionType::Absolute,
+                            position: UiRect {
+                                left: Val::Px(0.0),
+                                top: Val::Px(0.0),
+                                ..Default::default()
+                            },
                             ..Default::default()
                         },
+                        background_color: COLORS[0].into(),
                         ..Default::default()
                     },
-                    color: COLORS[0].into(),
-                    ..Default::default()
-                })
-                .insert(UIComponent)
+                    UIComponent,
+                ))
                 .with_children(|parent| {
                     // spawn border
                     let mut spawn_color = |y: usize, x: usize| {
-                        parent
-                            .spawn_bundle(NodeBundle {
+                        parent.spawn((
+                            NodeBundle {
                                 style: Style {
                                     size: Size::new(
                                         Val::Px(PIXEL_SCALE as f32),
@@ -329,11 +333,15 @@ pub fn setup_leaderboard_display(
                                     },
                                     ..Default::default()
                                 },
-                                color: (*COLORS.iter().choose(&mut rand::thread_rng()).unwrap())
-                                    .into(),
+                                background_color: (*COLORS
+                                    .iter()
+                                    .choose(&mut rand::thread_rng())
+                                    .unwrap())
+                                .into(),
                                 ..Default::default()
-                            })
-                            .insert(UIComponent);
+                            },
+                            UIComponent,
+                        ));
                     };
 
                     let height = window.height() as usize / PIXEL_SCALE;
@@ -354,27 +362,31 @@ pub fn setup_leaderboard_display(
                     for (penguin, score) in &battle_mode_context.leaderboard.scores {
                         // spawn penguin portrait
                         parent
-                            .spawn_bundle(NodeBundle {
-                                style: Style {
-                                    size: Size::new(
-                                        Val::Px(TILE_WIDTH as f32),
-                                        Val::Px(TILE_HEIGHT as f32),
-                                    ),
-                                    position_type: PositionType::Absolute,
-                                    position: UiRect {
-                                        left: Val::Px(4.0 * PIXEL_SCALE as f32),
-                                        top: Val::Px(((6 + penguin.0 * 12) * PIXEL_SCALE) as f32),
+                            .spawn((
+                                NodeBundle {
+                                    style: Style {
+                                        size: Size::new(
+                                            Val::Px(TILE_WIDTH as f32),
+                                            Val::Px(TILE_HEIGHT as f32),
+                                        ),
+                                        position_type: PositionType::Absolute,
+                                        position: UiRect {
+                                            left: Val::Px(4.0 * PIXEL_SCALE as f32),
+                                            top: Val::Px(
+                                                ((6 + penguin.0 * 12) * PIXEL_SCALE) as f32,
+                                            ),
+                                            ..Default::default()
+                                        },
                                         ..Default::default()
                                     },
+                                    background_color: COLORS[2].into(),
                                     ..Default::default()
                                 },
-                                color: COLORS[2].into(),
-                                ..Default::default()
-                            })
-                            .insert(UIComponent)
+                                UIComponent,
+                            ))
                             .with_children(|parent| {
-                                parent
-                                    .spawn_bundle(ImageBundle {
+                                parent.spawn((
+                                    ImageBundle {
                                         style: Style {
                                             size: Size::new(
                                                 Val::Percent(100.0),
@@ -387,14 +399,15 @@ pub fn setup_leaderboard_display(
                                             .clone()
                                             .into(),
                                         ..Default::default()
-                                    })
-                                    .insert(UIComponent);
+                                    },
+                                    UIComponent,
+                                ));
                             });
 
                         // spawn penguin trophies
                         for i in 0..*score {
-                            parent
-                                .spawn_bundle(ImageBundle {
+                            parent.spawn((
+                                ImageBundle {
                                     style: Style {
                                         size: Size::new(
                                             Val::Px(5.0 * PIXEL_SCALE as f32),
@@ -412,8 +425,9 @@ pub fn setup_leaderboard_display(
                                     },
                                     image: leaderboard_textures.trophy.clone().into(),
                                     ..Default::default()
-                                })
-                                .insert(UIComponent);
+                                },
+                                UIComponent,
+                            ));
                         }
 
                         if let RoundOutcome::Winner(round_winner_penguin) =
@@ -421,8 +435,8 @@ pub fn setup_leaderboard_display(
                         {
                             if *penguin == round_winner_penguin {
                                 let mut place_text = |y, x, str: &str, c: usize| {
-                                    parent
-                                        .spawn_bundle(TextBundle {
+                                    parent.spawn((
+                                        TextBundle {
                                             text: Text::from_section(
                                                 str.to_string(),
                                                 TextStyle {
@@ -441,8 +455,9 @@ pub fn setup_leaderboard_display(
                                                 ..Default::default()
                                             },
                                             ..Default::default()
-                                        })
-                                        .insert(UIComponent);
+                                        },
+                                        UIComponent,
+                                    ));
                                 };
 
                                 place_text(6 + penguin.0 * 12, 15 + (*score - 1) * 9 - 2, "*", 15);
@@ -458,7 +473,7 @@ pub fn setup_leaderboard_display(
 
     commands.insert_resource(LeaderboardDisplayContext {
         leaderboard_display_box: leaderboard_display_box.unwrap(),
-        timer: Timer::from_seconds(1.5, false),
+        timer: Timer::from_seconds(1.5, TimerMode::Once),
     });
 }
 

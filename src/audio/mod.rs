@@ -5,7 +5,7 @@ mod web;
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use bevy::{prelude::*, utils::HashMap};
+use bevy::{ecs as bevy_ecs, prelude::*, utils::HashMap};
 use parking_lot::RwLock;
 
 #[cfg(target_arch = "wasm32")]
@@ -53,7 +53,7 @@ impl SoundID {
 /// Needed because of the differences in how the native and the web build audio systems operate.
 /// In the native build the IDs are used to obtain the `Sound` handles again, while in the
 /// web build they are used to obtain the pre-loaded Web Audio API audio buffers.
-#[derive(Default)]
+#[derive(Default, Resource)]
 pub struct SoundHandles(HashMap<SoundID, Handle<Sound>>);
 
 impl SoundHandles {
@@ -70,7 +70,7 @@ pub enum AudioCommand {
 }
 
 /// A frontend interface resource that can be used to place audio requests from any thread.
-#[derive(Default)]
+#[derive(Default, Resource)]
 pub struct Audio {
     pub audio_command: RwLock<Option<AudioCommand>>,
     pub volume_change: RwLock<Option<f32>>,

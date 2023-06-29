@@ -38,7 +38,7 @@ pub fn resize_window(mut windows: ResMut<Windows>, map_size: Res<MapSize>) {
 }
 
 pub fn spawn_cameras(mut commands: Commands, map_size: Res<MapSize>) {
-    commands.spawn_bundle(Camera2dBundle {
+    commands.spawn(Camera2dBundle {
         transform: Transform::from_xyz(
             ((map_size.columns * TILE_WIDTH) as f32) / 2.0,
             -((map_size.rows * TILE_HEIGHT - HUD_HEIGHT) as f32 / 2.0),
@@ -580,10 +580,10 @@ pub fn player_move(
                 moved = true;
             } else if bomb_push.is_some() {
                 if let Some((e, _, true)) = solid {
-                    commands
-                        .entity(*e)
-                        .insert(Moving { direction })
-                        .insert(MoveCooldown(Cooldown::from_seconds(0.01)));
+                    commands.entity(*e).insert((
+                        Moving { direction },
+                        MoveCooldown(Cooldown::from_seconds(0.01)),
+                    ));
                 }
             }
 
@@ -694,22 +694,28 @@ pub fn bomb_drop(
                 bomb_satchel.bombs_available -= 1;
 
                 commands
-                    .spawn_bundle(SpriteBundle {
-                        texture: game_textures.bomb.clone(),
-                        transform: Transform::from_xyz(get_x(position.x), get_y(position.y), 25.0),
-                        sprite: Sprite {
-                            custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+                    .spawn((
+                        SpriteBundle {
+                            texture: game_textures.bomb.clone(),
+                            transform: Transform::from_xyz(
+                                get_x(position.x),
+                                get_y(position.y),
+                                25.0,
+                            ),
+                            sprite: Sprite {
+                                custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+                                ..Default::default()
+                            },
                             ..Default::default()
                         },
-                        ..Default::default()
-                    })
-                    .insert(Bomb {
-                        owner: Some(entity),
-                        range: bomb_satchel.bomb_range,
-                        timer: Timer::from_seconds(2.0, false),
-                    })
-                    .insert(Solid)
-                    .insert(*position)
+                        Bomb {
+                            owner: Some(entity),
+                            range: bomb_satchel.bomb_range,
+                            timer: Timer::from_seconds(2.0, TimerMode::Once),
+                        },
+                        Solid,
+                        *position,
+                    ))
                     .with_children(|parent| {
                         let fuse_color = COLORS[if world_id.0 == 2 { 12 } else { 14 }].into();
 
@@ -734,8 +740,8 @@ pub fn bomb_drop(
                             },
                         });
 
-                        parent
-                            .spawn_bundle(Text2dBundle {
+                        parent.spawn((
+                            Text2dBundle {
                                 text,
                                 transform: Transform::from_xyz(
                                     0.0,
@@ -743,11 +749,12 @@ pub fn bomb_drop(
                                     0.0,
                                 ),
                                 ..Default::default()
-                            })
-                            .insert(Fuse {
+                            },
+                            Fuse {
                                 color: fuse_color,
-                                animation_timer: Timer::from_seconds(0.1, true),
-                            });
+                                animation_timer: Timer::from_seconds(0.1, TimerMode::Repeating),
+                            },
+                        ));
                     });
             }
         }
@@ -867,8 +874,8 @@ pub fn crumbling_tick(
         if crumbling.timer.finished() {
             commands.entity(entity).despawn_recursive();
             if matches!(exit_position, Some(ref p) if p.0 == *position) {
-                commands
-                    .spawn_bundle(SpriteBundle {
+                commands.spawn((
+                    SpriteBundle {
                         texture: game_textures.exit.clone(),
                         transform: Transform::from_xyz(get_x(position.x), get_y(position.y), 10.0),
                         sprite: Sprite {
@@ -876,9 +883,10 @@ pub fn crumbling_tick(
                             ..Default::default()
                         },
                         ..Default::default()
-                    })
-                    .insert(*position)
-                    .insert(Exit::default());
+                    },
+                    *position,
+                    Exit::default(),
+                ));
             } else if rand::thread_rng().gen_range(0.0..1.0) < ITEM_SPAWN_CHANCE {
                 generate_item_at_position(
                     *position,
@@ -949,8 +957,8 @@ pub fn bomb_update(
         }
 
         let spawn_fire = |commands: &mut Commands, position: Position| {
-            commands
-                .spawn_bundle(SpriteBundle {
+            commands.spawn((
+                SpriteBundle {
                     texture: game_textures.fire.clone(),
                     transform: Transform::from_xyz(get_x(position.x), get_y(position.y), 5.0),
                     sprite: Sprite {
@@ -958,11 +966,12 @@ pub fn bomb_update(
                         ..Default::default()
                     },
                     ..Default::default()
-                })
-                .insert(Fire {
-                    timer: Timer::from_seconds(0.5, false),
-                })
-                .insert(position);
+                },
+                Fire {
+                    timer: Timer::from_seconds(0.5, TimerMode::Once),
+                },
+                position,
+            ));
         };
 
         spawn_fire(&mut commands, *position);
@@ -1198,7 +1207,7 @@ pub fn destructible_wall_burn(
         for (e, _, mut t, perishable) in query.iter_mut().filter(|(_, p, _, _)| **p == *position) {
             if perishable.is_none() {
                 commands.entity(e).insert(Crumbling {
-                    timer: Timer::from_seconds(0.5, false),
+                    timer: Timer::from_seconds(0.5, TimerMode::Once),
                 });
                 *t = game_textures.get_map_textures().burning_wall.clone();
             }
@@ -1229,8 +1238,8 @@ pub fn item_burn(
 
             commands.entity(e).despawn_recursive();
             // burning item
-            commands
-                .spawn_bundle(SpriteBundle {
+            commands.spawn((
+                SpriteBundle {
                     texture: game_textures.burning_item.clone(),
                     transform: Transform::from_xyz(get_x(position.x), get_y(position.y), 20.0),
                     sprite: Sprite {
@@ -1238,11 +1247,12 @@ pub fn item_burn(
                         ..Default::default()
                     },
                     ..Default::default()
-                })
-                .insert(*position)
-                .insert(BurningItem {
-                    timer: Timer::from_seconds(0.5, false),
-                });
+                },
+                *position,
+                BurningItem {
+                    timer: Timer::from_seconds(0.5, TimerMode::Once),
+                },
+            ));
         }
     }
 }
@@ -1267,8 +1277,8 @@ pub fn exit_burn(
 
                 // spawn mob
                 let base_texture = game_textures.crook.clone();
-                commands
-                    .spawn_bundle(SpriteBundle {
+                commands.spawn((
+                    SpriteBundle {
                         texture: base_texture.clone(),
                         transform: Transform::from_xyz(
                             get_x(exit_position.x),
@@ -1280,22 +1290,23 @@ pub fn exit_burn(
                             ..Default::default()
                         },
                         ..Default::default()
-                    })
-                    .insert(BaseTexture(base_texture))
-                    .insert(ImmortalTexture(game_textures.immortal_crook.clone()))
-                    .insert(Player)
-                    .insert(MobAI::default())
-                    .insert(MoveCooldown(Cooldown::from_seconds(0.4)))
-                    .insert(Health {
+                    },
+                    BaseTexture(base_texture),
+                    ImmortalTexture(game_textures.immortal_crook.clone()),
+                    Player,
+                    MobAI::default(),
+                    MoveCooldown(Cooldown::from_seconds(0.4)),
+                    Health {
                         lives: 1,
                         max_health: 1,
                         health: 1,
-                    })
-                    .insert(*exit_position)
-                    .insert(SpawnPosition(*exit_position))
-                    .insert(MeleeAttacker)
-                    .insert(TeamID(1))
-                    .insert(Immortal::default());
+                    },
+                    *exit_position,
+                    SpawnPosition(*exit_position),
+                    MeleeAttacker,
+                    TeamID(1),
+                    Immortal::default(),
+                ));
 
                 exit.spawn_cooldown.trigger();
             }
@@ -1379,8 +1390,8 @@ pub fn wall_of_death_update(
             }
         }
 
-        commands
-            .spawn_bundle(SpriteBundle {
+        commands.spawn((
+            SpriteBundle {
                 texture: game_textures.get_map_textures().wall.clone(),
                 transform: Transform::from_xyz(get_x(position.x), get_y(position.y), 10.0),
                 sprite: Sprite {
@@ -1388,10 +1399,11 @@ pub fn wall_of_death_update(
                     ..Default::default()
                 },
                 ..Default::default()
-            })
-            .insert(Wall)
-            .insert(Solid)
-            .insert(position);
+            },
+            Wall,
+            Solid,
+            position,
+        ));
     };
 
     loop {

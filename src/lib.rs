@@ -11,7 +11,7 @@ mod story_mode;
 #[cfg(target_arch = "wasm32")]
 mod web;
 
-use bevy::{prelude::*, render::texture::ImageSettings};
+use bevy::prelude::*;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
@@ -55,20 +55,25 @@ pub enum AppState {
 pub fn run() {
     let mut app = App::new();
 
-    app.insert_resource(WindowDescriptor {
-        title: "ascii-bomb-ecs".to_string(),
-        width: MENU_WIDTH as f32,
-        height: MENU_HEIGHT as f32,
-        resizable: false,
-        #[cfg(target_arch = "wasm32")]
-        canvas: Some("#bevy-canvas".to_string()),
-        #[cfg(target_arch = "wasm32")]
-        scale_factor_override: Some(1.0),
-        ..Default::default()
-    })
-    // fixes blurred textures
-    .insert_resource(ImageSettings::default_nearest())
-    .add_plugins(DefaultPlugins)
+    app.add_plugins(
+        DefaultPlugins
+            .set(WindowPlugin {
+                window: WindowDescriptor {
+                    title: "ascii-bomb-ecs".to_string(),
+                    width: MENU_WIDTH as f32,
+                    height: MENU_HEIGHT as f32,
+                    resizable: false,
+                    #[cfg(target_arch = "wasm32")]
+                    canvas: Some("#bevy-canvas".to_string()),
+                    #[cfg(target_arch = "wasm32")]
+                    scale_factor_override: Some(1.0),
+                    ..Default::default()
+                },
+                ..default()
+            })
+            // fixes blurry textures
+            .set(ImagePlugin::default_nearest()),
+    )
     .add_plugin(AudioPlugin);
 
     cfg_if::cfg_if! {

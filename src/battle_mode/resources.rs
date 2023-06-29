@@ -1,4 +1,4 @@
-use bevy::{prelude::*, utils::HashMap};
+use bevy::{ecs as bevy_ecs, prelude::*, utils::HashMap};
 
 use crate::{
     game::{components::Penguin, types::BotDifficulty},
@@ -7,6 +7,7 @@ use crate::{
 
 use super::types::PenguinControlType;
 
+#[derive(Resource)]
 pub struct BattleModeConfiguration {
     pub amount_of_players: usize,
     pub amount_of_bots: usize,
@@ -32,6 +33,7 @@ pub enum RoundOutcome {
     Tie,
 }
 
+#[derive(Resource)]
 pub struct BattleModeContext {
     pub state: BattleModeState,
     pub players: Vec<(Penguin, PenguinControlType)>,
@@ -43,14 +45,17 @@ pub struct BattleModeContext {
 }
 
 // round start freeze
+#[derive(Resource)]
 pub struct FreezeTimer(pub Timer);
 
 // leaderboard display
+#[derive(Resource)]
 pub struct LeaderboardDisplayContext {
     pub leaderboard_display_box: Entity,
     pub timer: Timer,
 }
 
+#[derive(Resource)]
 pub struct LeaderboardTextures {
     pub trophy: Handle<Image>,
 }

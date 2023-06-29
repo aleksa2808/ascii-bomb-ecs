@@ -23,7 +23,7 @@ pub fn setup_map_transition(
             .wall_entity_reveal_groups
             .drain(..)
             .collect(),
-        reveal_timer: Timer::from_seconds(0.015, true),
+        reveal_timer: Timer::from_seconds(0.015, TimerMode::Repeating),
     });
     commands.remove_resource::<MapTransitionInput>();
 }

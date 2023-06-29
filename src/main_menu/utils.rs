@@ -23,7 +23,7 @@ pub fn spawn_menu_type(
 ) {
     match menu_type {
         MenuType::SelectableItems(selectable_items) => {
-            parent.spawn_bundle(TextBundle {
+            parent.spawn(TextBundle {
                 text: Text::from_section(
                     selectable_items.get_item_names().join("\n\n"),
                     TextStyle {
@@ -45,8 +45,8 @@ pub fn spawn_menu_type(
             });
 
             // spawn cursor
-            parent
-                .spawn_bundle(TextBundle {
+            parent.spawn((
+                TextBundle {
                     text: Text::from_section(
                         "»",
                         TextStyle {
@@ -68,11 +68,12 @@ pub fn spawn_menu_type(
                         ..Default::default()
                     },
                     ..Default::default()
-                })
-                .insert(Cursor);
+                },
+                Cursor,
+            ));
         }
         MenuType::ToggleableOptions(toggleable_options) => {
-            parent.spawn_bundle(TextBundle {
+            parent.spawn(TextBundle {
                 text: Text::from_section(
                     toggleable_options
                         .get_options()
@@ -113,8 +114,8 @@ pub fn spawn_menu_type(
             });
 
             // spawn cursor
-            parent
-                .spawn_bundle(TextBundle {
+            parent.spawn((
+                TextBundle {
                     text: Text::from_section(
                         "»",
                         TextStyle {
@@ -136,11 +137,12 @@ pub fn spawn_menu_type(
                         ..Default::default()
                     },
                     ..Default::default()
-                })
-                .insert(Cursor);
+                },
+                Cursor,
+            ));
         }
         MenuType::StaticText(static_text) | MenuType::ControlsScreen(static_text) => {
-            parent.spawn_bundle(TextBundle {
+            parent.spawn(TextBundle {
                 text: Text::from_section(
                     *static_text,
                     TextStyle {
@@ -163,7 +165,7 @@ pub fn spawn_menu_type(
 
             // continue button
             parent
-                .spawn_bundle(NodeBundle {
+                .spawn(NodeBundle {
                     style: Style {
                         size: Size::new(
                             Val::Px(8.0 * PIXEL_SCALE as f32),
@@ -177,11 +179,11 @@ pub fn spawn_menu_type(
                         },
                         ..Default::default()
                     },
-                    color: menu_colors.modal_foreground_color.into(),
+                    background_color: menu_colors.modal_foreground_color.into(),
                     ..Default::default()
                 })
                 .with_children(|parent| {
-                    parent.spawn_bundle(TextBundle {
+                    parent.spawn(TextBundle {
                         text: Text::from_section(
                             "CONTINUE",
                             TextStyle {
@@ -204,7 +206,7 @@ pub fn spawn_menu_type(
                 });
         }
         MenuType::HallOfFame => {
-            parent.spawn_bundle(TextBundle {
+            parent.spawn(TextBundle {
                 text: Text::from_section(
                     "HIGH-SCORES",
                     TextStyle {
@@ -235,7 +237,7 @@ pub fn spawn_menu_type(
                 })
                 .collect::<Vec<String>>()
                 .join("\n");
-            parent.spawn_bundle(TextBundle {
+            parent.spawn(TextBundle {
                 text: Text::from_section(
                     high_scores_text,
                     TextStyle {
@@ -258,7 +260,7 @@ pub fn spawn_menu_type(
 
             // continue button
             parent
-                .spawn_bundle(NodeBundle {
+                .spawn(NodeBundle {
                     style: Style {
                         size: Size::new(
                             Val::Px(8.0 * PIXEL_SCALE as f32),
@@ -272,11 +274,11 @@ pub fn spawn_menu_type(
                         },
                         ..Default::default()
                     },
-                    color: menu_colors.modal_foreground_color.into(),
+                    background_color: menu_colors.modal_foreground_color.into(),
                     ..Default::default()
                 })
                 .with_children(|parent| {
-                    parent.spawn_bundle(TextBundle {
+                    parent.spawn(TextBundle {
                         text: Text::from_section(
                             "CONTINUE",
                             TextStyle {
@@ -308,7 +310,7 @@ pub fn spawn_battle_mode_sub_menu_modal(
     menu_colors: &MenuColors,
 ) {
     parent
-        .spawn_bundle(NodeBundle {
+        .spawn(NodeBundle {
             style: Style {
                 size: Size::new(
                     Val::Px(26.0 * PIXEL_SCALE as f32),
@@ -328,12 +330,12 @@ pub fn spawn_battle_mode_sub_menu_modal(
                 },
                 ..Default::default()
             },
-            color: menu_colors.modal_foreground_color.into(),
+            background_color: menu_colors.modal_foreground_color.into(),
             ..Default::default()
         })
         .with_children(|parent| {
             // spawn modal border
-            parent.spawn_bundle(TextBundle {
+            parent.spawn(TextBundle {
                 text: Text::from_section(
                     r#"
 ┌────────────────────────┐
@@ -364,15 +366,17 @@ pub fn spawn_battle_mode_sub_menu_modal(
 
             // spawn initial content
             parent
-                .spawn_bundle(NodeBundle {
-                    style: Style {
-                        size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                .spawn((
+                    NodeBundle {
+                        style: Style {
+                            size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                            ..Default::default()
+                        },
+                        background_color: menu_colors.modal_background_color.into(),
                         ..Default::default()
                     },
-                    color: menu_colors.modal_background_color.into(),
-                    ..Default::default()
-                })
-                .insert(BattleModeSubMenuContentBox)
+                    BattleModeSubMenuContentBox,
+                ))
                 .with_children(|parent| {
                     spawn_battle_mode_sub_menu_content(parent, sub_menu_state, fonts, menu_colors);
                 });
@@ -385,7 +389,7 @@ pub fn spawn_battle_mode_sub_menu_content(
     fonts: &Fonts,
     menu_colors: &MenuColors,
 ) {
-    parent.spawn_bundle(TextBundle {
+    parent.spawn(TextBundle {
         text: Text::from_section(
             match sub_menu_state.step {
                 BattleModeSubMenuStep::AmountOfPlayers => "AMOUNT OF PLAYERS:",
@@ -411,7 +415,7 @@ pub fn spawn_battle_mode_sub_menu_content(
         ..Default::default()
     });
 
-    parent.spawn_bundle(TextBundle {
+    parent.spawn(TextBundle {
         text: Text::from_section(
             format!(
                 "« {} »",

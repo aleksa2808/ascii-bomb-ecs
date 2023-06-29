@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{ecs as bevy_ecs, prelude::*};
 
 use crate::{
     audio::{SoundHandles, SoundID},
@@ -19,6 +19,7 @@ pub struct MapTextures {
     pub burning_wall: Handle<Image>,
 }
 
+#[derive(Resource)]
 pub struct GameTextures {
     // players + effects
     penguin_variants: Vec<Handle<Image>>,
@@ -174,6 +175,7 @@ impl FromWorld for GameTextures {
     }
 }
 
+#[derive(Resource)]
 pub struct Sounds {
     pub boom: SoundID,
     pub pause: SoundID,
@@ -202,6 +204,7 @@ impl FromWorld for Sounds {
 }
 
 // HUD display
+#[derive(Resource)]
 pub struct HUDColors {
     background_colors: Vec<Color>,
     pub black_color: Color,
@@ -230,25 +233,29 @@ impl Default for HUDColors {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Resource)]
 pub struct MapSize {
     pub rows: usize,
     pub columns: usize,
 }
 
 // pretty similar to the ECS WorldId type, maybe rename?
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Resource)]
 pub struct WorldID(pub usize);
 
+#[derive(Resource)]
 pub struct GameTimer(pub Timer);
 
+#[derive(Resource)]
 pub struct GameScore(pub usize);
 
+#[derive(Resource)]
 pub struct GameContext {
     pub pausable: bool,
     pub reduced_loot: bool,
 }
 
+#[derive(Resource)]
 pub struct ExitPosition(pub Position);
 
 pub struct ActiveWallOfDeath {
@@ -257,6 +264,7 @@ pub struct ActiveWallOfDeath {
     pub cooldown: Cooldown,
 }
 
+#[derive(Resource)]
 pub enum WallOfDeath {
     Dormant(Timer),
     Active(ActiveWallOfDeath),
