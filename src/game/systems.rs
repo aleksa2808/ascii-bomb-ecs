@@ -3,6 +3,7 @@ use std::time::Duration;
 use bevy::{
     prelude::*,
     utils::{HashMap, HashSet},
+    window::PrimaryWindow,
 };
 use rand::{
     prelude::{IteratorRandom, SliceRandom},
@@ -29,8 +30,11 @@ use super::{
     utils::*,
 };
 
-pub fn resize_window(mut windows: ResMut<Windows>, map_size: Res<MapSize>) {
-    let window = windows.get_primary_mut().unwrap();
+pub fn resize_window(
+    mut primary_query: Query<&mut Window, With<PrimaryWindow>>,
+    map_size: Res<MapSize>,
+) {
+    let window = primary_query.get_single_mut().unwrap();
     window.set_resolution(
         (map_size.columns * TILE_WIDTH) as f32,
         (HUD_HEIGHT + map_size.rows * TILE_HEIGHT) as f32,
@@ -727,10 +731,7 @@ pub fn bomb_drop(
                                 color: fuse_color,
                             },
                         )
-                        .with_alignment(TextAlignment {
-                            vertical: VerticalAlign::Center,
-                            horizontal: HorizontalAlign::Center,
-                        });
+                        .with_alignment(TextAlignment::Center);
                         text.sections.push(TextSection {
                             value: "┐\n │".into(),
                             style: TextStyle {
@@ -1026,7 +1027,7 @@ pub fn animate_immortality(
         )>,
         Query<(&mut Handle<Image>, &BaseTexture)>,
     )>,
-    removals: RemovedComponents<Immortal>,
+    mut removals: RemovedComponents<Immortal>,
 ) {
     // animate currently immortal players
     for (mut immortal, mut texture, base_texture, immortal_texture) in p.p0().iter_mut() {

@@ -370,10 +370,7 @@ pub fn update_secret_mode(
                                             color: fuse_color,
                                         },
                                     )
-                                    .with_alignment(TextAlignment {
-                                        vertical: VerticalAlign::Center,
-                                        horizontal: HorizontalAlign::Center,
-                                    });
+                                    .with_alignment(TextAlignment::Center);
                                     text.sections.push(TextSection {
                                         value: "┐\n │".into(),
                                         style: TextStyle {

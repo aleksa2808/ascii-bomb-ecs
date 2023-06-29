@@ -18,21 +18,23 @@ anyhow = "1.0"
 itertools = "0.10"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-bevy = { version = "0.9.1", default-features = false, features = [
-    "dynamic",
+bevy = { version = "0.10.1", default-features = false, features = [
+    "dynamic_linking",
     "bevy_winit",
     "png",
-    "render",
+    "bevy_core_pipeline",
+    "bevy_sprite",
+    "bevy_text",
+    "bevy_ui",
     "x11",
     "bevy_asset",
 ] }
 kira = "0.5.3"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-bevy = { version = "0.9.1", default-features = false, features = [
+bevy = { version = "0.10.1", default-features = false, features = [
     "bevy_winit",
     "png",
-    "render",
     "bevy_asset",
 ] }
 once_cell = "1.8.0"

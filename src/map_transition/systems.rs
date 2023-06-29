@@ -15,7 +15,7 @@ pub fn setup_map_transition(
 ) {
     // hide wall and player entities
     for mut visible in query.iter_mut() {
-        visible.is_visible = false;
+        *visible = Visibility::Hidden;
     }
 
     commands.insert_resource(MapTransitionContext {
@@ -42,12 +42,12 @@ pub fn map_transition_update(
     {
         if let Some(reveal_group) = map_transition_context.wall_entity_reveal_groups.pop_front() {
             for entity in reveal_group {
-                query.get_mut(entity).unwrap().is_visible = true;
+                *query.get_mut(entity).unwrap() = Visibility::Inherited;
             }
         } else {
             // reveal the rest of the hidden entities
             for mut visible in query.iter_mut() {
-                visible.is_visible = true;
+                *visible = Visibility::Inherited;
             }
             state.pop().unwrap();
             break;

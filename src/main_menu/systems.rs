@@ -1,4 +1,4 @@
-use bevy::{app::AppExit, prelude::*, utils::HashMap};
+use bevy::{app::AppExit, prelude::*, utils::HashMap, window::PrimaryWindow};
 
 use crate::{
     audio::Audio,
@@ -27,9 +27,9 @@ use super::{
     },
 };
 
-pub fn resize_window(mut windows: ResMut<Windows>) {
-    windows
-        .get_primary_mut()
+pub fn resize_window(mut primary_query: Query<&mut Window, With<PrimaryWindow>>) {
+    primary_query
+        .get_single_mut()
         .unwrap()
         .set_resolution(MENU_WIDTH as f32, MENU_HEIGHT as f32);
 }

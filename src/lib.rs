@@ -11,7 +11,7 @@ mod story_mode;
 #[cfg(target_arch = "wasm32")]
 mod web;
 
-use bevy::prelude::*;
+use bevy::{prelude::*, window::WindowResolution};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
@@ -58,17 +58,16 @@ pub fn run() {
     app.add_plugins(
         DefaultPlugins
             .set(WindowPlugin {
-                window: WindowDescriptor {
+                primary_window: Some(Window {
                     title: "ascii-bomb-ecs".to_string(),
-                    width: MENU_WIDTH as f32,
-                    height: MENU_HEIGHT as f32,
+                    resolution: WindowResolution::new(MENU_WIDTH as f32, MENU_HEIGHT as f32),
                     resizable: false,
                     #[cfg(target_arch = "wasm32")]
                     canvas: Some("#bevy-canvas".to_string()),
                     #[cfg(target_arch = "wasm32")]
                     scale_factor_override: Some(1.0),
                     ..Default::default()
-                },
+                }),
                 ..default()
             })
             // fixes blurry textures

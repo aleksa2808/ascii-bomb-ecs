@@ -1,4 +1,6 @@
-use bevy::{ecs::event::Events, prelude::*, render::camera::Camera, utils::HashSet};
+use bevy::{
+    ecs::event::Events, prelude::*, render::camera::Camera, utils::HashSet, window::PrimaryWindow,
+};
 use rand::{prelude::IteratorRandom, Rng};
 
 use crate::{
@@ -289,11 +291,11 @@ pub fn setup_leaderboard_display(
     leaderboard_textures: Res<LeaderboardTextures>,
     fonts: Res<Fonts>,
     battle_mode_context: Res<BattleModeContext>,
-    windows: Res<Windows>,
+    primary_query: Query<&Window, With<PrimaryWindow>>,
     query: Query<Entity, With<UIRoot>>,
 ) {
     let mut leaderboard_display_box = None;
-    let window = windows.get_primary().unwrap();
+    let window = primary_query.get_single().unwrap();
 
     commands.entity(query.single()).with_children(|parent| {
         leaderboard_display_box = Some(
