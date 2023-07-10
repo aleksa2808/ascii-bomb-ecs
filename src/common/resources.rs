@@ -1,6 +1,7 @@
 use std::{cmp::Reverse, fs};
 
 use bevy::{
+    ecs as bevy_ecs,
     prelude::*,
     utils::{HashMap, HashSet},
 };
@@ -10,7 +11,7 @@ use crate::loading::resources::AssetsLoading;
 
 use super::types::InputAction;
 
-#[derive(Default)]
+#[derive(Default, Resource)]
 pub struct InputActionStatusTracker {
     active_actions: HashSet<InputAction>,
 }
@@ -33,6 +34,7 @@ impl InputActionStatusTracker {
     }
 }
 
+#[derive(Resource)]
 pub struct Fonts {
     pub mono: Handle<Font>,
 }
@@ -64,7 +66,7 @@ impl GameOption {
     pub const LIST: [GameOption; 3] = [GameOption::Sound, GameOption::Demo, GameOption::Transition];
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Resource)]
 pub struct GameOptionStore(HashMap<GameOption, bool>);
 
 impl Default for GameOptionStore {
@@ -152,7 +154,7 @@ impl HighScores {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Resource)]
 pub struct PersistentHighScores {
     high_scores: HighScores,
     checksum: usize,

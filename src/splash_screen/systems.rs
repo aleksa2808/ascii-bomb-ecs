@@ -15,25 +15,25 @@ use super::{
 };
 
 pub fn setup_splash_screen(mut commands: Commands, fonts: Res<Fonts>) {
-    commands.spawn_bundle(Camera2dBundle::default());
+    commands.spawn(Camera2dBundle::default());
 
     let right_position = MENU_WIDTH - SPLASH_SCREEN_TEXT_RIGHT.len() * PIXEL_SCALE;
 
     let mut left_text = None;
     let mut right_text = None;
     commands
-        .spawn_bundle(NodeBundle {
+        .spawn(NodeBundle {
             style: Style {
                 size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
                 ..Default::default()
             },
-            color: COLORS[0].into(),
+            background_color: COLORS[0].into(),
             ..Default::default()
         })
         .with_children(|parent| {
             left_text = Some(
                 parent
-                    .spawn_bundle(TextBundle {
+                    .spawn(TextBundle {
                         text: Text::from_section(
                             SPLASH_SCREEN_TEXT_LEFT,
                             TextStyle {
@@ -58,7 +58,7 @@ pub fn setup_splash_screen(mut commands: Commands, fonts: Res<Fonts>) {
 
             right_text = Some(
                 parent
-                    .spawn_bundle(TextBundle {
+                    .spawn(TextBundle {
                         text: Text::from_section(
                             SPLASH_SCREEN_TEXT_RIGHT,
                             TextStyle {
@@ -87,7 +87,7 @@ pub fn setup_splash_screen(mut commands: Commands, fonts: Res<Fonts>) {
         right_text: right_text.unwrap(),
         left_position: 0,
         right_position,
-        text_state: SplashScreenTextState::Moving(Timer::from_seconds(0.03, false)),
+        text_state: SplashScreenTextState::Moving(Timer::from_seconds(0.03, TimerMode::Once)),
     })
 }
 
@@ -95,7 +95,7 @@ pub fn splash_screen_update(
     time: Res<Time>,
     mut splash_screen_context: ResMut<SplashScreenContext>,
     mut query: Query<&mut Style>,
-    mut state: ResMut<State<AppState>>,
+    mut next_state: ResMut<NextState<AppState>>,
 ) {
     match splash_screen_context.text_state {
         SplashScreenTextState::Moving(ref mut timer) => {
@@ -129,22 +129,22 @@ pub fn splash_screen_update(
                     && splash_screen_context.right_position == RIGHT_END_POSITION
                 {
                     splash_screen_context.text_state =
-                        SplashScreenTextState::Holding(Timer::from_seconds(0.7, false));
+                        SplashScreenTextState::Holding(Timer::from_seconds(0.7, TimerMode::Once));
                 }
             }
         }
         SplashScreenTextState::Holding(ref mut timer) => {
             timer.tick(time.delta());
             if timer.finished() {
-                state.replace(AppState::MainMenu).unwrap();
+                next_state.set(AppState::MainMenu);
             }
         }
     }
 }
 
-pub fn teardown(mut commands: Commands, query: Query<Entity>) {
+pub fn teardown(mut commands: Commands, query: Query<Entity, Without<Window>>) {
     for entity in query.iter() {
-        commands.entity(entity).despawn_recursive();
+        commands.entity(entity).despawn();
     }
 
     commands.remove_resource::<SplashScreenContext>();

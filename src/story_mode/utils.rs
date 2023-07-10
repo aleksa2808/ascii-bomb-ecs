@@ -93,34 +93,36 @@ pub fn spawn_story_mode_mobs(
         };
         mob_spawn_positions.push(mob_spawn_position);
 
-        let mut ec = commands.spawn_bundle(SpriteBundle {
-            texture: base_texture.clone(),
-            transform: Transform::from_xyz(
-                get_x(mob_spawn_position.x),
-                get_y(mob_spawn_position.y),
-                50.0,
-            ),
-            sprite: Sprite {
-                custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+        let mut ec = commands.spawn((
+            SpriteBundle {
+                texture: base_texture.clone(),
+                transform: Transform::from_xyz(
+                    get_x(mob_spawn_position.x),
+                    get_y(mob_spawn_position.y),
+                    50.0,
+                ),
+                sprite: Sprite {
+                    custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+                    ..Default::default()
+                },
                 ..Default::default()
             },
-            ..Default::default()
-        });
-        ec.insert(BaseTexture(base_texture))
-            .insert(ImmortalTexture(immortal_texture))
-            .insert(Player)
-            .insert(MobAI::default())
-            .insert(MoveCooldown(Cooldown::from_seconds(0.4)))
-            .insert(Health {
+            BaseTexture(base_texture),
+            ImmortalTexture(immortal_texture),
+            Player,
+            MobAI::default(),
+            MoveCooldown(Cooldown::from_seconds(0.4)),
+            Health {
                 lives: 1,
                 max_health: health,
                 health,
-            })
-            .insert(mob_spawn_position)
-            .insert(SpawnPosition(mob_spawn_position))
-            .insert(MeleeAttacker)
-            .insert(TeamID(1))
-            .insert(PointValue(point_value));
+            },
+            mob_spawn_position,
+            SpawnPosition(mob_spawn_position),
+            MeleeAttacker,
+            TeamID(1),
+            PointValue(point_value),
+        ));
 
         if wall_hack {
             ec.insert(WallHack);
@@ -143,8 +145,8 @@ pub fn spawn_story_mode_boss(
     let boss_penguin_tag = Penguin(3 + world_id.0);
     let base_texture = game_textures.get_penguin_texture(boss_penguin_tag).clone();
     let immortal_texture = game_textures.immortal_penguin.clone();
-    commands
-        .spawn_bundle(SpriteBundle {
+    commands.spawn((
+        SpriteBundle {
             texture: base_texture.clone(),
             transform: Transform::from_xyz(
                 get_x(boss_spawn_position.x),
@@ -156,28 +158,29 @@ pub fn spawn_story_mode_boss(
                 ..Default::default()
             },
             ..Default::default()
-        })
-        .insert(BaseTexture(base_texture))
-        .insert(ImmortalTexture(immortal_texture))
-        .insert(Player)
-        .insert(boss_penguin_tag)
-        .insert(BotAI {
+        },
+        BaseTexture(base_texture),
+        ImmortalTexture(immortal_texture),
+        Player,
+        boss_penguin_tag,
+        BotAI {
             difficulty: BotDifficulty::Medium,
-        })
-        .insert(MoveCooldown(Cooldown::from_seconds(0.3)))
-        .insert(Health {
+        },
+        MoveCooldown(Cooldown::from_seconds(0.3)),
+        Health {
             lives: 1,
             max_health: 2,
             health: 2,
-        })
-        .insert(boss_spawn_position)
-        .insert(SpawnPosition(boss_spawn_position))
-        .insert(BombSatchel {
+        },
+        boss_spawn_position,
+        SpawnPosition(boss_spawn_position),
+        BombSatchel {
             bombs_available: 1 + world_id.0,
             bomb_range: 1 + world_id.0,
-        })
-        .insert(TeamID(1))
-        .insert(PointValue(200));
+        },
+        TeamID(1),
+        PointValue(200),
+    ));
 
     (boss_spawn_position, boss_penguin_tag)
 }

@@ -1,4 +1,4 @@
-use bevy::{prelude::*, utils::HashMap};
+use bevy::{ecs as bevy_ecs, prelude::*, utils::HashMap};
 
 use crate::{
     audio::{SoundHandles, SoundID},
@@ -7,6 +7,7 @@ use crate::{
     loading::resources::AssetsLoading,
 };
 
+#[derive(Resource)]
 pub struct MenuColors {
     pub background_color: Color,
     pub modal_background_color: Color,
@@ -23,6 +24,7 @@ impl Default for MenuColors {
     }
 }
 
+#[derive(Resource)]
 pub struct MainMenuSoundEffects {
     pub confirm: SoundID,
     pub select: SoundID,
@@ -323,6 +325,7 @@ impl Default for BattleModeSubMenuState {
     }
 }
 
+#[derive(Resource)]
 pub struct MenuState {
     menu_types: Vec<MenuType>,
     menu_stack: Vec<MenuType>,
@@ -452,11 +455,13 @@ pub struct MenuBackgroundEntityChangeParameters {
     pub values: MenuBackgroundEntityValues,
 }
 
+#[derive(Resource)]
 pub struct MenuBackgroundAnimationContext {
     pub entity_change_parameters: HashMap<Entity, MenuBackgroundEntityChangeParameters>,
     pub timer: Timer,
 }
 
+#[derive(Resource)]
 pub struct DemoModeStartTimer(pub Timer);
 
 #[cfg(test)]

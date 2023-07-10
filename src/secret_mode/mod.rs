@@ -4,7 +4,7 @@ use crate::{
     game::{
         add_common_game_systems,
         systems::{resize_window, setup_penguin_portraits, spawn_cameras},
-        Label,
+        Set,
     },
     AppState,
 };
@@ -14,7 +14,7 @@ use self::{resources::SecretModeMusic, systems::*};
 mod resources;
 mod systems;
 
-#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemLabel)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
 enum SecretModeLabel {
     Setup,
 }
@@ -24,46 +24,52 @@ pub struct SecretModePlugin;
 impl Plugin for SecretModePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<SecretModeMusic>()
-            .add_system_set(
-                SystemSet::on_enter(AppState::SecretMode)
-                    .with_system(
-                        setup_secret_mode
-                            .exclusive_system()
-                            .label(SecretModeLabel::Setup),
-                    )
-                    .with_system(
-                        resize_window
-                            .exclusive_system()
-                            .after(SecretModeLabel::Setup),
-                    )
-                    .with_system(
-                        spawn_cameras
-                            .exclusive_system()
-                            .after(SecretModeLabel::Setup),
-                    ),
+            .add_systems(
+                (setup_secret_mode, apply_system_buffers)
+                    .chain()
+                    .in_set(SecretModeLabel::Setup)
+                    .in_schedule(OnEnter(AppState::SecretModeSetup)),
             )
-            .add_system_set(
-                SystemSet::on_update(AppState::SecretMode)
-                    .with_system(secret_mode_manager.exclusive_system()),
+            .add_systems(
+                (resize_window, apply_system_buffers)
+                    .chain()
+                    .after(SecretModeLabel::Setup)
+                    .in_schedule(OnEnter(AppState::SecretModeSetup)),
             )
-            .add_system_set(
-                SystemSet::on_exit(AppState::SecretMode).with_system(teardown.exclusive_system()),
+            .add_systems(
+                (spawn_cameras, apply_system_buffers)
+                    .chain()
+                    .after(SecretModeLabel::Setup)
+                    .in_schedule(OnEnter(AppState::SecretModeSetup)),
+            )
+            .add_systems(
+                (secret_mode_manager, apply_system_buffers)
+                    .chain()
+                    .in_set(OnUpdate(AppState::SecretModeManager)),
+            )
+            .add_systems(
+                (teardown, apply_system_buffers)
+                    .chain()
+                    .in_schedule(OnEnter(AppState::SecretModeTeardown)),
             );
 
-        app.add_system_set(
-            SystemSet::on_enter(AppState::SecretModeInGame)
-                .with_system(setup_penguin_portraits.exclusive_system()),
+        app.add_systems(
+            (setup_penguin_portraits, apply_system_buffers)
+                .chain()
+                .in_schedule(OnEnter(AppState::SecretModeInGame)),
         );
         add_common_game_systems(app, AppState::SecretModeInGame);
-        app.add_system_set(
-            SystemSet::on_update(AppState::SecretModeInGame)
-                .with_system(update_secret_mode.exclusive_system().at_start())
-                .with_system(
-                    finish_secret_mode
-                        .exclusive_system()
-                        .after(Label::PlayerMovement)
-                        .before(Label::FireSpawn),
-                ),
+        app.add_systems(
+            (update_secret_mode, apply_system_buffers)
+                .chain()
+                .in_set(OnUpdate(AppState::SecretModeInGame)),
+        )
+        .add_systems(
+            (finish_secret_mode, apply_system_buffers)
+                .chain()
+                .after(Set::PlayerMovement)
+                .before(Set::FireSpawn)
+                .in_set(OnUpdate(AppState::SecretModeInGame)),
         );
     }
 }

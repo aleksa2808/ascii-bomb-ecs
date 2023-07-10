@@ -48,50 +48,52 @@ pub fn spawn_battle_mode_players(
         let player_spawn_position = possible_player_spawn_positions.next().unwrap();
         let base_texture = game_textures.get_penguin_texture(penguin_tag).clone();
         let immortal_texture = game_textures.immortal_penguin.clone();
-        let mut entity_commands = commands.spawn_bundle(SpriteBundle {
-            texture: base_texture.clone(),
-            transform: Transform::from_xyz(
-                get_x(player_spawn_position.x),
-                get_y(player_spawn_position.y),
-                50.0,
-            ),
-            sprite: Sprite {
-                custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+        let mut entity_commands = commands.spawn((
+            SpriteBundle {
+                texture: base_texture.clone(),
+                transform: Transform::from_xyz(
+                    get_x(player_spawn_position.x),
+                    get_y(player_spawn_position.y),
+                    50.0,
+                ),
+                sprite: Sprite {
+                    custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+                    ..Default::default()
+                },
                 ..Default::default()
             },
-            ..Default::default()
-        });
-        entity_commands
-            .insert(BaseTexture(base_texture))
-            .insert(ImmortalTexture(immortal_texture))
-            .insert(Player)
-            .insert(penguin_tag)
-            .insert(Health {
+            BaseTexture(base_texture),
+            ImmortalTexture(immortal_texture),
+            Player,
+            penguin_tag,
+            Health {
                 lives: 1,
                 max_health: 1,
                 health: 1,
-            })
-            .insert(player_spawn_position)
-            .insert(SpawnPosition(player_spawn_position))
-            .insert(BombSatchel {
+            },
+            player_spawn_position,
+            SpawnPosition(player_spawn_position),
+            BombSatchel {
                 bombs_available: 1,
                 bomb_range: 2,
-            })
-            .insert(TeamID(penguin_tag.0));
+            },
+            TeamID(penguin_tag.0),
+        ));
         match penguin_control_type {
             PenguinControlType::Human(i) => {
                 entity_commands.insert(HumanControlled(i));
             }
             PenguinControlType::Bot => {
-                entity_commands
-                    .insert(BotAI {
+                entity_commands.insert((
+                    BotAI {
                         difficulty: bot_difficulty,
-                    })
-                    .insert(MoveCooldown(Cooldown::from_seconds(match bot_difficulty {
+                    },
+                    MoveCooldown(Cooldown::from_seconds(match bot_difficulty {
                         BotDifficulty::Easy => 0.3,
                         BotDifficulty::Medium => 0.25,
                         BotDifficulty::Hard => 0.2,
-                    })));
+                    })),
+                ));
             }
         }
 
@@ -128,12 +130,12 @@ pub fn get_battle_mode_map_size_fill(player_count: usize) -> (MapSize, f32) {
 pub fn start_round(
     mut battle_mode_context: ResMut<BattleModeContext>,
     mut commands: Commands,
-    mut state: ResMut<State<AppState>>,
+    mut next_state: ResMut<NextState<AppState>>,
 ) {
     battle_mode_context.state = BattleModeState::InGame;
     commands.insert_resource(FreezeTimer(Timer::from_seconds(
         ROUND_START_FREEZE_SECS,
-        false,
+        TimerMode::Once,
     )));
-    state.push(AppState::RoundStartFreeze).unwrap();
+    next_state.set(AppState::RoundStartFreeze);
 }

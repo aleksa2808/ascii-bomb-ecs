@@ -7,7 +7,7 @@ use crate::{
         systems::{
             game_timer_tick, hud_update, resize_window, setup_penguin_portraits, spawn_cameras,
         },
-        Label,
+        Set,
     },
     AppState,
 };
@@ -24,76 +24,98 @@ pub struct StoryModePlugin;
 
 impl Plugin for StoryModePlugin {
     fn build(&self, app: &mut App) {
-        app.add_system_set(
-            SystemSet::on_enter(AppState::StoryMode)
-                .with_system(setup_story_mode.exclusive_system().label(Label::Setup))
-                .with_system(resize_window.exclusive_system().after(Label::Setup))
-                .with_system(spawn_cameras.exclusive_system().after(Label::Setup)),
+        app.add_systems(
+            (setup_story_mode, apply_system_buffers)
+                .chain()
+                .in_set(Set::Setup)
+                .in_schedule(OnEnter(AppState::StoryModeSetup)),
         )
-        .add_system_set(
-            SystemSet::on_exit(AppState::StoryMode).with_system(teardown.exclusive_system()),
+        .add_systems(
+            (resize_window, apply_system_buffers)
+                .chain()
+                .after(Set::Setup)
+                .in_schedule(OnEnter(AppState::StoryModeSetup)),
         )
-        .add_system_set(
-            SystemSet::on_update(AppState::StoryMode)
-                .with_system(story_mode_manager.exclusive_system()),
+        .add_systems(
+            (spawn_cameras, apply_system_buffers)
+                .chain()
+                .after(Set::Setup)
+                .in_schedule(OnEnter(AppState::StoryModeSetup)),
         )
-        .add_system_set(
-            SystemSet::on_enter(AppState::BossSpeech)
-                .with_system(setup_boss_speech.exclusive_system()),
+        .add_systems(
+            (teardown, apply_system_buffers)
+                .chain()
+                .in_schedule(OnEnter(AppState::StoryModeTeardown)),
         )
-        .add_system_set(
-            SystemSet::on_update(AppState::BossSpeech).with_system(
-                boss_speech_update
-                    .exclusive_system()
-                    .after(crate::common::Label::InputMapping),
-            ),
+        .add_systems(
+            (story_mode_manager, apply_system_buffers)
+                .chain()
+                .in_set(OnUpdate(AppState::StoryModeManager)),
         )
-        .add_system_set(
-            SystemSet::on_enter(AppState::HighScoreNameInput)
-                .with_system(setup_high_score_name_input.exclusive_system()),
+        .add_systems(
+            (setup_boss_speech, apply_system_buffers)
+                .chain()
+                .in_schedule(OnEnter(AppState::BossSpeech)),
         )
-        .add_system_set(
-            SystemSet::on_update(AppState::HighScoreNameInput).with_system(
-                high_score_name_input_update
-                    .exclusive_system()
-                    .after(crate::common::Label::InputMapping),
-            ),
+        .add_systems(
+            (boss_speech_update, apply_system_buffers)
+                .chain()
+                .after(crate::common::Label::InputMapping)
+                .in_set(OnUpdate(AppState::BossSpeech)),
+        )
+        .add_systems(
+            (setup_high_score_name_input, apply_system_buffers)
+                .chain()
+                .in_schedule(OnEnter(AppState::HighScoreNameInput)),
+        )
+        .add_systems(
+            (high_score_name_input_update, apply_system_buffers)
+                .chain()
+                .after(crate::common::Label::InputMapping)
+                .in_set(OnUpdate(AppState::HighScoreNameInput)),
         );
 
-        app.add_system_set(
-            SystemSet::on_enter(AppState::StoryModeInGame)
-                .with_system(setup_penguin_portraits.exclusive_system()),
+        app.add_systems(
+            (setup_penguin_portraits, apply_system_buffers)
+                .chain()
+                .in_schedule(OnEnter(AppState::StoryModeInGame)),
         );
         add_common_game_systems(app, AppState::StoryModeInGame);
-        app.add_system_set(SystemSet::on_exit(AppState::StoryModeInGame).with_system(clear_inputs))
-            .add_system_set(
-                SystemSet::on_update(AppState::StoryModeInGame)
-                    .with_system(game_timer_tick.exclusive_system().label(Label::TimeUpdate))
-                    // game end check
-                    .with_system(
-                        finish_level
-                            .exclusive_system()
-                            .after(Label::TimeUpdate)
-                            .after(Label::PlayerMovement)
-                            .after(Label::PlayerDeathEvent),
-                    )
-                    // update HUD
-                    .with_system(
-                        hud_update
-                            .exclusive_system()
-                            .after(Label::TimeUpdate)
-                            .after(Label::PlayerDeathEvent),
-                    )
-                    .with_system(
-                        hud_lives_indicator_update
-                            .exclusive_system()
-                            .after(Label::DamageApplication),
-                    )
-                    .with_system(
-                        hud_points_indicator_update
-                            .exclusive_system()
-                            .after(Label::PlayerDeathEvent),
-                    ),
+        app.add_system(clear_inputs.in_schedule(OnExit(AppState::StoryModeInGame)))
+            .add_systems(
+                (game_timer_tick, apply_system_buffers)
+                    .chain()
+                    .in_set(Set::TimeUpdate)
+                    .in_set(OnUpdate(AppState::StoryModeInGame)),
+            )
+            // game end check
+            .add_systems(
+                (finish_level, apply_system_buffers)
+                    .chain()
+                    .after(Set::TimeUpdate)
+                    .after(Set::PlayerMovement)
+                    .after(Set::PlayerDeathEvent)
+                    .in_set(OnUpdate(AppState::StoryModeInGame)),
+            )
+            // update HUD
+            .add_systems(
+                (hud_update, apply_system_buffers)
+                    .chain()
+                    .after(Set::TimeUpdate)
+                    .after(Set::PlayerDeathEvent)
+                    .in_set(OnUpdate(AppState::StoryModeInGame)),
+            )
+            .add_systems(
+                (hud_lives_indicator_update, apply_system_buffers)
+                    .chain()
+                    .after(Set::DamageApplication)
+                    .in_set(OnUpdate(AppState::StoryModeInGame)),
+            )
+            .add_systems(
+                (hud_points_indicator_update, apply_system_buffers)
+                    .chain()
+                    .after(Set::PlayerDeathEvent)
+                    .in_set(OnUpdate(AppState::StoryModeInGame)),
             );
     }
 }

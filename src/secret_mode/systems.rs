@@ -31,6 +31,7 @@ pub fn setup_secret_mode(
     mut game_textures: ResMut<GameTextures>,
     hud_colors: Res<HUDColors>,
     fonts: Res<Fonts>,
+    mut next_state: ResMut<NextState<AppState>>,
 ) {
     // TODO: Audio will start playing only when the asset is loaded and decoded, which might be after
     // the mode is finished. However, waiting for it to load is VERY slow in debug builds, so there needs
@@ -57,16 +58,18 @@ pub fn setup_secret_mode(
 
     // spawn HUD
     commands
-        .spawn_bundle(NodeBundle {
-            style: Style {
-                size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+        .spawn((
+            NodeBundle {
+                style: Style {
+                    size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                    ..Default::default()
+                },
+                background_color: Color::NONE.into(),
                 ..Default::default()
             },
-            color: Color::NONE.into(),
-            ..Default::default()
-        })
-        .insert(UIRoot)
-        .insert(UIComponent)
+            UIRoot,
+            UIComponent,
+        ))
         .with_children(|parent| {
             let hud_width = (map_size.columns * TILE_WIDTH) as f32;
             init_hud(
@@ -79,27 +82,29 @@ pub fn setup_secret_mode(
                 false,
                 Some(&|parent: &mut ChildBuilder| {
                     parent
-                        .spawn_bundle(NodeBundle {
-                            style: Style {
-                                size: Size::new(
-                                    Val::Px(43.0 * PIXEL_SCALE as f32),
-                                    Val::Px(2.0 * PIXEL_SCALE as f32),
-                                ),
-                                position_type: PositionType::Absolute,
-                                position: UiRect {
-                                    left: Val::Px(hud_width / 2.0 - 20.0 * PIXEL_SCALE as f32),
-                                    top: Val::Px(6.0 * PIXEL_SCALE as f32),
+                        .spawn((
+                            NodeBundle {
+                                style: Style {
+                                    size: Size::new(
+                                        Val::Px(43.0 * PIXEL_SCALE as f32),
+                                        Val::Px(2.0 * PIXEL_SCALE as f32),
+                                    ),
+                                    position_type: PositionType::Absolute,
+                                    position: UiRect {
+                                        left: Val::Px(hud_width / 2.0 - 20.0 * PIXEL_SCALE as f32),
+                                        top: Val::Px(6.0 * PIXEL_SCALE as f32),
+                                        ..Default::default()
+                                    },
                                     ..Default::default()
                                 },
+                                background_color: hud_colors.black_color.into(),
                                 ..Default::default()
                             },
-                            color: hud_colors.black_color.into(),
-                            ..Default::default()
-                        })
-                        .insert(UIComponent)
+                            UIComponent,
+                        ))
                         .with_children(|parent| {
-                            parent
-                                .spawn_bundle(TextBundle {
+                            parent.spawn((
+                                TextBundle {
                                     text: Text::from_section(
                                         "Hope you had fun with this little game! ^_^",
                                         TextStyle {
@@ -118,32 +123,35 @@ pub fn setup_secret_mode(
                                         ..Default::default()
                                     },
                                     ..Default::default()
-                                })
-                                .insert(UIComponent);
+                                },
+                                UIComponent,
+                            ));
                         });
 
                     parent
-                        .spawn_bundle(NodeBundle {
-                            style: Style {
-                                size: Size::new(
-                                    Val::Px(8.0 * PIXEL_SCALE as f32),
-                                    Val::Px(2.0 * PIXEL_SCALE as f32),
-                                ),
-                                position_type: PositionType::Absolute,
-                                position: UiRect {
-                                    left: Val::Px(hud_width / 2.0 + 10.0 * PIXEL_SCALE as f32),
-                                    top: Val::Px(10.0 * PIXEL_SCALE as f32),
+                        .spawn((
+                            NodeBundle {
+                                style: Style {
+                                    size: Size::new(
+                                        Val::Px(8.0 * PIXEL_SCALE as f32),
+                                        Val::Px(2.0 * PIXEL_SCALE as f32),
+                                    ),
+                                    position_type: PositionType::Absolute,
+                                    position: UiRect {
+                                        left: Val::Px(hud_width / 2.0 + 10.0 * PIXEL_SCALE as f32),
+                                        top: Val::Px(10.0 * PIXEL_SCALE as f32),
+                                        ..Default::default()
+                                    },
                                     ..Default::default()
                                 },
+                                background_color: hud_colors.black_color.into(),
                                 ..Default::default()
                             },
-                            color: hud_colors.black_color.into(),
-                            ..Default::default()
-                        })
-                        .insert(UIComponent)
+                            UIComponent,
+                        ))
                         .with_children(|parent| {
-                            parent
-                                .spawn_bundle(TextBundle {
+                            parent.spawn((
+                                TextBundle {
                                     text: Text::from_section(
                                         "Now RUN!",
                                         TextStyle {
@@ -162,8 +170,9 @@ pub fn setup_secret_mode(
                                         ..Default::default()
                                     },
                                     ..Default::default()
-                                })
-                                .insert(UIComponent);
+                                },
+                                UIComponent,
+                            ));
                         });
                 }),
             );
@@ -174,14 +183,17 @@ pub fn setup_secret_mode(
 
     commands.insert_resource(SecretModeContext {
         manager_state: SecretModeManagerState::Setup,
-        in_game_state: SecretModeInGameState::Initial(Timer::from_seconds(2.5, false)),
+        in_game_state: SecretModeInGameState::Initial(Timer::from_seconds(2.5, TimerMode::Once)),
         pattern: PATTERN,
     });
     commands.insert_resource(GameContext {
         pausable: false,
         // irrelevant in this mode
         reduced_loot: false,
+        exit_state: AppState::SecretModeTeardown,
     });
+
+    next_state.set(AppState::SecretModeManager);
 }
 
 pub fn secret_mode_manager(
@@ -190,7 +202,7 @@ pub fn secret_mode_manager(
     mut secret_mode_context: ResMut<SecretModeContext>,
     map_size: Res<MapSize>,
     game_option_store: Res<GameOptionStore>,
-    mut state: ResMut<State<AppState>>,
+    mut next_state: ResMut<NextState<AppState>>,
 ) {
     match secret_mode_context.manager_state {
         SecretModeManagerState::Setup => {
@@ -203,8 +215,8 @@ pub fn secret_mode_manager(
             };
             let base_texture = game_textures.get_penguin_texture(Penguin(0)).clone();
             let immortal_texture = game_textures.immortal_penguin.clone();
-            commands
-                .spawn_bundle(SpriteBundle {
+            commands.spawn((
+                SpriteBundle {
                     texture: base_texture.clone(),
                     transform: Transform::from_xyz(
                         get_x(player_spawn_position.x),
@@ -216,13 +228,14 @@ pub fn secret_mode_manager(
                         ..Default::default()
                     },
                     ..Default::default()
-                })
-                .insert(BaseTexture(base_texture))
-                .insert(ImmortalTexture(immortal_texture))
-                .insert(Player)
-                .insert(HumanControlled(0))
-                .insert(player_spawn_position)
-                .insert(SpawnPosition(player_spawn_position));
+                },
+                BaseTexture(base_texture),
+                ImmortalTexture(immortal_texture),
+                Player,
+                HumanControlled(0),
+                player_spawn_position,
+                SpawnPosition(player_spawn_position),
+            ));
 
             let wall_entity_reveal_groups = spawn_map(
                 &mut commands,
@@ -239,20 +252,20 @@ pub fn secret_mode_manager(
                 secret_mode_context.manager_state = SecretModeManagerState::MapTransition;
                 commands.insert_resource(MapTransitionInput {
                     wall_entity_reveal_groups,
+                    next_state: AppState::SecretModeManager,
                 });
-                state.push(AppState::MapTransition).unwrap();
+                next_state.set(AppState::MapTransition);
             } else {
                 secret_mode_context.manager_state = SecretModeManagerState::InGame;
-                state.push(AppState::SecretModeInGame).unwrap();
+                next_state.set(AppState::SecretModeInGame);
             }
         }
         SecretModeManagerState::MapTransition => {
             secret_mode_context.manager_state = SecretModeManagerState::InGame;
-            state.push(AppState::SecretModeInGame).unwrap();
+            next_state.set(AppState::SecretModeInGame);
         }
         SecretModeManagerState::InGame => {
-            commands.remove_resource::<SecretModeContext>();
-            state.replace(AppState::MainMenu).unwrap();
+            next_state.set(AppState::SecretModeTeardown);
         }
     }
 }
@@ -265,7 +278,7 @@ pub fn update_secret_mode(
     map_size: Res<MapSize>,
     world_id: Res<WorldID>,
     mut secret_mode_context: ResMut<SecretModeContext>,
-    mut state: ResMut<State<AppState>>,
+    mut next_state: ResMut<NextState<AppState>>,
     mut p: ParamSet<(
         Query<(Entity, &mut Position, &mut Transform), With<Bomb>>,
         Query<&Position, With<Wall>>,
@@ -325,28 +338,30 @@ pub fn update_secret_mode(
                                 x: map_size.columns as isize - 2,
                             };
                             commands
-                                .spawn_bundle(SpriteBundle {
-                                    texture: game_textures.bomb.clone(),
-                                    transform: Transform::from_xyz(
-                                        get_x(position.x),
-                                        get_y(position.y),
-                                        25.0,
-                                    ),
-                                    sprite: Sprite {
-                                        custom_size: Some(Vec2::new(
-                                            TILE_WIDTH as f32,
-                                            TILE_HEIGHT as f32,
-                                        )),
+                                .spawn((
+                                    SpriteBundle {
+                                        texture: game_textures.bomb.clone(),
+                                        transform: Transform::from_xyz(
+                                            get_x(position.x),
+                                            get_y(position.y),
+                                            25.0,
+                                        ),
+                                        sprite: Sprite {
+                                            custom_size: Some(Vec2::new(
+                                                TILE_WIDTH as f32,
+                                                TILE_HEIGHT as f32,
+                                            )),
+                                            ..Default::default()
+                                        },
                                         ..Default::default()
                                     },
-                                    ..Default::default()
-                                })
-                                .insert(Bomb {
-                                    owner: None,
-                                    range: 3,
-                                    timer: Timer::from_seconds(9999.0, false),
-                                })
-                                .insert(position)
+                                    Bomb {
+                                        owner: None,
+                                        range: 3,
+                                        timer: Timer::from_seconds(9999.0, TimerMode::Once),
+                                    },
+                                    position,
+                                ))
                                 .with_children(|parent| {
                                     let fuse_color =
                                         COLORS[if world_id.0 == 2 { 12 } else { 14 }].into();
@@ -359,10 +374,7 @@ pub fn update_secret_mode(
                                             color: fuse_color,
                                         },
                                     )
-                                    .with_alignment(TextAlignment {
-                                        vertical: VerticalAlign::Center,
-                                        horizontal: HorizontalAlign::Center,
-                                    });
+                                    .with_alignment(TextAlignment::Center);
                                     text.sections.push(TextSection {
                                         value: "┐\n │".into(),
                                         style: TextStyle {
@@ -372,8 +384,8 @@ pub fn update_secret_mode(
                                         },
                                     });
 
-                                    parent
-                                        .spawn_bundle(Text2dBundle {
+                                    parent.spawn((
+                                        Text2dBundle {
                                             text,
                                             transform: Transform::from_xyz(
                                                 0.0,
@@ -381,11 +393,15 @@ pub fn update_secret_mode(
                                                 0.0,
                                             ),
                                             ..Default::default()
-                                        })
-                                        .insert(Fuse {
+                                        },
+                                        Fuse {
                                             color: fuse_color,
-                                            animation_timer: Timer::from_seconds(0.1, true),
-                                        });
+                                            animation_timer: Timer::from_seconds(
+                                                0.1,
+                                                TimerMode::Repeating,
+                                            ),
+                                        },
+                                    ));
                                 });
                         }
                     }
@@ -418,7 +434,7 @@ pub fn update_secret_mode(
                 timer.tick(time.delta());
 
                 if timer.just_finished() {
-                    state.pop().unwrap();
+                    next_state.set(AppState::SecretModeManager);
                 }
 
                 None
@@ -443,7 +459,7 @@ pub fn finish_secret_mode(
     let (player_entity, player_position) = query.single();
     if query2.iter().any(|(_, p)| *p == *player_position) {
         secret_mode_context.in_game_state =
-            SecretModeInGameState::Stopping(Timer::from_seconds(0.5, false));
+            SecretModeInGameState::Stopping(Timer::from_seconds(0.5, TimerMode::Once));
 
         commands.entity(player_entity).remove::<HumanControlled>();
         for (entity, _) in query2.iter() {
@@ -452,9 +468,14 @@ pub fn finish_secret_mode(
     }
 }
 
-pub fn teardown(mut commands: Commands, audio: Res<Audio>, query: Query<Entity>) {
+pub fn teardown(
+    mut commands: Commands,
+    audio: Res<Audio>,
+    query: Query<Entity, Without<Window>>,
+    mut next_state: ResMut<NextState<AppState>>,
+) {
     for entity in query.iter() {
-        commands.entity(entity).despawn_recursive();
+        commands.entity(entity).despawn();
     }
 
     commands.remove_resource::<WorldID>();
@@ -462,4 +483,6 @@ pub fn teardown(mut commands: Commands, audio: Res<Audio>, query: Query<Entity>)
     commands.remove_resource::<SecretModeContext>();
 
     audio.stop();
+
+    next_state.set(AppState::MainMenu);
 }

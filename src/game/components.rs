@@ -109,8 +109,8 @@ pub struct Immortal {
 impl Default for Immortal {
     fn default() -> Self {
         Immortal {
-            timer: Timer::from_seconds(2.0, false),
-            animation_timer: Timer::from_seconds(0.66, true),
+            timer: Timer::from_seconds(2.0, TimerMode::Once),
+            animation_timer: Timer::from_seconds(0.66, TimerMode::Repeating),
         }
     }
 }

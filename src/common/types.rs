@@ -1,4 +1,4 @@
-use bevy::{prelude::Color, ui::UiColor};
+use bevy::{prelude::Color, ui::BackgroundColor};
 
 #[derive(Clone, Copy)]
 pub struct RGBColor(pub u8, pub u8, pub u8);
@@ -9,7 +9,7 @@ impl From<RGBColor> for Color {
     }
 }
 
-impl From<RGBColor> for UiColor {
+impl From<RGBColor> for BackgroundColor {
     fn from(color: RGBColor) -> Self {
         Self(color.into())
     }

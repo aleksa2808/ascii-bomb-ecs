@@ -1,4 +1,4 @@
-use bevy::{prelude::*, time::Timer};
+use bevy::{ecs as bevy_ecs, prelude::*, time::Timer};
 
 use crate::{
     audio::{SoundHandles, SoundID},
@@ -6,6 +6,7 @@ use crate::{
     loading::resources::AssetsLoading,
 };
 
+#[derive(Resource)]
 pub struct SecretModeMusic {
     pub what_is_f: SoundID,
 }
@@ -43,6 +44,7 @@ pub enum SecretModeInGameState {
     Stopping(Timer),
 }
 
+#[derive(Resource)]
 pub struct SecretModeContext {
     pub manager_state: SecretModeManagerState,
     pub in_game_state: SecretModeInGameState,

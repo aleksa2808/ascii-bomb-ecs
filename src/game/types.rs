@@ -82,8 +82,10 @@ impl Cooldown {
     }
 
     pub fn trigger(&mut self) {
-        self.state =
-            CooldownState::CoolingDown(Timer::from_seconds(self.duration.as_secs_f32(), false));
+        self.state = CooldownState::CoolingDown(Timer::from_seconds(
+            self.duration.as_secs_f32(),
+            TimerMode::Once,
+        ));
     }
 
     pub fn tick(&mut self, delta: Duration) {

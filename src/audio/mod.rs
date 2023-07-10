@@ -5,7 +5,7 @@ mod web;
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use bevy::{prelude::*, utils::HashMap};
+use bevy::{ecs as bevy_ecs, prelude::*, utils::HashMap};
 use parking_lot::RwLock;
 
 #[cfg(target_arch = "wasm32")]
@@ -25,12 +25,14 @@ impl Plugin for AudioPlugin {
             .init_resource::<SoundHandles>()
             .init_resource::<Audio>()
             .init_non_send_resource::<AudioBackend>()
-            .add_system_to_stage(CoreStage::PostUpdate, play_queued_audio.exclusive_system());
+            // TODO: this system should probably be placed after all other game systems, as it was before
+            .add_systems((play_queued_audio, apply_system_buffers).chain());
 
         #[cfg(target_arch = "wasm32")]
-        app.add_system_set(
-            SystemSet::on_exit(AppState::Loading)
-                .with_system(prepare_webaudio_buffers.exclusive_system()),
+        app.add_systems(
+            (prepare_webaudio_buffers, apply_system_buffers)
+                .chain()
+                .in_schedule(OnExit(AppState::Loading)),
         );
     }
 }
@@ -53,7 +55,7 @@ impl SoundID {
 /// Needed because of the differences in how the native and the web build audio systems operate.
 /// In the native build the IDs are used to obtain the `Sound` handles again, while in the
 /// web build they are used to obtain the pre-loaded Web Audio API audio buffers.
-#[derive(Default)]
+#[derive(Default, Resource)]
 pub struct SoundHandles(HashMap<SoundID, Handle<Sound>>);
 
 impl SoundHandles {
@@ -70,7 +72,7 @@ pub enum AudioCommand {
 }
 
 /// A frontend interface resource that can be used to place audio requests from any thread.
-#[derive(Default)]
+#[derive(Default, Resource)]
 pub struct Audio {
     pub audio_command: RwLock<Option<AudioCommand>>,
     pub volume_change: RwLock<Option<f32>>,

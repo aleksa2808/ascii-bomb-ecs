@@ -42,32 +42,34 @@ pub fn init_hud(
     with_clock: bool,
     extra_item_fn: Option<&dyn Fn(&mut ChildBuilder)>,
 ) {
-    let mut ec = parent.spawn_bundle(NodeBundle {
-        style: Style {
-            size: Size::new(Val::Px(width), Val::Px(HUD_HEIGHT as f32)),
-            position_type: PositionType::Absolute,
-            position: UiRect {
-                left: Val::Px(0.0),
-                top: Val::Px(0.0),
+    let mut ec = parent.spawn((
+        NodeBundle {
+            style: Style {
+                size: Size::new(Val::Px(width), Val::Px(HUD_HEIGHT as f32)),
+                position_type: PositionType::Absolute,
+                position: UiRect {
+                    left: Val::Px(0.0),
+                    top: Val::Px(0.0),
+                    ..Default::default()
+                },
                 ..Default::default()
             },
+            background_color: hud_colors.get_background_color(world_id).into(),
             ..Default::default()
         },
-        color: hud_colors.get_background_color(world_id).into(),
-        ..Default::default()
-    });
+        UIComponent,
+        HUDRoot,
+    ));
+    ec.with_children(|parent| {
+        if let Some(extra_item_fn) = extra_item_fn {
+            extra_item_fn(parent);
+        }
 
-    ec.insert(UIComponent)
-        .insert(HUDRoot)
-        .with_children(|parent| {
-            if let Some(extra_item_fn) = extra_item_fn {
-                extra_item_fn(parent);
-            }
-
-            if with_clock {
-                // clock / pause indicator
-                parent
-                    .spawn_bundle(NodeBundle {
+        if with_clock {
+            // clock / pause indicator
+            parent
+                .spawn((
+                    NodeBundle {
                         style: Style {
                             size: Size::new(
                                 Val::Px(5.0 * PIXEL_SCALE as f32),
@@ -81,37 +83,39 @@ pub fn init_hud(
                             },
                             ..Default::default()
                         },
-                        color: hud_colors.black_color.into(),
+                        background_color: hud_colors.black_color.into(),
                         ..Default::default()
-                    })
-                    .insert(UIComponent)
-                    .with_children(|parent| {
-                        parent
-                            .spawn_bundle(TextBundle {
-                                text: Text::from_section(
-                                    "",
-                                    TextStyle {
-                                        font: fonts.mono.clone(),
-                                        font_size: 2.0 * PIXEL_SCALE as f32,
-                                        color: COLORS[15].into(),
-                                    },
-                                ),
-                                style: Style {
-                                    position_type: PositionType::Absolute,
-                                    position: UiRect {
-                                        top: Val::Px(0.0),
-                                        left: Val::Px(0.0),
-                                        ..Default::default()
-                                    },
+                    },
+                    UIComponent,
+                ))
+                .with_children(|parent| {
+                    parent.spawn((
+                        TextBundle {
+                            text: Text::from_section(
+                                "",
+                                TextStyle {
+                                    font: fonts.mono.clone(),
+                                    font_size: 2.0 * PIXEL_SCALE as f32,
+                                    color: COLORS[15].into(),
+                                },
+                            ),
+                            style: Style {
+                                position_type: PositionType::Absolute,
+                                position: UiRect {
+                                    top: Val::Px(0.0),
+                                    left: Val::Px(0.0),
                                     ..Default::default()
                                 },
                                 ..Default::default()
-                            })
-                            .insert(UIComponent)
-                            .insert(GameTimerDisplay);
-                    });
-            }
-        });
+                            },
+                            ..Default::default()
+                        },
+                        UIComponent,
+                        GameTimerDisplay,
+                    ));
+                });
+        }
+    });
 
     if with_penguin_portrait_display {
         ec.insert(PenguinPortraitDisplay);
@@ -126,53 +130,58 @@ pub fn init_penguin_portraits(
 ) {
     for penguin in penguin_tags {
         parent
-            .spawn_bundle(NodeBundle {
-                style: Style {
-                    size: Size::new(
-                        Val::Px(8.0 * PIXEL_SCALE as f32),
-                        Val::Px(10.0 * PIXEL_SCALE as f32),
-                    ),
-                    position_type: PositionType::Absolute,
-                    position: UiRect {
-                        left: Val::Px(((5 + 12 * penguin.0) * PIXEL_SCALE) as f32),
-                        top: Val::Px(PIXEL_SCALE as f32),
-                        ..Default::default()
-                    },
-                    border: UiRect {
-                        left: Val::Px(PIXEL_SCALE as f32),
-                        top: Val::Px(PIXEL_SCALE as f32),
-                        right: Val::Px(PIXEL_SCALE as f32),
-                        bottom: Val::Px(PIXEL_SCALE as f32),
-                    },
-                    ..Default::default()
-                },
-                color: hud_colors.portrait_border_color.into(),
-                ..Default::default()
-            })
-            .insert(PenguinPortrait(*penguin))
-            .insert(UIComponent)
-            .with_children(|parent| {
-                parent
-                    .spawn_bundle(NodeBundle {
-                        style: Style {
-                            size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+            .spawn((
+                NodeBundle {
+                    style: Style {
+                        size: Size::new(
+                            Val::Px(8.0 * PIXEL_SCALE as f32),
+                            Val::Px(10.0 * PIXEL_SCALE as f32),
+                        ),
+                        position_type: PositionType::Absolute,
+                        position: UiRect {
+                            left: Val::Px(((5 + 12 * penguin.0) * PIXEL_SCALE) as f32),
+                            top: Val::Px(PIXEL_SCALE as f32),
                             ..Default::default()
                         },
-                        color: hud_colors.portrait_background_color.into(),
+                        border: UiRect {
+                            left: Val::Px(PIXEL_SCALE as f32),
+                            top: Val::Px(PIXEL_SCALE as f32),
+                            right: Val::Px(PIXEL_SCALE as f32),
+                            bottom: Val::Px(PIXEL_SCALE as f32),
+                        },
                         ..Default::default()
-                    })
-                    .insert(UIComponent)
+                    },
+                    background_color: hud_colors.portrait_border_color.into(),
+                    ..Default::default()
+                },
+                PenguinPortrait(*penguin),
+                UIComponent,
+            ))
+            .with_children(|parent| {
+                parent
+                    .spawn((
+                        NodeBundle {
+                            style: Style {
+                                size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                                ..Default::default()
+                            },
+                            background_color: hud_colors.portrait_background_color.into(),
+                            ..Default::default()
+                        },
+                        UIComponent,
+                    ))
                     .with_children(|parent| {
-                        parent
-                            .spawn_bundle(ImageBundle {
+                        parent.spawn((
+                            ImageBundle {
                                 style: Style {
                                     size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
                                     ..Default::default()
                                 },
                                 image: game_textures.get_penguin_texture(*penguin).clone().into(),
                                 ..Default::default()
-                            })
-                            .insert(UIComponent);
+                            },
+                            UIComponent,
+                        ));
                     });
             });
     }
@@ -193,7 +202,7 @@ pub fn spawn_map(
     // place empty/passable tiles
     for j in 0..map_size.rows {
         for i in 0..map_size.columns {
-            commands.spawn_bundle(SpriteBundle {
+            commands.spawn(SpriteBundle {
                 texture: game_textures.get_map_textures().empty.clone(),
                 transform: Transform::from_xyz(get_x(i as isize), get_y(j as isize), 0.0),
                 sprite: Sprite {
@@ -247,18 +256,20 @@ pub fn spawn_map(
         let mut reveal_group = vec![];
         for position in spawn_group {
             let entity = commands
-                .spawn_bundle(SpriteBundle {
-                    texture: game_textures.get_map_textures().wall.clone(),
-                    transform: Transform::from_xyz(get_x(position.x), get_y(position.y), 10.0),
-                    sprite: Sprite {
-                        custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+                .spawn((
+                    SpriteBundle {
+                        texture: game_textures.get_map_textures().wall.clone(),
+                        transform: Transform::from_xyz(get_x(position.x), get_y(position.y), 10.0),
+                        sprite: Sprite {
+                            custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+                            ..Default::default()
+                        },
                         ..Default::default()
                     },
-                    ..Default::default()
-                })
-                .insert(Wall)
-                .insert(Solid)
-                .insert(*position)
+                    Wall,
+                    Solid,
+                    *position,
+                ))
                 .id();
             reveal_group.push(entity);
         }
@@ -327,19 +338,21 @@ pub fn spawn_map(
         .choose_multiple(&mut rng, num_of_destructible_walls_to_place);
     for position in &destructible_wall_positions {
         let entity = commands
-            .spawn_bundle(SpriteBundle {
-                texture: game_textures.get_map_textures().destructible_wall.clone(),
-                transform: Transform::from_xyz(get_x(position.x), get_y(position.y), 10.0),
-                sprite: Sprite {
-                    custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+            .spawn((
+                SpriteBundle {
+                    texture: game_textures.get_map_textures().destructible_wall.clone(),
+                    transform: Transform::from_xyz(get_x(position.x), get_y(position.y), 10.0),
+                    sprite: Sprite {
+                        custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
+                        ..Default::default()
+                    },
                     ..Default::default()
                 },
-                ..Default::default()
-            })
-            .insert(Wall)
-            .insert(Solid)
-            .insert(Destructible)
-            .insert(*position)
+                Wall,
+                Solid,
+                Destructible,
+                *position,
+            ))
             .id();
         wall_entity_reveal_groups.push(vec![entity]);
     }
@@ -381,8 +394,8 @@ pub fn generate_item_at_position(
         }
     };
 
-    commands
-        .spawn_bundle(SpriteBundle {
+    commands.spawn((
+        SpriteBundle {
             texture: match item {
                 Item::Upgrade(Upgrade::BombsUp) => game_textures.bombs_up.clone(),
                 Item::Upgrade(Upgrade::RangeUp) => game_textures.range_up.clone(),
@@ -397,7 +410,8 @@ pub fn generate_item_at_position(
                 ..Default::default()
             },
             ..Default::default()
-        })
-        .insert(position)
-        .insert(item);
+        },
+        position,
+        item,
+    ));
 }

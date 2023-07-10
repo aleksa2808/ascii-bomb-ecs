@@ -9,15 +9,15 @@ pub fn loading_update(
     server: Res<AssetServer>,
     loading: Res<AssetsLoading>,
     loading_context: Res<LoadingContext>,
-    mut state: ResMut<State<AppState>>,
+    mut next_state: ResMut<NextState<AppState>>,
 ) {
     use bevy::asset::LoadState;
 
-    match server.get_group_load_state(loading.0.iter().map(|h| h.id)) {
+    match server.get_group_load_state(loading.0.iter().map(|h| h.id())) {
         LoadState::Failed => panic!("failed to load an asset"),
         LoadState::Loaded => {
             // all assets are now ready
-            state.replace(loading_context.next_state).unwrap();
+            next_state.set(loading_context.next_state);
 
             commands.remove_resource::<AssetsLoading>();
             commands.remove_resource::<LoadingContext>();

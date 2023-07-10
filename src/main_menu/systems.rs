@@ -1,4 +1,4 @@
-use bevy::{app::AppExit, prelude::*, utils::HashMap};
+use bevy::{app::AppExit, prelude::*, utils::HashMap, window::PrimaryWindow};
 
 use crate::{
     audio::Audio,
@@ -27,11 +27,12 @@ use super::{
     },
 };
 
-pub fn resize_window(mut windows: ResMut<Windows>) {
-    windows
-        .get_primary_mut()
+pub fn resize_window(mut primary_query: Query<&mut Window, With<PrimaryWindow>>) {
+    primary_query
+        .get_single_mut()
         .unwrap()
-        .set_resolution(MENU_WIDTH as f32, MENU_HEIGHT as f32);
+        .resolution
+        .set(MENU_WIDTH as f32, MENU_HEIGHT as f32);
 }
 
 pub fn setup_menu(
@@ -42,16 +43,16 @@ pub fn setup_menu(
     game_option_store: Res<GameOptionStore>,
     persistent_high_scores: Res<PersistentHighScores>,
 ) {
-    commands.spawn_bundle(Camera2dBundle::default());
+    commands.spawn(Camera2dBundle::default());
 
     let mut menu_background_animation_context = None;
     commands
-        .spawn_bundle(NodeBundle {
+        .spawn(NodeBundle {
             style: Style {
                 size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
                 ..Default::default()
             },
-            color: menu_colors.background_color.into(),
+            background_color: menu_colors.background_color.into(),
             ..Default::default()
         })
         .with_children(|parent| {
@@ -63,7 +64,7 @@ pub fn setup_menu(
 | |_) | |__| | |  | | |_) | |____| | \ \| |  | |/ ____ \| |\  |
 |____/ \____/|_|  |_|____/|______|_|  \_\_|  |_/_/    \_\_| \_|
 "#;
-            parent.spawn_bundle(TextBundle {
+            parent.spawn(TextBundle {
                 text: Text::from_section(
                     title_text.to_string(),
                     TextStyle {
@@ -86,7 +87,7 @@ pub fn setup_menu(
 
             let mut place_text = |y, x, str: &str, c: usize| {
                 parent
-                    .spawn_bundle(TextBundle {
+                    .spawn(TextBundle {
                         text: Text::from_section(
                             str.to_string(),
                             TextStyle {
@@ -177,12 +178,12 @@ __██__
 
             menu_background_animation_context = Some(MenuBackgroundAnimationContext {
                 entity_change_parameters,
-                timer: Timer::from_seconds(100.0, true),
+                timer: Timer::from_seconds(100.0, TimerMode::Repeating),
             });
 
             // spawn central modal
             parent
-                .spawn_bundle(NodeBundle {
+                .spawn(NodeBundle {
                     style: Style {
                         size: Size::new(
                             Val::Px(40.0 * PIXEL_SCALE as f32),
@@ -202,12 +203,12 @@ __██__
                         },
                         ..Default::default()
                     },
-                    color: menu_colors.modal_foreground_color.into(),
+                    background_color: menu_colors.modal_foreground_color.into(),
                     ..Default::default()
                 })
                 .with_children(|parent| {
                     // spawn modal border
-                    parent.spawn_bundle(TextBundle {
+                    parent.spawn(TextBundle {
                         text: Text::from_section(
                             r#"
 ┌──────────────────────────────────────┐
@@ -251,15 +252,17 @@ __██__
 
                     // spawn menu type
                     parent
-                        .spawn_bundle(NodeBundle {
-                            style: Style {
-                                size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                        .spawn((
+                            NodeBundle {
+                                style: Style {
+                                    size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                                    ..Default::default()
+                                },
+                                background_color: menu_colors.modal_background_color.into(),
                                 ..Default::default()
                             },
-                            color: menu_colors.modal_background_color.into(),
-                            ..Default::default()
-                        })
-                        .insert(MenuContentBox)
+                            MenuContentBox,
+                        ))
                         .with_children(|parent| {
                             spawn_menu_type(
                                 parent,
@@ -278,7 +281,7 @@ __██__
     if game_option_store.get(GameOption::Demo) {
         commands.insert_resource(DemoModeStartTimer(Timer::from_seconds(
             DEMO_MODE_START_TIMER_DURATION_SECS,
-            false,
+            TimerMode::Once,
         )));
     }
 }
@@ -289,7 +292,7 @@ pub fn menu_navigation(
     sounds: Res<MainMenuSoundEffects>,
     fonts: Res<Fonts>,
     menu_colors: Res<MenuColors>,
-    mut state: ResMut<State<AppState>>,
+    mut next_state: ResMut<NextState<AppState>>,
     mut menu_state: ResMut<MenuState>,
     mut game_option_store: ResMut<GameOptionStore>,
     persistent_high_scores: Res<PersistentHighScores>,
@@ -348,7 +351,7 @@ pub fn menu_navigation(
                     });
 
                     menu_state.battle_mode_sub_menu_state = None;
-                    state.replace(AppState::BattleMode).unwrap();
+                    next_state.set(AppState::BattleModeSetup);
                     inputs.clear();
                     return;
                 }
@@ -369,7 +372,7 @@ pub fn menu_navigation(
                     menu_changed = true;
                 }
                 MenuAction::LaunchStoryMode => {
-                    state.replace(AppState::StoryMode).unwrap();
+                    next_state.set(AppState::StoryModeSetup);
                     inputs.clear();
                     return;
                 }
@@ -402,7 +405,7 @@ pub fn menu_navigation(
                             if option_enabled {
                                 commands.insert_resource(DemoModeStartTimer(Timer::from_seconds(
                                     DEMO_MODE_START_TIMER_DURATION_SECS,
-                                    false,
+                                    TimerMode::Once,
                                 )));
                             } else {
                                 commands.remove_resource::<DemoModeStartTimer>();
@@ -461,7 +464,7 @@ pub fn menu_navigation(
 
         if let MenuType::ControlsScreen(_) = menu_state.get_current_menu() {
             if inputs.is_active(InputAction::F) {
-                state.replace(AppState::SecretMode).unwrap();
+                next_state.set(AppState::SecretModeSetup);
                 inputs.clear();
                 return;
             }
@@ -503,7 +506,7 @@ pub fn menu_demo_mode_trigger(
     time: Res<Time>,
     demo_mode_start_timer: Option<ResMut<DemoModeStartTimer>>,
     inputs: Res<InputActionStatusTracker>,
-    mut state: ResMut<State<AppState>>,
+    mut next_state: ResMut<NextState<AppState>>,
 ) {
     if let Some(mut demo_mode_start_timer) = demo_mode_start_timer {
         if !inputs.get_active().is_empty() {
@@ -512,15 +515,15 @@ pub fn menu_demo_mode_trigger(
             demo_mode_start_timer.0.tick(time.delta());
             if demo_mode_start_timer.0.finished() {
                 // state switching should fail here if there's a manually triggered state already queued
-                if state.replace(AppState::BattleMode).is_ok() {
+                if next_state.0.is_none() {
                     println!("Starting demo mode!");
-
                     commands.insert_resource(BattleModeConfiguration {
                         amount_of_players: 0,
                         amount_of_bots: 8,
                         winning_score: 1,
                         bot_difficulty: BotDifficulty::Medium,
                     });
+                    next_state.set(AppState::BattleModeSetup);
                 }
             }
         }
@@ -557,9 +560,9 @@ pub fn animate_menu_background(
     }
 }
 
-pub fn teardown(mut commands: Commands, query: Query<Entity>) {
+pub fn teardown(mut commands: Commands, query: Query<Entity, Without<Window>>) {
     for entity in query.iter() {
-        commands.entity(entity).despawn_recursive();
+        commands.entity(entity).despawn();
     }
 
     commands.remove_resource::<DemoModeStartTimer>();
