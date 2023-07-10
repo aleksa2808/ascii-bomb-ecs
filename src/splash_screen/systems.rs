@@ -95,7 +95,7 @@ pub fn splash_screen_update(
     time: Res<Time>,
     mut splash_screen_context: ResMut<SplashScreenContext>,
     mut query: Query<&mut Style>,
-    mut state: ResMut<State<AppState>>,
+    mut next_state: ResMut<NextState<AppState>>,
 ) {
     match splash_screen_context.text_state {
         SplashScreenTextState::Moving(ref mut timer) => {
@@ -136,15 +136,15 @@ pub fn splash_screen_update(
         SplashScreenTextState::Holding(ref mut timer) => {
             timer.tick(time.delta());
             if timer.finished() {
-                state.replace(AppState::MainMenu).unwrap();
+                next_state.set(AppState::MainMenu);
             }
         }
     }
 }
 
-pub fn teardown(mut commands: Commands, query: Query<Entity>) {
+pub fn teardown(mut commands: Commands, query: Query<Entity, Without<Window>>) {
     for entity in query.iter() {
-        commands.entity(entity).despawn_recursive();
+        commands.entity(entity).despawn();
     }
 
     commands.remove_resource::<SplashScreenContext>();

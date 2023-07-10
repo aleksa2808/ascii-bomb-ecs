@@ -18,9 +18,10 @@ impl Plugin for LoadingPlugin {
             .insert_resource(LoadingContext {
                 next_state: self.next_state,
             })
-            .add_system_set(
-                SystemSet::on_update(self.loading_state)
-                    .with_system(loading_update.exclusive_system()),
+            .add_systems(
+                (loading_update, apply_system_buffers)
+                    .chain()
+                    .in_set(OnUpdate(self.loading_state)),
             );
     }
 }

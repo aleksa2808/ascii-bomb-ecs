@@ -25,7 +25,8 @@ impl Plugin for AudioPlugin {
             .init_resource::<SoundHandles>()
             .init_resource::<Audio>()
             .init_non_send_resource::<AudioBackend>()
-            .add_system_to_stage(CoreStage::PostUpdate, play_queued_audio.exclusive_system());
+            // TODO: this system should probably be placed after all other game systems, as it was before
+            .add_systems((play_queued_audio, apply_system_buffers).chain());
 
         #[cfg(target_arch = "wasm32")]
         app.add_system_set(

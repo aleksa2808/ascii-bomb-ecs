@@ -130,12 +130,12 @@ pub fn get_battle_mode_map_size_fill(player_count: usize) -> (MapSize, f32) {
 pub fn start_round(
     mut battle_mode_context: ResMut<BattleModeContext>,
     mut commands: Commands,
-    mut state: ResMut<State<AppState>>,
+    mut next_state: ResMut<NextState<AppState>>,
 ) {
     battle_mode_context.state = BattleModeState::InGame;
     commands.insert_resource(FreezeTimer(Timer::from_seconds(
         ROUND_START_FREEZE_SECS,
         TimerMode::Once,
     )));
-    state.push(AppState::RoundStartFreeze).unwrap();
+    next_state.set(AppState::RoundStartFreeze);
 }

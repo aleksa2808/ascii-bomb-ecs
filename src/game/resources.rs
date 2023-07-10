@@ -4,6 +4,7 @@ use crate::{
     audio::{SoundHandles, SoundID},
     common::constants::COLORS,
     loading::resources::AssetsLoading,
+    AppState,
 };
 
 use super::{
@@ -253,6 +254,12 @@ pub struct GameScore(pub usize);
 pub struct GameContext {
     pub pausable: bool,
     pub reduced_loot: bool,
+    pub exit_state: AppState,
+}
+
+#[derive(Resource)]
+pub struct PauseContext {
+    pub next_state: AppState,
 }
 
 #[derive(Resource)]

@@ -34,8 +34,7 @@ pub fn resize_window(
     mut primary_query: Query<&mut Window, With<PrimaryWindow>>,
     map_size: Res<MapSize>,
 ) {
-    let window = primary_query.get_single_mut().unwrap();
-    window.set_resolution(
+    primary_query.get_single_mut().unwrap().resolution.set(
         (map_size.columns * TILE_WIDTH) as f32,
         (HUD_HEIGHT + map_size.rows * TILE_HEIGHT) as f32,
     );
@@ -102,13 +101,15 @@ pub fn game_timer_tick(time: Res<Time>, mut game_timer: ResMut<GameTimer>) {
 }
 
 pub fn handle_user_input(
+    mut commands: Commands,
     audio: Res<Audio>,
     sounds: Res<Sounds>,
     mut inputs: ResMut<InputActionStatusTracker>,
     game_context: Res<GameContext>,
     query: Query<(Entity, &HumanControlled), With<Player>>,
     mut ev_player_action: EventWriter<PlayerActionEvent>,
-    mut state: ResMut<State<AppState>>,
+    state: Res<State<AppState>>,
+    mut next_state: ResMut<NextState<AppState>>,
 ) {
     for (entity, _) in query.iter().filter(|(_, hc)| hc.0 == 0) {
         for (input_action, direction) in [
@@ -158,12 +159,15 @@ pub fn handle_user_input(
 
     if inputs.is_active(InputAction::Return) && game_context.pausable {
         audio.play(sounds.pause);
-        state.push(AppState::Paused).unwrap();
+        commands.insert_resource(PauseContext {
+            next_state: state.0,
+        });
+        next_state.set(AppState::Paused);
         inputs.clear();
     }
 
     if inputs.is_active(InputAction::Escape) {
-        state.overwrite_pop().unwrap();
+        next_state.set(game_context.exit_state);
         inputs.clear();
     }
 }
@@ -1266,7 +1270,6 @@ pub fn exit_burn(
     mut ev_burn: EventReader<BurnEvent>,
 ) {
     // we do checks here because some levels don't have exits (e.g. boss rooms)
-    // TODO: make a separate state for those scenarios that don't run this system?
     if let Ok((_, mut exit)) = query.get_single_mut() {
         exit.spawn_cooldown.tick(time.delta());
     }
@@ -1461,19 +1464,25 @@ pub fn wall_of_death_update(
 
 pub fn pop_state_on_enter(
     mut inputs: ResMut<InputActionStatusTracker>,
-    mut state: ResMut<State<AppState>>,
+    pause_context: Res<PauseContext>,
+    mut next_state: ResMut<NextState<AppState>>,
 ) {
     if inputs.is_active(InputAction::Return) {
-        state.pop().unwrap();
+        next_state.set(pause_context.next_state);
         inputs.clear();
     }
 }
 
 pub fn pop_state_fallthrough_on_esc(
     inputs: Res<InputActionStatusTracker>,
-    mut state: ResMut<State<AppState>>,
+    game_context: Res<GameContext>,
+    mut next_state: ResMut<NextState<AppState>>,
 ) {
     if inputs.is_active(InputAction::Escape) {
-        state.pop().unwrap();
+        next_state.set(game_context.exit_state);
     }
+}
+
+pub fn pause_teardown(mut commands: Commands) {
+    commands.remove_resource::<PauseContext>();
 }

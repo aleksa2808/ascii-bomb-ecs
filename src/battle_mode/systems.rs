@@ -29,6 +29,7 @@ pub fn setup_battle_mode(
     fonts: Res<Fonts>,
     hud_colors: Res<HUDColors>,
     battle_mode_configuration: Res<BattleModeConfiguration>,
+    mut next_state: ResMut<NextState<AppState>>,
 ) {
     let world_id = WorldID(rand::thread_rng().gen_range(1..=3));
     game_textures.set_map_textures(world_id);
@@ -93,11 +94,14 @@ pub fn setup_battle_mode(
     commands.insert_resource(GameContext {
         pausable: battle_mode_configuration.amount_of_players > 0,
         reduced_loot: true,
+        exit_state: AppState::BattleModeTeardown,
     });
     commands.insert_resource(world_id);
     commands.insert_resource(map_size);
 
     commands.remove_resource::<BattleModeConfiguration>();
+
+    next_state.set(AppState::BattleModeManager);
 }
 
 pub fn battle_mode_manager(
@@ -106,7 +110,7 @@ pub fn battle_mode_manager(
     map_size: Res<MapSize>,
     mut battle_mode_context: ResMut<BattleModeContext>,
     game_option_store: Res<GameOptionStore>,
-    mut state: ResMut<State<AppState>>,
+    mut next_state: ResMut<NextState<AppState>>,
     query: Query<Entity, (Without<Camera>, Without<UIComponent>)>,
     query2: Query<Entity, With<PenguinPortrait>>,
     mut query4: Query<&mut Text, With<GameTimerDisplay>>,
@@ -152,13 +156,16 @@ pub fn battle_mode_manager(
                     battle_mode_context.state = BattleModeState::MapTransition;
                     commands.insert_resource(MapTransitionInput {
                         wall_entity_reveal_groups,
+                        next_state: AppState::BattleModeManager,
                     });
-                    state.push(AppState::MapTransition).unwrap();
+                    next_state.set(AppState::MapTransition);
                 } else {
-                    start_round(battle_mode_context, commands, state);
+                    start_round(battle_mode_context, commands, next_state);
                 }
             }
-            BattleModeState::MapTransition => start_round(battle_mode_context, commands, state),
+            BattleModeState::MapTransition => {
+                start_round(battle_mode_context, commands, next_state)
+            }
             BattleModeState::InGame => {
                 match battle_mode_context.round_outcome {
                     Some(result) => {
@@ -177,7 +184,7 @@ pub fn battle_mode_manager(
                         }
 
                         for entity in query.iter() {
-                            commands.entity(entity).despawn_recursive();
+                            commands.entity(entity).despawn();
                         }
 
                         // clear penguin portraits
@@ -186,11 +193,11 @@ pub fn battle_mode_manager(
                         }
 
                         battle_mode_context.state = BattleModeState::LeaderboardDisplay;
-                        state.push(AppState::LeaderboardDisplay).unwrap();
+                        next_state.set(AppState::LeaderboardDisplay);
                     }
                     None => {
                         // abrupt exit
-                        state.replace(AppState::MainMenu).unwrap();
+                        next_state.set(AppState::BattleModeTeardown);
                     }
                 }
             }
@@ -202,7 +209,7 @@ pub fn battle_mode_manager(
                     .find(|(_, s)| **s == battle_mode_context.leaderboard.winning_score)
                 {
                     println!("Tournament complete! Winner: {:?}", penguin.0);
-                    state.replace(AppState::MainMenu).unwrap();
+                    next_state.set(AppState::BattleModeTeardown);
                 } else {
                     battle_mode_context.state = BattleModeState::RoundSetup;
                     continue;
@@ -217,12 +224,12 @@ pub fn finish_freeze(
     mut commands: Commands,
     time: Res<Time>,
     mut freeze_timer: ResMut<FreezeTimer>,
-    mut state: ResMut<State<AppState>>,
+    mut next_state: ResMut<NextState<AppState>>,
 ) {
     freeze_timer.0.tick(time.delta());
     if freeze_timer.0.finished() {
         commands.remove_resource::<FreezeTimer>();
-        state.set(AppState::BattleModeInGame).unwrap();
+        next_state.set(AppState::BattleModeInGame);
     }
 }
 
@@ -269,7 +276,7 @@ pub fn finish_round(
     game_timer: Res<GameTimer>,
     mut battle_mode_context: ResMut<BattleModeContext>,
     query: Query<&Penguin, With<Player>>,
-    mut state: ResMut<State<AppState>>,
+    mut next_state: ResMut<NextState<AppState>>,
 ) {
     let mut round_over = false;
     if game_timer.0.finished() || query.iter().count() == 0 {
@@ -281,7 +288,7 @@ pub fn finish_round(
     }
 
     if round_over {
-        state.overwrite_pop().unwrap();
+        next_state.set(AppState::BattleModeManager);
     }
 }
 
@@ -483,7 +490,7 @@ pub fn leaderboard_display_update(
     mut commands: Commands,
     time: Res<Time>,
     mut leaderboard_display_context: ResMut<LeaderboardDisplayContext>,
-    mut state: ResMut<State<AppState>>,
+    mut next_state: ResMut<NextState<AppState>>,
 ) {
     leaderboard_display_context.timer.tick(time.delta());
     if leaderboard_display_context.timer.finished() {
@@ -491,21 +498,22 @@ pub fn leaderboard_display_update(
             .entity(leaderboard_display_context.leaderboard_display_box)
             .despawn_recursive();
         commands.remove_resource::<LeaderboardDisplayContext>();
-        state.pop().unwrap();
+        next_state.set(AppState::BattleModeManager);
     }
 }
 
 pub fn teardown(
     mut commands: Commands,
-    query: Query<Entity>,
+    query: Query<Entity, Without<Window>>,
     mut player_action_events: ResMut<Events<PlayerActionEvent>>,
     mut explosion_events: ResMut<Events<ExplosionEvent>>,
     mut burn_events: ResMut<Events<BurnEvent>>,
     mut damage_events: ResMut<Events<DamageEvent>>,
+    mut next_state: ResMut<NextState<AppState>>,
 ) {
     // clear entities
     for entity in query.iter() {
-        commands.entity(entity).despawn_recursive();
+        commands.entity(entity).despawn();
     }
 
     // clear events
@@ -524,4 +532,6 @@ pub fn teardown(
     // battle mode
     commands.remove_resource::<BattleModeContext>();
     commands.remove_resource::<WallOfDeath>();
+
+    next_state.set(AppState::MainMenu);
 }

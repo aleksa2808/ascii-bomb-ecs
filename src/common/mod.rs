@@ -7,7 +7,7 @@ pub mod resources;
 pub mod systems;
 pub mod types;
 
-#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemLabel)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
 pub enum Label {
     InputMapping,
 }
@@ -21,11 +21,15 @@ impl Plugin for CommonPlugin {
             .init_resource::<PersistentHighScores>()
             .init_resource::<Fonts>()
             .add_startup_system(set_volume_based_on_options)
-            .add_system(clear_inputs.exclusive_system().before(Label::InputMapping))
-            .add_system(
-                handle_keyboard_input
-                    .exclusive_system()
-                    .label(Label::InputMapping),
+            .add_systems(
+                (clear_inputs, apply_system_buffers)
+                    .chain()
+                    .before(Label::InputMapping),
+            )
+            .add_systems(
+                (handle_keyboard_input, apply_system_buffers)
+                    .chain()
+                    .in_set(Label::InputMapping),
             );
     }
 }

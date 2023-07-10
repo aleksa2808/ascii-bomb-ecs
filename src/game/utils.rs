@@ -42,81 +42,80 @@ pub fn init_hud(
     with_clock: bool,
     extra_item_fn: Option<&dyn Fn(&mut ChildBuilder)>,
 ) {
-    let mut ec = parent
-        .spawn((
-            NodeBundle {
-                style: Style {
-                    size: Size::new(Val::Px(width), Val::Px(HUD_HEIGHT as f32)),
-                    position_type: PositionType::Absolute,
-                    position: UiRect {
-                        left: Val::Px(0.0),
-                        top: Val::Px(0.0),
-                        ..Default::default()
-                    },
+    let mut ec = parent.spawn((
+        NodeBundle {
+            style: Style {
+                size: Size::new(Val::Px(width), Val::Px(HUD_HEIGHT as f32)),
+                position_type: PositionType::Absolute,
+                position: UiRect {
+                    left: Val::Px(0.0),
+                    top: Val::Px(0.0),
                     ..Default::default()
                 },
-                background_color: hud_colors.get_background_color(world_id).into(),
                 ..Default::default()
             },
-            UIComponent,
-            HUDRoot,
-        ))
-        .with_children(|parent| {
-            if let Some(extra_item_fn) = extra_item_fn {
-                extra_item_fn(parent);
-            }
+            background_color: hud_colors.get_background_color(world_id).into(),
+            ..Default::default()
+        },
+        UIComponent,
+        HUDRoot,
+    ));
+    ec.with_children(|parent| {
+        if let Some(extra_item_fn) = extra_item_fn {
+            extra_item_fn(parent);
+        }
 
-            if with_clock {
-                // clock / pause indicator
-                parent
-                    .spawn((
-                        NodeBundle {
+        if with_clock {
+            // clock / pause indicator
+            parent
+                .spawn((
+                    NodeBundle {
+                        style: Style {
+                            size: Size::new(
+                                Val::Px(5.0 * PIXEL_SCALE as f32),
+                                Val::Px(2.0 * PIXEL_SCALE as f32),
+                            ),
+                            position_type: PositionType::Absolute,
+                            position: UiRect {
+                                left: Val::Px(width / 2.0 - 3.0 * PIXEL_SCALE as f32),
+                                top: Val::Px(12.0 * PIXEL_SCALE as f32),
+                                ..Default::default()
+                            },
+                            ..Default::default()
+                        },
+                        background_color: hud_colors.black_color.into(),
+                        ..Default::default()
+                    },
+                    UIComponent,
+                ))
+                .with_children(|parent| {
+                    parent.spawn((
+                        TextBundle {
+                            text: Text::from_section(
+                                "",
+                                TextStyle {
+                                    font: fonts.mono.clone(),
+                                    font_size: 2.0 * PIXEL_SCALE as f32,
+                                    color: COLORS[15].into(),
+                                },
+                            ),
                             style: Style {
-                                size: Size::new(
-                                    Val::Px(5.0 * PIXEL_SCALE as f32),
-                                    Val::Px(2.0 * PIXEL_SCALE as f32),
-                                ),
                                 position_type: PositionType::Absolute,
                                 position: UiRect {
-                                    left: Val::Px(width / 2.0 - 3.0 * PIXEL_SCALE as f32),
-                                    top: Val::Px(12.0 * PIXEL_SCALE as f32),
+                                    top: Val::Px(0.0),
+                                    left: Val::Px(0.0),
                                     ..Default::default()
                                 },
                                 ..Default::default()
                             },
-                            background_color: hud_colors.black_color.into(),
                             ..Default::default()
                         },
                         UIComponent,
-                    ))
-                    .with_children(|parent| {
-                        parent.spawn((
-                            TextBundle {
-                                text: Text::from_section(
-                                    "",
-                                    TextStyle {
-                                        font: fonts.mono.clone(),
-                                        font_size: 2.0 * PIXEL_SCALE as f32,
-                                        color: COLORS[15].into(),
-                                    },
-                                ),
-                                style: Style {
-                                    position_type: PositionType::Absolute,
-                                    position: UiRect {
-                                        top: Val::Px(0.0),
-                                        left: Val::Px(0.0),
-                                        ..Default::default()
-                                    },
-                                    ..Default::default()
-                                },
-                                ..Default::default()
-                            },
-                            UIComponent,
-                            GameTimerDisplay,
-                        ));
-                    });
-            }
-        });
+                        GameTimerDisplay,
+                    ));
+                });
+        }
+    });
 
     if with_penguin_portrait_display {
         ec.insert(PenguinPortraitDisplay);

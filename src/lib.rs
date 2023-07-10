@@ -11,7 +11,7 @@ mod story_mode;
 #[cfg(target_arch = "wasm32")]
 mod web;
 
-use bevy::{prelude::*, window::WindowResolution};
+use bevy::{ecs as bevy_ecs, prelude::*, window::WindowResolution};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
@@ -29,7 +29,7 @@ use crate::{
 #[cfg(target_arch = "wasm32")]
 use crate::{loading::LoadingPlugin, web::*};
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, States)]
 pub enum AppState {
     #[cfg(target_arch = "wasm32")]
     Loading,
@@ -38,17 +38,37 @@ pub enum AppState {
     SplashScreen,
     MainMenu,
     MapTransition,
-    StoryMode,
+    StoryModeSetup,
+    StoryModeManager,
     BossSpeech,
     StoryModeInGame,
     HighScoreNameInput,
-    BattleMode,
+    StoryModeTeardown,
+    BattleModeSetup,
+    BattleModeManager,
     RoundStartFreeze,
     BattleModeInGame,
     LeaderboardDisplay,
+    BattleModeTeardown,
     Paused,
-    SecretMode,
+    SecretModeSetup,
+    SecretModeManager,
     SecretModeInGame,
+    SecretModeTeardown,
+}
+
+impl Default for AppState {
+    fn default() -> Self {
+        cfg_if::cfg_if! {
+            if #[cfg(target_arch = "wasm32")] {
+                Self::Loading
+            } else {
+                // The loading state is not used in the native build in order to mimic
+                // the original game's behavior (non-blocking splash screen)
+                Self::SplashScreen
+            }
+        }
+    }
 }
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
@@ -75,26 +95,24 @@ pub fn run() {
     )
     .add_plugin(AudioPlugin);
 
-    cfg_if::cfg_if! {
-        if #[cfg(target_arch = "wasm32")] {
-            app.add_state(AppState::Loading)
-                .add_plugin(LoadingPlugin {
-                    loading_state: AppState::Loading,
-                    next_state: AppState::WebReadyToStart,
-                })
-                .add_system(handle_web_input.exclusive_system().label(crate::common::Label::InputMapping))
-                .add_system_set(
-                    SystemSet::on_enter(AppState::WebReadyToStart).with_system(web_ready_to_start_enter),
-                )
-                .add_system_set(
-                    SystemSet::on_update(AppState::WebReadyToStart).with_system(web_ready_to_start_update),
-                );
-        } else {
-            // The loading state is not used in the native build in order to mimic
-            // the original game's behavior (non-blocking splash screen)
-            app.add_state(AppState::SplashScreen);
-        }
-    }
+    app.add_state::<AppState>();
+
+    #[cfg(target_arch = "wasm32")]
+    app.add_plugin(LoadingPlugin {
+        loading_state: AppState::Loading,
+        next_state: AppState::WebReadyToStart,
+    })
+    .add_system(
+        handle_web_input
+            .exclusive_system()
+            .in_set(crate::common::Label::InputMapping),
+    )
+    .add_system_set(
+        SystemSet::on_enter(AppState::WebReadyToStart).with_system(web_ready_to_start_enter),
+    )
+    .add_system_set(
+        SystemSet::on_update(AppState::WebReadyToStart).with_system(web_ready_to_start_update),
+    );
 
     app.add_plugin(CommonPlugin)
         .add_plugin(SplashScreenPlugin)

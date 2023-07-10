@@ -22,6 +22,7 @@ pub fn setup_story_mode(
     mut game_textures: ResMut<GameTextures>,
     hud_colors: Res<HUDColors>,
     fonts: Res<Fonts>,
+    mut next_state: ResMut<NextState<AppState>>,
 ) {
     let map_size = MapSize {
         rows: 11,
@@ -164,6 +165,7 @@ pub fn setup_story_mode(
     commands.insert_resource(GameContext {
         pausable: true,
         reduced_loot: false,
+        exit_state: AppState::StoryModeTeardown,
     });
     commands.insert_resource(GameScore(player_points));
     commands.insert_resource(GameTimer(Timer::from_seconds(
@@ -172,6 +174,8 @@ pub fn setup_story_mode(
     )));
     commands.insert_resource(world_id);
     commands.insert_resource(map_size);
+
+    next_state.set(AppState::StoryModeManager);
 }
 
 pub fn story_mode_manager(
@@ -185,7 +189,7 @@ pub fn story_mode_manager(
     map_size: Res<MapSize>,
     game_option_store: Res<GameOptionStore>,
     persistent_high_scores: Res<PersistentHighScores>,
-    mut state: ResMut<State<AppState>>,
+    mut next_state: ResMut<NextState<AppState>>,
     mut p: ParamSet<(
         Query<
             (Entity, &mut Handle<Image>, &BaseTexture, &mut BombSatchel),
@@ -323,28 +327,29 @@ pub fn story_mode_manager(
                     story_mode_context.state = StoryModeState::MapTransition;
                     commands.insert_resource(MapTransitionInput {
                         wall_entity_reveal_groups,
+                        next_state: AppState::StoryModeManager,
                     });
-                    state.push(AppState::MapTransition).unwrap();
+                    next_state.set(AppState::MapTransition);
                 } else if let Level::BossRoom = story_mode_context.level {
                     story_mode_context.state = StoryModeState::BossSpeech;
-                    state.push(AppState::BossSpeech).unwrap();
+                    next_state.set(AppState::BossSpeech);
                 } else {
                     story_mode_context.state = StoryModeState::InGame;
-                    state.push(AppState::StoryModeInGame).unwrap();
+                    next_state.set(AppState::StoryModeInGame);
                 }
             }
             StoryModeState::MapTransition => {
                 if let Level::BossRoom = story_mode_context.level {
                     story_mode_context.state = StoryModeState::BossSpeech;
-                    state.push(AppState::BossSpeech).unwrap();
+                    next_state.set(AppState::BossSpeech);
                 } else {
                     story_mode_context.state = StoryModeState::InGame;
-                    state.push(AppState::StoryModeInGame).unwrap();
+                    next_state.set(AppState::StoryModeInGame);
                 }
             }
             StoryModeState::BossSpeech => {
                 story_mode_context.state = StoryModeState::InGame;
-                state.push(AppState::StoryModeInGame).unwrap();
+                next_state.set(AppState::StoryModeInGame);
             }
             StoryModeState::InGame => {
                 match story_mode_context.level_outcome {
@@ -399,7 +404,7 @@ pub fn story_mode_manager(
                             .count();
 
                         for entity in query2.iter() {
-                            commands.entity(entity).despawn_recursive();
+                            commands.entity(entity).despawn();
                         }
 
                         // clear penguin portraits
@@ -427,18 +432,14 @@ pub fn story_mode_manager(
             StoryModeState::ScoreCheck => {
                 story_mode_context.state = StoryModeState::HighScoreNameInput;
                 if game_score.0 > persistent_high_scores.entry_threshold() {
-                    state.push(AppState::HighScoreNameInput).unwrap();
+                    next_state.set(AppState::HighScoreNameInput);
                 } else {
                     // skip to the step below where we choose the next state
                     continue;
                 }
             }
             StoryModeState::HighScoreNameInput => {
-                if story_mode_context.game_completed {
-                    state.replace(AppState::SecretMode).unwrap();
-                } else {
-                    state.replace(AppState::MainMenu).unwrap();
-                }
+                next_state.set(AppState::StoryModeTeardown);
             }
         }
         break;
@@ -473,7 +474,7 @@ pub fn finish_level(
     )>,
     query: Query<&Protagonist>,
     query2: Query<&TeamID, With<Player>>,
-    mut state: ResMut<State<AppState>>,
+    mut next_state: ResMut<NextState<AppState>>,
 ) {
     let mut level_outcome = None;
 
@@ -507,7 +508,7 @@ pub fn finish_level(
 
     if level_outcome.is_some() {
         story_mode_context.level_outcome = level_outcome;
-        state.overwrite_pop().unwrap();
+        next_state.set(AppState::StoryModeManager);
     }
 }
 
@@ -698,7 +699,7 @@ pub fn boss_speech_update(
     mut boss_speech_script: ResMut<BossSpeechScript>,
     boss_speech_box_entities: Res<BossSpeechBoxEntities>,
     mut inputs: ResMut<InputActionStatusTracker>,
-    mut state: ResMut<State<AppState>>,
+    mut next_state: ResMut<NextState<AppState>>,
     mut query: Query<&mut Text>,
     mut query2: Query<&mut UiImage>,
 ) {
@@ -722,7 +723,7 @@ pub fn boss_speech_update(
             commands.remove_resource::<BossSpeechBoxEntities>();
             commands.remove_resource::<BossSpeechScript>();
 
-            state.pop().unwrap();
+            next_state.set(AppState::StoryModeManager);
             inputs.clear();
             return;
         }
@@ -857,12 +858,12 @@ pub fn high_score_name_input_update(
     mut persistent_high_scores: ResMut<PersistentHighScores>,
     game_score: Res<GameScore>,
     mut query: Query<&mut Text>,
-    mut state: ResMut<State<AppState>>,
+    mut next_state: ResMut<NextState<AppState>>,
 ) {
     if inputs.is_active(InputAction::Escape) {
         persistent_high_scores.insert_score(String::from("<unnamed_player>"), game_score.0);
         commands.remove_resource::<HighScoreNameInputContext>();
-        state.pop().unwrap();
+        next_state.set(AppState::StoryModeManager);
         inputs.clear();
         return;
     }
@@ -888,22 +889,24 @@ pub fn high_score_name_input_update(
 
         persistent_high_scores.insert_score(name, game_score.0);
         commands.remove_resource::<HighScoreNameInputContext>();
-        state.pop().unwrap();
+        next_state.set(AppState::StoryModeManager);
         inputs.clear();
     }
 }
 
 pub fn teardown(
     mut commands: Commands,
-    query: Query<Entity>,
+    query: Query<Entity, Without<Window>>,
+    story_mode_context: Res<StoryModeContext>,
     mut player_action_events: ResMut<Events<PlayerActionEvent>>,
     mut explosion_events: ResMut<Events<ExplosionEvent>>,
     mut burn_events: ResMut<Events<BurnEvent>>,
     mut damage_events: ResMut<Events<DamageEvent>>,
+    mut next_state: ResMut<NextState<AppState>>,
 ) {
     // clear entities
     for entity in query.iter() {
-        commands.entity(entity).despawn_recursive();
+        commands.entity(entity).despawn();
     }
 
     // clear events
@@ -923,4 +926,10 @@ pub fn teardown(
     commands.remove_resource::<StoryModeContext>();
     commands.remove_resource::<GameScore>();
     commands.remove_resource::<ExitPosition>();
+
+    if story_mode_context.game_completed {
+        next_state.set(AppState::SecretModeSetup);
+    } else {
+        next_state.set(AppState::MainMenu);
+    };
 }

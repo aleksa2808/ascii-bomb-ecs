@@ -13,15 +13,16 @@ pub struct MapTransitionPlugin;
 
 impl Plugin for MapTransitionPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system_set(
-            SystemSet::on_enter(AppState::MapTransition)
-                .with_system(setup_map_transition.exclusive_system()),
+        app.add_systems(
+            (setup_map_transition, apply_system_buffers)
+                .chain()
+                .in_schedule(OnEnter(AppState::MapTransition)),
         )
-        .add_system_set(
-            SystemSet::on_update(AppState::MapTransition).with_system(map_transition_update),
-        )
-        .add_system_set(
-            SystemSet::on_exit(AppState::MapTransition).with_system(teardown.exclusive_system()),
+        .add_system(map_transition_update.in_set(OnUpdate(AppState::MapTransition)))
+        .add_systems(
+            (teardown, apply_system_buffers)
+                .chain()
+                .in_schedule(OnExit(AppState::MapTransition)),
         );
     }
 }

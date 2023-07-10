@@ -31,6 +31,7 @@ pub fn setup_secret_mode(
     mut game_textures: ResMut<GameTextures>,
     hud_colors: Res<HUDColors>,
     fonts: Res<Fonts>,
+    mut next_state: ResMut<NextState<AppState>>,
 ) {
     // TODO: Audio will start playing only when the asset is loaded and decoded, which might be after
     // the mode is finished. However, waiting for it to load is VERY slow in debug builds, so there needs
@@ -189,7 +190,10 @@ pub fn setup_secret_mode(
         pausable: false,
         // irrelevant in this mode
         reduced_loot: false,
+        exit_state: AppState::SecretModeTeardown,
     });
+
+    next_state.set(AppState::SecretModeManager);
 }
 
 pub fn secret_mode_manager(
@@ -198,7 +202,7 @@ pub fn secret_mode_manager(
     mut secret_mode_context: ResMut<SecretModeContext>,
     map_size: Res<MapSize>,
     game_option_store: Res<GameOptionStore>,
-    mut state: ResMut<State<AppState>>,
+    mut next_state: ResMut<NextState<AppState>>,
 ) {
     match secret_mode_context.manager_state {
         SecretModeManagerState::Setup => {
@@ -248,20 +252,20 @@ pub fn secret_mode_manager(
                 secret_mode_context.manager_state = SecretModeManagerState::MapTransition;
                 commands.insert_resource(MapTransitionInput {
                     wall_entity_reveal_groups,
+                    next_state: AppState::SecretModeManager,
                 });
-                state.push(AppState::MapTransition).unwrap();
+                next_state.set(AppState::MapTransition);
             } else {
                 secret_mode_context.manager_state = SecretModeManagerState::InGame;
-                state.push(AppState::SecretModeInGame).unwrap();
+                next_state.set(AppState::SecretModeInGame);
             }
         }
         SecretModeManagerState::MapTransition => {
             secret_mode_context.manager_state = SecretModeManagerState::InGame;
-            state.push(AppState::SecretModeInGame).unwrap();
+            next_state.set(AppState::SecretModeInGame);
         }
         SecretModeManagerState::InGame => {
-            commands.remove_resource::<SecretModeContext>();
-            state.replace(AppState::MainMenu).unwrap();
+            next_state.set(AppState::SecretModeTeardown);
         }
     }
 }
@@ -274,7 +278,7 @@ pub fn update_secret_mode(
     map_size: Res<MapSize>,
     world_id: Res<WorldID>,
     mut secret_mode_context: ResMut<SecretModeContext>,
-    mut state: ResMut<State<AppState>>,
+    mut next_state: ResMut<NextState<AppState>>,
     mut p: ParamSet<(
         Query<(Entity, &mut Position, &mut Transform), With<Bomb>>,
         Query<&Position, With<Wall>>,
@@ -430,7 +434,7 @@ pub fn update_secret_mode(
                 timer.tick(time.delta());
 
                 if timer.just_finished() {
-                    state.pop().unwrap();
+                    next_state.set(AppState::SecretModeManager);
                 }
 
                 None
@@ -464,9 +468,14 @@ pub fn finish_secret_mode(
     }
 }
 
-pub fn teardown(mut commands: Commands, audio: Res<Audio>, query: Query<Entity>) {
+pub fn teardown(
+    mut commands: Commands,
+    audio: Res<Audio>,
+    query: Query<Entity, Without<Window>>,
+    mut next_state: ResMut<NextState<AppState>>,
+) {
     for entity in query.iter() {
-        commands.entity(entity).despawn_recursive();
+        commands.entity(entity).despawn();
     }
 
     commands.remove_resource::<WorldID>();
@@ -474,4 +483,6 @@ pub fn teardown(mut commands: Commands, audio: Res<Audio>, query: Query<Entity>)
     commands.remove_resource::<SecretModeContext>();
 
     audio.stop();
+
+    next_state.set(AppState::MainMenu);
 }

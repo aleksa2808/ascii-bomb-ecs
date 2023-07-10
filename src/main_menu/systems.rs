@@ -31,7 +31,8 @@ pub fn resize_window(mut primary_query: Query<&mut Window, With<PrimaryWindow>>)
     primary_query
         .get_single_mut()
         .unwrap()
-        .set_resolution(MENU_WIDTH as f32, MENU_HEIGHT as f32);
+        .resolution
+        .set(MENU_WIDTH as f32, MENU_HEIGHT as f32);
 }
 
 pub fn setup_menu(
@@ -291,7 +292,7 @@ pub fn menu_navigation(
     sounds: Res<MainMenuSoundEffects>,
     fonts: Res<Fonts>,
     menu_colors: Res<MenuColors>,
-    mut state: ResMut<State<AppState>>,
+    mut next_state: ResMut<NextState<AppState>>,
     mut menu_state: ResMut<MenuState>,
     mut game_option_store: ResMut<GameOptionStore>,
     persistent_high_scores: Res<PersistentHighScores>,
@@ -350,7 +351,7 @@ pub fn menu_navigation(
                     });
 
                     menu_state.battle_mode_sub_menu_state = None;
-                    state.replace(AppState::BattleMode).unwrap();
+                    next_state.set(AppState::BattleModeSetup);
                     inputs.clear();
                     return;
                 }
@@ -371,7 +372,7 @@ pub fn menu_navigation(
                     menu_changed = true;
                 }
                 MenuAction::LaunchStoryMode => {
-                    state.replace(AppState::StoryMode).unwrap();
+                    next_state.set(AppState::StoryModeSetup);
                     inputs.clear();
                     return;
                 }
@@ -463,7 +464,7 @@ pub fn menu_navigation(
 
         if let MenuType::ControlsScreen(_) = menu_state.get_current_menu() {
             if inputs.is_active(InputAction::F) {
-                state.replace(AppState::SecretMode).unwrap();
+                next_state.set(AppState::SecretModeSetup);
                 inputs.clear();
                 return;
             }
@@ -505,7 +506,7 @@ pub fn menu_demo_mode_trigger(
     time: Res<Time>,
     demo_mode_start_timer: Option<ResMut<DemoModeStartTimer>>,
     inputs: Res<InputActionStatusTracker>,
-    mut state: ResMut<State<AppState>>,
+    mut next_state: ResMut<NextState<AppState>>,
 ) {
     if let Some(mut demo_mode_start_timer) = demo_mode_start_timer {
         if !inputs.get_active().is_empty() {
@@ -514,15 +515,15 @@ pub fn menu_demo_mode_trigger(
             demo_mode_start_timer.0.tick(time.delta());
             if demo_mode_start_timer.0.finished() {
                 // state switching should fail here if there's a manually triggered state already queued
-                if state.replace(AppState::BattleMode).is_ok() {
+                if next_state.0.is_none() {
                     println!("Starting demo mode!");
-
                     commands.insert_resource(BattleModeConfiguration {
                         amount_of_players: 0,
                         amount_of_bots: 8,
                         winning_score: 1,
                         bot_difficulty: BotDifficulty::Medium,
                     });
+                    next_state.set(AppState::BattleModeSetup);
                 }
             }
         }
@@ -559,9 +560,9 @@ pub fn animate_menu_background(
     }
 }
 
-pub fn teardown(mut commands: Commands, query: Query<Entity>) {
+pub fn teardown(mut commands: Commands, query: Query<Entity, Without<Window>>) {
     for entity in query.iter() {
-        commands.entity(entity).despawn_recursive();
+        commands.entity(entity).despawn();
     }
 
     commands.remove_resource::<DemoModeStartTimer>();

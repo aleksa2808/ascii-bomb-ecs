@@ -13,7 +13,7 @@ use crate::{
             game_timer_tick, hud_update, resize_window, setup_penguin_portraits, spawn_cameras,
             wall_of_death_update,
         },
-        Label,
+        Set,
     },
     AppState,
 };
@@ -26,65 +26,90 @@ pub struct BattleModePlugin;
 impl Plugin for BattleModePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<LeaderboardTextures>()
-            .add_system_set(
-                SystemSet::on_enter(AppState::BattleMode)
-                    .with_system(setup_battle_mode.exclusive_system().label(Label::Setup))
-                    .with_system(resize_window.exclusive_system().after(Label::Setup))
-                    .with_system(spawn_cameras.exclusive_system().after(Label::Setup)),
+            .add_systems(
+                (setup_battle_mode, apply_system_buffers)
+                    .chain()
+                    .in_set(Set::Setup)
+                    .in_schedule(OnEnter(AppState::BattleModeSetup)),
             )
-            .add_system_set(
-                SystemSet::on_exit(AppState::BattleMode).with_system(teardown.exclusive_system()),
+            .add_systems(
+                (resize_window, apply_system_buffers)
+                    .chain()
+                    .after(Set::Setup)
+                    .in_schedule(OnEnter(AppState::BattleModeSetup)),
             )
-            .add_system_set(
-                SystemSet::on_update(AppState::BattleMode)
-                    .with_system(battle_mode_manager.exclusive_system()),
+            .add_systems(
+                (spawn_cameras, apply_system_buffers)
+                    .chain()
+                    .after(Set::Setup)
+                    .in_schedule(OnEnter(AppState::BattleModeSetup)),
             )
-            .add_system_set(
-                SystemSet::on_enter(AppState::RoundStartFreeze)
-                    .with_system(setup_penguin_portraits.exclusive_system()),
+            .add_systems(
+                (teardown, apply_system_buffers)
+                    .chain()
+                    .in_schedule(OnEnter(AppState::BattleModeTeardown)),
             )
-            .add_system_set(
-                SystemSet::on_update(AppState::RoundStartFreeze)
-                    .with_system(finish_freeze.exclusive_system()),
+            .add_systems(
+                (battle_mode_manager, apply_system_buffers)
+                    .chain()
+                    .in_set(OnUpdate(AppState::BattleModeManager)),
             )
-            .add_system_set(
-                SystemSet::on_enter(AppState::LeaderboardDisplay)
-                    .with_system(setup_leaderboard_display.exclusive_system()),
+            .add_systems(
+                (setup_penguin_portraits, apply_system_buffers)
+                    .chain()
+                    .in_schedule(OnEnter(AppState::RoundStartFreeze)),
             )
-            .add_system_set(
-                SystemSet::on_update(AppState::LeaderboardDisplay)
-                    .with_system(leaderboard_display_update.exclusive_system()),
+            .add_systems(
+                (finish_freeze, apply_system_buffers)
+                    .chain()
+                    .in_set(OnUpdate(AppState::RoundStartFreeze)),
+            )
+            .add_systems(
+                (setup_leaderboard_display, apply_system_buffers)
+                    .chain()
+                    .in_schedule(OnEnter(AppState::LeaderboardDisplay)),
+            )
+            .add_systems(
+                (leaderboard_display_update, apply_system_buffers)
+                    .chain()
+                    .in_set(OnUpdate(AppState::LeaderboardDisplay)),
             );
 
         add_common_game_systems(app, AppState::BattleModeInGame);
-        app.add_system_set(
-            SystemSet::on_update(AppState::BattleModeInGame)
-                .with_system(game_timer_tick.exclusive_system().label(Label::TimeUpdate))
-                .with_system(
-                    wall_of_death_update
-                        .exclusive_system()
-                        .label(Label::PlayerDeathEvent)
-                        .label(Label::BombRestockEvent),
-                )
-                .with_system(
-                    on_death_item_pinata
-                        .exclusive_system()
-                        .label(Label::ItemSpawn)
-                        .after(Label::PlayerDeathEvent),
-                )
-                .with_system(
-                    finish_round
-                        .exclusive_system()
-                        .after(Label::TimeUpdate)
-                        .after(Label::PlayerDeathEvent),
-                )
-                // update HUD
-                .with_system(
-                    hud_update
-                        .exclusive_system()
-                        .after(Label::TimeUpdate)
-                        .after(Label::PlayerDeathEvent),
-                ),
+        app.add_systems(
+            (game_timer_tick, apply_system_buffers)
+                .chain()
+                .in_set(Set::TimeUpdate)
+                .in_set(OnUpdate(AppState::BattleModeInGame)),
+        )
+        .add_systems(
+            (wall_of_death_update, apply_system_buffers)
+                .chain()
+                .in_set(Set::PlayerDeathEvent)
+                .in_set(Set::BombRestockEvent)
+                .in_set(OnUpdate(AppState::BattleModeInGame)),
+        )
+        .add_systems(
+            (on_death_item_pinata, apply_system_buffers)
+                .chain()
+                .in_set(Set::ItemSpawn)
+                .after(Set::PlayerDeathEvent)
+                .in_set(OnUpdate(AppState::BattleModeInGame)),
+        )
+        .add_systems(
+            (finish_round, apply_system_buffers)
+                .chain()
+                .after(Set::TimeUpdate)
+                .after(Set::PlayerDeathEvent)
+                .in_set(OnUpdate(AppState::BattleModeInGame)),
+        )
+        // update HUD
+        .add_systems(
+            (hud_update, apply_system_buffers)
+                .chain()
+                .after(Set::TimeUpdate)
+                .after(Set::PlayerDeathEvent)
+                .in_set(OnUpdate(AppState::BattleModeInGame)),
         );
     }
 }

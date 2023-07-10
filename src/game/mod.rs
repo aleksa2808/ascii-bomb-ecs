@@ -13,8 +13,8 @@ pub mod systems;
 pub mod types;
 pub mod utils;
 
-#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemLabel)]
-pub enum Label {
+#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
+pub enum Set {
     Setup,
     TimeUpdate,
     BombRestockEvent,
@@ -31,130 +31,179 @@ pub enum Label {
 }
 
 pub fn add_common_game_systems(app: &mut App, state: AppState) {
-    app.add_system_set(
-        SystemSet::on_update(state)
-            // time effect update
-            .with_system(
-                move_cooldown_tick
-                    .exclusive_system()
-                    .label(Label::TimeUpdate),
-            )
-            .with_system(bomb_tick.exclusive_system().label(Label::TimeUpdate))
-            .with_system(fire_tick.exclusive_system().label(Label::TimeUpdate))
-            .with_system(
-                crumbling_tick
-                    .exclusive_system()
-                    .label(Label::TimeUpdate)
-                    .label(Label::ItemSpawn),
-            )
-            .with_system(
-                burning_item_tick
-                    .exclusive_system()
-                    .label(Label::TimeUpdate),
-            )
-            .with_system(immortality_tick.exclusive_system().label(Label::TimeUpdate))
-            // handle input
-            .with_system(
-                handle_user_input
-                    .exclusive_system()
-                    .label(Label::Input)
-                    .after(crate::common::Label::InputMapping),
-            )
-            // handle AI
-            .with_system(mob_ai.exclusive_system().label(Label::Input))
-            .with_system(
-                bot_ai
-                    .exclusive_system()
-                    .label(Label::Input)
-                    .after(Label::TimeUpdate),
-            )
-            // handle movement
-            .with_system(
-                player_move
-                    .exclusive_system()
-                    .label(Label::PlayerMovement)
-                    .after(Label::Input)
-                    .after(Label::TimeUpdate),
-            )
-            .with_system(
-                moving_object_update
-                    .exclusive_system()
-                    .after(Label::TimeUpdate),
-            )
-            // handle bomb logic
-            .with_system(
-                bomb_drop
-                    .exclusive_system()
-                    .label(Label::BombSpawn)
-                    .after(Label::Input),
-            )
-            .with_system(
-                bomb_update
-                    .exclusive_system()
-                    .label(Label::BombRestockEvent)
-                    .label(Label::FireSpawn)
-                    .after(Label::TimeUpdate),
-            )
-            .with_system(
-                bomb_restock
-                    .exclusive_system()
-                    .after(Label::BombRestockEvent),
-            )
-            .with_system(
-                fire_effect
-                    .exclusive_system()
-                    .label(Label::BurnEvent)
-                    .after(Label::TimeUpdate)
-                    .after(Label::FireSpawn),
-            )
-            .with_system(
-                player_burn
-                    .exclusive_system()
-                    .label(Label::DamageEvent)
-                    .after(Label::BurnEvent)
-                    .after(Label::PlayerMovement),
-            )
-            .with_system(
-                bomb_burn
-                    .exclusive_system()
-                    .after(Label::BurnEvent)
-                    .after(Label::BombSpawn),
-            )
-            .with_system(
-                destructible_wall_burn
-                    .exclusive_system()
-                    .after(Label::BurnEvent),
-            )
-            .with_system(item_burn.exclusive_system().after(Label::BurnEvent))
-            .with_system(
-                exit_burn
-                    .exclusive_system()
-                    .label(Label::PlayerSpawn)
-                    .after(Label::BurnEvent),
-            )
-            // player specifics
-            .with_system(pick_up_item.exclusive_system().after(Label::ItemSpawn))
-            .with_system(
-                melee_attack
-                    .exclusive_system()
-                    .label(Label::DamageEvent)
-                    .after(Label::PlayerSpawn)
-                    .after(Label::PlayerMovement),
-            )
-            .with_system(
-                player_damage
-                    .exclusive_system()
-                    .label(Label::DamageApplication)
-                    .label(Label::PlayerDeathEvent)
-                    .after(Label::PlayerMovement),
-            )
-            // animation
-            .with_system(animate_fuse.exclusive_system().after(Label::TimeUpdate))
-            .with_system(
-                animate_immortality
-                    .exclusive_system()
-                    .after(Label::TimeUpdate),
-            ),
+    app.add_system(
+        // time effect update
+        move_cooldown_tick
+            .in_set(Set::TimeUpdate)
+            .in_set(OnUpdate(state)),
+    )
+    .add_systems(
+        (bomb_tick, apply_system_buffers)
+            .chain()
+            .in_set(Set::TimeUpdate)
+            .in_set(OnUpdate(state)),
+    )
+    .add_systems(
+        (fire_tick, apply_system_buffers)
+            .chain()
+            .in_set(Set::TimeUpdate)
+            .in_set(OnUpdate(state)),
+    )
+    .add_systems(
+        (crumbling_tick, apply_system_buffers)
+            .chain()
+            .in_set(Set::TimeUpdate)
+            .in_set(Set::ItemSpawn)
+            .in_set(OnUpdate(state)),
+    )
+    .add_systems(
+        (burning_item_tick, apply_system_buffers)
+            .chain()
+            .in_set(Set::TimeUpdate)
+            .in_set(OnUpdate(state)),
+    )
+    .add_systems(
+        (immortality_tick, apply_system_buffers)
+            .chain()
+            .in_set(Set::TimeUpdate)
+            .in_set(OnUpdate(state)),
+    )
+    // handle input
+    .add_systems(
+        (handle_user_input, apply_system_buffers)
+            .chain()
+            .in_set(Set::Input)
+            .after(crate::common::Label::InputMapping)
+            .in_set(OnUpdate(state)),
+    )
+    // handle AI
+    .add_systems(
+        (mob_ai, apply_system_buffers)
+            .chain()
+            .in_set(Set::Input)
+            .in_set(OnUpdate(state)),
+    )
+    .add_systems(
+        (bot_ai, apply_system_buffers)
+            .chain()
+            .in_set(Set::Input)
+            .after(Set::TimeUpdate)
+            .in_set(OnUpdate(state)),
+    )
+    // handle movement
+    .add_systems(
+        (player_move, apply_system_buffers)
+            .chain()
+            .in_set(Set::PlayerMovement)
+            .after(Set::Input)
+            .after(Set::TimeUpdate)
+            .in_set(OnUpdate(state)),
+    )
+    .add_systems(
+        (moving_object_update, apply_system_buffers)
+            .chain()
+            .after(Set::TimeUpdate)
+            .in_set(OnUpdate(state)),
+    )
+    // handle bomb logic
+    .add_systems(
+        (bomb_drop, apply_system_buffers)
+            .chain()
+            .in_set(Set::BombSpawn)
+            .after(Set::Input)
+            .in_set(OnUpdate(state)),
+    )
+    .add_systems(
+        (bomb_update, apply_system_buffers)
+            .chain()
+            .in_set(Set::BombRestockEvent)
+            .in_set(Set::FireSpawn)
+            .after(Set::TimeUpdate)
+            .in_set(OnUpdate(state)),
+    )
+    .add_systems(
+        (bomb_restock, apply_system_buffers)
+            .chain()
+            .after(Set::BombRestockEvent)
+            .in_set(OnUpdate(state)),
+    )
+    .add_systems(
+        (fire_effect, apply_system_buffers)
+            .chain()
+            .in_set(Set::BurnEvent)
+            .after(Set::TimeUpdate)
+            .after(Set::FireSpawn)
+            .in_set(OnUpdate(state)),
+    )
+    .add_systems(
+        (player_burn, apply_system_buffers)
+            .chain()
+            .in_set(Set::DamageEvent)
+            .after(Set::BurnEvent)
+            .after(Set::PlayerMovement)
+            .in_set(OnUpdate(state)),
+    )
+    .add_systems(
+        (bomb_burn, apply_system_buffers)
+            .chain()
+            .after(Set::BurnEvent)
+            .after(Set::BombSpawn)
+            .in_set(OnUpdate(state)),
+    )
+    .add_systems(
+        (destructible_wall_burn, apply_system_buffers)
+            .chain()
+            .after(Set::BurnEvent)
+            .in_set(OnUpdate(state)),
+    )
+    .add_systems(
+        (item_burn, apply_system_buffers)
+            .chain()
+            .after(Set::BurnEvent)
+            .in_set(OnUpdate(state)),
+    )
+    .add_systems(
+        (exit_burn, apply_system_buffers)
+            .chain()
+            .in_set(Set::PlayerSpawn)
+            .after(Set::BurnEvent)
+            .in_set(OnUpdate(state)),
+    )
+    // player specifics
+    .add_systems(
+        (pick_up_item, apply_system_buffers)
+            .chain()
+            .after(Set::ItemSpawn)
+            .in_set(OnUpdate(state)),
+    )
+    .add_systems(
+        (melee_attack, apply_system_buffers)
+            .chain()
+            .in_set(Set::DamageEvent)
+            .after(Set::PlayerSpawn)
+            .after(Set::PlayerMovement)
+            .in_set(OnUpdate(state)),
+    )
+    .add_systems(
+        (player_damage, apply_system_buffers)
+            .chain()
+            .in_set(Set::DamageApplication)
+            .in_set(Set::PlayerDeathEvent)
+            .after(Set::PlayerMovement)
+            .in_set(OnUpdate(state)),
+    )
+    // animation
+    .add_systems(
+        (animate_fuse, apply_system_buffers)
+            .chain()
+            .after(Set::TimeUpdate)
+            .in_set(OnUpdate(state)),
+    )
+    .add_systems(
+        (animate_immortality, apply_system_buffers)
+            .chain()
+            .after(Set::TimeUpdate)
+            .in_set(OnUpdate(state)),
     );
 }
 
@@ -171,13 +220,12 @@ impl Plugin for GamePlugin {
             .add_event::<DamageEvent>()
             .add_event::<BurnEvent>()
             .add_event::<PlayerDeathEvent>()
-            .add_system_set(SystemSet::on_enter(AppState::Paused).with_system(hud_indicate_pause))
-            .add_system_set(
-                // these 2 do not need to be marked as .after(InputMapping) since they
-                // are regular systems that already run after exclusive ones
-                SystemSet::on_update(AppState::Paused)
-                    .with_system(pop_state_on_enter)
-                    .with_system(pop_state_fallthrough_on_esc),
-            );
+            .add_system(hud_indicate_pause.in_schedule(OnEnter(AppState::Paused)))
+            .add_systems(
+                (pop_state_on_enter, pop_state_fallthrough_on_esc)
+                    .in_set(OnUpdate(AppState::Paused))
+                    .after(crate::common::Label::InputMapping),
+            )
+            .add_system(pause_teardown.in_schedule(OnExit(AppState::Paused)));
     }
 }

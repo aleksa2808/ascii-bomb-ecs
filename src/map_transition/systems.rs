@@ -10,7 +10,6 @@ use super::resources::{MapTransitionContext, MapTransitionInput};
 pub fn setup_map_transition(
     mut commands: Commands,
     mut map_spawn_input: ResMut<MapTransitionInput>,
-    // TODO: what's the difference between Visibility and ComputedVisibility?
     mut query: Query<&mut Visibility, Or<(With<Wall>, With<Player>)>>,
 ) {
     // hide wall and player entities
@@ -24,6 +23,7 @@ pub fn setup_map_transition(
             .drain(..)
             .collect(),
         reveal_timer: Timer::from_seconds(0.015, TimerMode::Repeating),
+        next_state: map_spawn_input.next_state,
     });
     commands.remove_resource::<MapTransitionInput>();
 }
@@ -31,7 +31,7 @@ pub fn setup_map_transition(
 pub fn map_transition_update(
     time: Res<Time>,
     mut map_transition_context: ResMut<MapTransitionContext>,
-    mut state: ResMut<State<AppState>>,
+    mut next_state: ResMut<NextState<AppState>>,
     mut query: Query<&mut Visibility>,
 ) {
     // TODO: why is the first tick much larger? it progresses the transition further than we want
@@ -49,7 +49,7 @@ pub fn map_transition_update(
             for mut visible in query.iter_mut() {
                 *visible = Visibility::Inherited;
             }
-            state.pop().unwrap();
+            next_state.set(map_transition_context.next_state);
             break;
         }
     }
