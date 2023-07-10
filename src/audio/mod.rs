@@ -29,9 +29,10 @@ impl Plugin for AudioPlugin {
             .add_systems((play_queued_audio, apply_system_buffers).chain());
 
         #[cfg(target_arch = "wasm32")]
-        app.add_system_set(
-            SystemSet::on_exit(AppState::Loading)
-                .with_system(prepare_webaudio_buffers.exclusive_system()),
+        app.add_systems(
+            (prepare_webaudio_buffers, apply_system_buffers)
+                .chain()
+                .in_schedule(OnExit(AppState::Loading)),
         );
     }
 }

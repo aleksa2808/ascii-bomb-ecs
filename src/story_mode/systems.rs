@@ -214,7 +214,15 @@ pub fn story_mode_manager(
         Query<&mut Text, With<GameTimerDisplay>>,
     )>,
     query: Query<Entity, With<PenguinPortrait>>,
-    query2: Query<Entity, (Without<Camera>, Without<UIComponent>, Without<Protagonist>)>,
+    query2: Query<
+        Entity,
+        (
+            Without<Window>,
+            Without<Camera>,
+            Without<UIComponent>,
+            Without<Protagonist>,
+        ),
+    >,
     query3: Query<&Bomb>,
 ) {
     loop {

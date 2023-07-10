@@ -40,9 +40,9 @@ pub fn web_ready_to_start_enter() {
     doneLoading();
 }
 
-pub fn web_ready_to_start_update(mut state: ResMut<State<AppState>>) {
+pub fn web_ready_to_start_update(mut next_state: ResMut<NextState<AppState>>) {
     if *START.read() {
-        state.replace(AppState::SplashScreen).unwrap();
+        next_state.set(AppState::SplashScreen);
     }
 }
 

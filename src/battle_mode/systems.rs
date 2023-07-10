@@ -111,7 +111,7 @@ pub fn battle_mode_manager(
     mut battle_mode_context: ResMut<BattleModeContext>,
     game_option_store: Res<GameOptionStore>,
     mut next_state: ResMut<NextState<AppState>>,
-    query: Query<Entity, (Without<Camera>, Without<UIComponent>)>,
+    query: Query<Entity, (Without<Window>, Without<Camera>, Without<UIComponent>)>,
     query2: Query<Entity, With<PenguinPortrait>>,
     mut query4: Query<&mut Text, With<GameTimerDisplay>>,
 ) {

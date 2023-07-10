@@ -35,6 +35,10 @@ kira = "0.5.3"
 bevy = { version = "0.10.1", default-features = false, features = [
     "bevy_winit",
     "png",
+    "bevy_core_pipeline",
+    "bevy_sprite",
+    "bevy_text",
+    "bevy_ui",
     "bevy_asset",
 ] }
 once_cell = "1.8.0"
