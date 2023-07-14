@@ -23,10 +23,7 @@ impl Plugin for SecretModePlugin {
                 OnEnter(AppState::SecretModeSetup),
                 (
                     (setup_secret_mode, apply_deferred).chain(),
-                    (
-                        (resize_window, apply_deferred).chain(),
-                        (spawn_cameras, apply_deferred).chain(),
-                    ),
+                    (resize_window, (spawn_cameras, apply_deferred).chain()),
                 )
                     .chain(),
             )

@@ -27,10 +27,7 @@ impl Plugin for StoryModePlugin {
             OnEnter(AppState::StoryModeSetup),
             (
                 (setup_story_mode, apply_deferred).chain(),
-                (
-                    (resize_window, apply_deferred).chain(),
-                    (spawn_cameras, apply_deferred).chain(),
-                ),
+                (resize_window, (spawn_cameras, apply_deferred).chain()),
             )
                 .chain(),
         )
@@ -75,12 +72,9 @@ impl Plugin for StoryModePlugin {
             Update,
             (
                 common_game_systems(),
-                (game_timer_tick, apply_deferred)
-                    .chain()
-                    .in_set(Set::TimeUpdate),
+                game_timer_tick.in_set(Set::TimeUpdate),
                 // game end check
-                (finish_level, apply_deferred)
-                    .chain()
+                finish_level
                     .after(Set::TimeUpdate)
                     .after(Set::PlayerMovement)
                     .after(Set::PlayerDeathEvent),
@@ -89,12 +83,8 @@ impl Plugin for StoryModePlugin {
                     .chain()
                     .after(Set::TimeUpdate)
                     .after(Set::PlayerDeathEvent),
-                (hud_lives_indicator_update, apply_deferred)
-                    .chain()
-                    .after(Set::DamageApplication),
-                (hud_points_indicator_update, apply_deferred)
-                    .chain()
-                    .after(Set::PlayerDeathEvent),
+                hud_lives_indicator_update.after(Set::DamageApplication),
+                hud_points_indicator_update.after(Set::PlayerDeathEvent),
             )
                 .run_if(in_state(AppState::StoryModeInGame)),
         );

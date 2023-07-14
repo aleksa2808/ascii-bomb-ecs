@@ -25,7 +25,7 @@ impl Plugin for AudioPlugin {
             .init_resource::<SoundHandles>()
             .init_resource::<Audio>()
             .init_non_send_resource::<AudioBackend>()
-            .add_systems(PostUpdate, (play_queued_audio, apply_deferred).chain());
+            .add_systems(PostUpdate, play_queued_audio);
 
         #[cfg(target_arch = "wasm32")]
         app.add_systems(

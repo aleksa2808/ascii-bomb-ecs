@@ -24,12 +24,8 @@ impl Plugin for CommonPlugin {
             .add_systems(
                 Update,
                 (
-                    (clear_inputs, apply_deferred)
-                        .chain()
-                        .before(Label::InputMapping),
-                    (handle_keyboard_input, apply_deferred)
-                        .chain()
-                        .in_set(Label::InputMapping),
+                    clear_inputs.before(Label::InputMapping),
+                    handle_keyboard_input.in_set(Label::InputMapping),
                 ),
             );
     }

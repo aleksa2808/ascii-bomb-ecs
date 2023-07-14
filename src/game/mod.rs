@@ -36,7 +36,7 @@ pub fn common_game_systems() -> SystemConfigs {
         // time effect update
         (
             move_cooldown_tick,
-            (bomb_tick, apply_deferred).chain(),
+            bomb_tick,
             (fire_tick, apply_deferred),
             (crumbling_tick, apply_deferred)
                 .chain()
@@ -51,8 +51,8 @@ pub fn common_game_systems() -> SystemConfigs {
                 .chain()
                 .after(crate::common::Label::InputMapping),
             // handle AI input
-            (mob_ai, apply_deferred).chain(),
-            (bot_ai, apply_deferred).chain().after(Set::TimeUpdate),
+            mob_ai,
+            bot_ai.after(Set::TimeUpdate),
         )
             .in_set(Set::Input),
         // handle movement
@@ -74,22 +74,16 @@ pub fn common_game_systems() -> SystemConfigs {
             .in_set(Set::BombRestockEvent)
             .in_set(Set::FireSpawn)
             .after(Set::TimeUpdate),
-        (bomb_restock, apply_deferred)
-            .chain()
-            .after(Set::BombRestockEvent),
+        bomb_restock.after(Set::BombRestockEvent),
         (
             // burn
-            (fire_effect, apply_deferred)
-                .chain()
-                .after(Set::TimeUpdate)
-                .after(Set::FireSpawn),
+            fire_effect.after(Set::TimeUpdate).after(Set::FireSpawn),
             // burn reactions
             (
-                (player_burn, apply_deferred)
-                    .chain()
+                player_burn
                     .in_set(Set::DamageEvent)
                     .after(Set::PlayerMovement),
-                (bomb_burn, apply_deferred).chain().after(Set::BombSpawn),
+                bomb_burn.after(Set::BombSpawn),
                 (destructible_wall_burn, apply_deferred).chain(),
                 (item_burn, apply_deferred).chain(),
                 (exit_burn, apply_deferred).chain().in_set(Set::PlayerSpawn),
@@ -98,8 +92,7 @@ pub fn common_game_systems() -> SystemConfigs {
             .chain(),
         // player specifics
         (pick_up_item, apply_deferred).chain().after(Set::ItemSpawn),
-        (melee_attack, apply_deferred)
-            .chain()
+        melee_attack
             .in_set(Set::DamageEvent)
             .after(Set::PlayerSpawn)
             .after(Set::PlayerMovement),
@@ -110,11 +103,7 @@ pub fn common_game_systems() -> SystemConfigs {
             .after(Set::PlayerMovement)
             .after(Set::DamageEvent),
         // animation
-        (
-            (animate_fuse, apply_deferred).chain(),
-            (animate_immortality, apply_deferred).chain(),
-        )
-            .after(Set::TimeUpdate),
+        (animate_fuse, animate_immortality).after(Set::TimeUpdate),
     )
         .into_configs()
 }

@@ -30,10 +30,7 @@ impl Plugin for BattleModePlugin {
                 OnEnter(AppState::BattleModeSetup),
                 (
                     (setup_battle_mode, apply_deferred).chain(),
-                    (
-                        (resize_window, apply_deferred).chain(),
-                        (spawn_cameras, apply_deferred).chain(),
-                    ),
+                    (resize_window, (spawn_cameras, apply_deferred).chain()),
                 )
                     .chain(),
             )
@@ -72,9 +69,7 @@ impl Plugin for BattleModePlugin {
             Update,
             (
                 common_game_systems(),
-                (game_timer_tick, apply_deferred)
-                    .chain()
-                    .in_set(Set::TimeUpdate),
+                game_timer_tick.in_set(Set::TimeUpdate),
                 (wall_of_death_update, apply_deferred)
                     .chain()
                     .in_set(Set::PlayerDeathEvent)
@@ -84,7 +79,7 @@ impl Plugin for BattleModePlugin {
                         .chain()
                         .in_set(Set::ItemSpawn),
                     (
-                        (finish_round, apply_deferred).chain(),
+                        finish_round,
                         // update HUD
                         (hud_update, apply_deferred).chain(),
                     )

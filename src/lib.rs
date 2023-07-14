@@ -107,9 +107,7 @@ pub fn run() {
     })
     .add_systems(
         Update,
-        (handle_web_input, apply_deferred)
-            .chain()
-            .in_set(crate::common::Label::InputMapping),
+        handle_web_input.in_set(crate::common::Label::InputMapping),
     )
     .add_systems(OnEnter(AppState::WebReadyToStart), web_ready_to_start_enter)
     .add_systems(

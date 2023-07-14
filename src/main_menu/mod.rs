@@ -24,11 +24,7 @@ impl Plugin for MainMenuPlugin {
             .init_resource::<MenuState>()
             .add_systems(
                 OnEnter(AppState::MainMenu),
-                (
-                    (setup_menu, apply_deferred).chain(),
-                    (resize_window, apply_deferred).chain(),
-                )
-                    .chain(),
+                ((setup_menu, apply_deferred).chain(), resize_window).chain(),
             )
             .add_systems(
                 OnExit(AppState::MainMenu),
@@ -43,7 +39,7 @@ impl Plugin for MainMenuPlugin {
                     )
                         .chain()
                         .after(crate::common::Label::InputMapping),
-                    (animate_menu_background, apply_deferred).chain(),
+                    animate_menu_background,
                 )
                     .run_if(in_state(AppState::MainMenu)),
             );
