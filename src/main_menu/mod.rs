@@ -24,19 +24,13 @@ impl Plugin for MainMenuPlugin {
             .init_resource::<MenuState>()
             .add_systems(
                 OnEnter(AppState::MainMenu),
-                ((setup_menu, apply_deferred).chain(), resize_window).chain(),
+                (setup_menu, resize_window).chain(),
             )
-            .add_systems(
-                OnExit(AppState::MainMenu),
-                (teardown, apply_deferred).chain(),
-            )
+            .add_systems(OnExit(AppState::MainMenu), teardown)
             .add_systems(
                 Update,
                 (
-                    (
-                        (menu_navigation, apply_deferred).chain(),
-                        (menu_demo_mode_trigger, apply_deferred).chain(),
-                    )
+                    (menu_navigation, apply_deferred, menu_demo_mode_trigger)
                         .chain()
                         .after(crate::common::Label::InputMapping),
                     animate_menu_background,

@@ -159,6 +159,7 @@ pub fn handle_user_input(
 
     if inputs.is_active(InputAction::Return) && game_context.pausable {
         audio.play(sounds.pause);
+        // TODO: this resource can leak if, for example, the game is over in the same frame and the state change gets overriden
         commands.insert_resource(PauseContext {
             in_game_state: *state.get(),
         });
@@ -915,7 +916,7 @@ pub fn burning_item_tick(
     }
 }
 
-pub fn bomb_update(
+pub fn explode_bombs(
     mut commands: Commands,
     game_textures: Res<GameTextures>,
     audio: Res<Audio>,

@@ -29,40 +29,29 @@ impl Plugin for BattleModePlugin {
             .add_systems(
                 OnEnter(AppState::BattleModeSetup),
                 (
-                    (setup_battle_mode, apply_deferred).chain(),
-                    (resize_window, (spawn_cameras, apply_deferred).chain()),
+                    setup_battle_mode,
+                    apply_deferred,
+                    (resize_window, spawn_cameras),
                 )
                     .chain(),
             )
-            .add_systems(
-                OnEnter(AppState::BattleModeTeardown),
-                (teardown, apply_deferred).chain(),
-            )
+            .add_systems(OnEnter(AppState::BattleModeTeardown), teardown)
             .add_systems(
                 Update,
-                (battle_mode_manager, apply_deferred)
-                    .chain()
-                    .run_if(in_state(AppState::BattleModeManager)),
+                battle_mode_manager.run_if(in_state(AppState::BattleModeManager)),
             )
-            .add_systems(
-                OnEnter(AppState::RoundStartFreeze),
-                (setup_penguin_portraits, apply_deferred).chain(),
-            )
+            .add_systems(OnEnter(AppState::RoundStartFreeze), setup_penguin_portraits)
             .add_systems(
                 Update,
-                (finish_freeze, apply_deferred)
-                    .chain()
-                    .run_if(in_state(AppState::RoundStartFreeze)),
+                finish_freeze.run_if(in_state(AppState::RoundStartFreeze)),
             )
             .add_systems(
                 OnEnter(AppState::LeaderboardDisplay),
-                (setup_leaderboard_display, apply_deferred).chain(),
+                setup_leaderboard_display,
             )
             .add_systems(
                 Update,
-                (leaderboard_display_update, apply_deferred)
-                    .chain()
-                    .run_if(in_state(AppState::LeaderboardDisplay)),
+                leaderboard_display_update.run_if(in_state(AppState::LeaderboardDisplay)),
             );
 
         app.add_systems(
@@ -73,17 +62,13 @@ impl Plugin for BattleModePlugin {
                 (wall_of_death_update, apply_deferred)
                     .chain()
                     .in_set(Set::PlayerDeathEvent)
-                    .in_set(Set::BombRestockEvent),
+                    .in_set(Set::BombRestockEvent)
+                    .in_set(Set::ItemDespawn),
                 (
                     (on_death_item_pinata, apply_deferred)
                         .chain()
                         .in_set(Set::ItemSpawn),
-                    (
-                        finish_round,
-                        // update HUD
-                        (hud_update, apply_deferred).chain(),
-                    )
-                        .after(Set::TimeUpdate),
+                    (finish_round, hud_update).after(Set::TimeUpdate),
                 )
                     .after(Set::PlayerDeathEvent),
             )

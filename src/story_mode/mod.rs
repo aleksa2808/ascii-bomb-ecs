@@ -26,48 +26,36 @@ impl Plugin for StoryModePlugin {
         app.add_systems(
             OnEnter(AppState::StoryModeSetup),
             (
-                (setup_story_mode, apply_deferred).chain(),
-                (resize_window, (spawn_cameras, apply_deferred).chain()),
+                setup_story_mode,
+                apply_deferred,
+                (resize_window, spawn_cameras),
             )
                 .chain(),
         )
-        .add_systems(
-            OnEnter(AppState::StoryModeTeardown),
-            (teardown, apply_deferred).chain(),
-        )
+        .add_systems(OnEnter(AppState::StoryModeTeardown), teardown)
         .add_systems(
             Update,
-            (story_mode_manager, apply_deferred)
-                .chain()
-                .run_if(in_state(AppState::StoryModeManager)),
+            story_mode_manager.run_if(in_state(AppState::StoryModeManager)),
         )
-        .add_systems(
-            OnEnter(AppState::BossSpeech),
-            (setup_boss_speech, apply_deferred).chain(),
-        )
+        .add_systems(OnEnter(AppState::BossSpeech), setup_boss_speech)
         .add_systems(
             Update,
-            (boss_speech_update, apply_deferred)
-                .chain()
+            boss_speech_update
                 .after(crate::common::Label::InputMapping)
                 .run_if(in_state(AppState::BossSpeech)),
         )
         .add_systems(
             OnEnter(AppState::HighScoreNameInput),
-            (setup_high_score_name_input, apply_deferred).chain(),
+            setup_high_score_name_input,
         )
         .add_systems(
             Update,
-            (high_score_name_input_update, apply_deferred)
-                .chain()
+            high_score_name_input_update
                 .after(crate::common::Label::InputMapping)
                 .run_if(in_state(AppState::HighScoreNameInput)),
         );
 
-        app.add_systems(
-            OnEnter(AppState::StoryModeInGame),
-            (setup_penguin_portraits, apply_deferred).chain(),
-        );
+        app.add_systems(OnEnter(AppState::StoryModeInGame), setup_penguin_portraits);
         app.add_systems(
             Update,
             (
@@ -79,8 +67,7 @@ impl Plugin for StoryModePlugin {
                     .after(Set::PlayerMovement)
                     .after(Set::PlayerDeathEvent),
                 // update HUD
-                (hud_update, apply_deferred)
-                    .chain()
+                hud_update
                     .after(Set::TimeUpdate)
                     .after(Set::PlayerDeathEvent),
                 hud_lives_indicator_update.after(Set::DamageApplication),

@@ -21,8 +21,10 @@ pub enum Set {
     TimeUpdate,
     BombRestockEvent,
     ItemSpawn,
+    ItemDespawn,
     Input,
     PlayerMovement,
+    MovingObjectUpdate,
     BombSpawn,
     FireSpawn,
     PlayerSpawn,
@@ -37,19 +39,19 @@ pub fn common_game_systems() -> SystemConfigs {
         (
             move_cooldown_tick,
             bomb_tick,
-            (fire_tick, apply_deferred),
+            (
+                (fire_tick, burning_item_tick, immortality_tick),
+                apply_deferred,
+            )
+                .chain(),
             (crumbling_tick, apply_deferred)
                 .chain()
                 .in_set(Set::ItemSpawn),
-            (burning_item_tick, apply_deferred).chain(),
-            (immortality_tick, apply_deferred).chain(),
         )
             .in_set(Set::TimeUpdate),
         (
             // handle user input
-            (handle_user_input, apply_deferred)
-                .chain()
-                .after(crate::common::Label::InputMapping),
+            handle_user_input.after(crate::common::Label::InputMapping),
             // handle AI input
             mob_ai,
             bot_ai.after(Set::TimeUpdate),
@@ -61,7 +63,9 @@ pub fn common_game_systems() -> SystemConfigs {
                 .chain()
                 .in_set(Set::PlayerMovement)
                 .after(Set::Input),
-            (moving_object_update, apply_deferred).chain(),
+            (moving_object_update, apply_deferred)
+                .chain()
+                .in_set(Set::MovingObjectUpdate),
         )
             .after(Set::TimeUpdate),
         // handle bomb logic
@@ -69,11 +73,12 @@ pub fn common_game_systems() -> SystemConfigs {
             .chain()
             .in_set(Set::BombSpawn)
             .after(Set::Input),
-        (bomb_update, apply_deferred)
+        (explode_bombs, apply_deferred)
             .chain()
             .in_set(Set::BombRestockEvent)
             .in_set(Set::FireSpawn)
-            .after(Set::TimeUpdate),
+            .after(Set::TimeUpdate)
+            .after(Set::MovingObjectUpdate),
         bomb_restock.after(Set::BombRestockEvent),
         (
             // burn
@@ -83,15 +88,16 @@ pub fn common_game_systems() -> SystemConfigs {
                 player_burn
                     .in_set(Set::DamageEvent)
                     .after(Set::PlayerMovement),
-                bomb_burn.after(Set::BombSpawn),
-                (destructible_wall_burn, apply_deferred).chain(),
-                (item_burn, apply_deferred).chain(),
+                bomb_burn
+                    .after(Set::BombSpawn)
+                    .after(Set::MovingObjectUpdate),
+                destructible_wall_burn,
+                (item_burn, apply_deferred).chain().in_set(Set::ItemDespawn),
                 (exit_burn, apply_deferred).chain().in_set(Set::PlayerSpawn),
             ),
         )
             .chain(),
         // player specifics
-        (pick_up_item, apply_deferred).chain().after(Set::ItemSpawn),
         melee_attack
             .in_set(Set::DamageEvent)
             .after(Set::PlayerSpawn)
@@ -102,6 +108,10 @@ pub fn common_game_systems() -> SystemConfigs {
             .in_set(Set::PlayerDeathEvent)
             .after(Set::PlayerMovement)
             .after(Set::DamageEvent),
+        pick_up_item
+            .after(Set::PlayerDeathEvent)
+            .after(Set::ItemSpawn)
+            .after(Set::ItemDespawn),
         // animation
         (animate_fuse, animate_immortality).after(Set::TimeUpdate),
     )
