@@ -288,7 +288,7 @@ pub fn menu_navigation(
     mut menu_state: ResMut<MenuState>,
     mut game_option_store: ResMut<GameOptionStore>,
     persistent_high_scores: Res<PersistentHighScores>,
-    mut inputs: ResMut<InputActionStatusTracker>,
+    inputs: Res<InputActionStatusTracker>,
     mut query: Query<(Entity, &Children), With<MenuContentBox>>,
     mut query3: Query<(Entity, &Children), With<BattleModeSubMenuContentBox>>,
     mut ev_exit: EventWriter<AppExit>,
@@ -344,7 +344,6 @@ pub fn menu_navigation(
 
                     menu_state.battle_mode_sub_menu_state = None;
                     next_state.set(AppState::BattleModeSetup);
-                    inputs.clear();
                     return;
                 }
             }
@@ -365,7 +364,6 @@ pub fn menu_navigation(
                 }
                 MenuAction::LaunchStoryMode => {
                     next_state.set(AppState::StoryModeSetup);
-                    inputs.clear();
                     return;
                 }
                 MenuAction::OpenBattleModeSubMenu => {
@@ -457,7 +455,6 @@ pub fn menu_navigation(
         if let MenuType::ControlsScreen(_) = menu_state.get_current_menu() {
             if inputs.is_active(InputAction::F) {
                 next_state.set(AppState::SecretModeSetup);
-                inputs.clear();
                 return;
             }
         }

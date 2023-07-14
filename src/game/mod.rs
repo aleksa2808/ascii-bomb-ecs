@@ -248,7 +248,7 @@ impl Plugin for GamePlugin {
             .add_systems(OnEnter(AppState::Paused), hud_indicate_pause)
             .add_systems(
                 Update,
-                (pop_state_on_enter, pop_state_fallthrough_on_esc)
+                (unpause_on_enter, quit_game_on_esc)
                     .run_if(in_state(AppState::Paused))
                     .after(crate::common::Label::InputMapping),
             )

@@ -1,7 +1,6 @@
 use bevy::prelude::*;
 
 use crate::{
-    common::systems::clear_inputs,
     game::{
         add_common_game_systems,
         systems::{
@@ -76,46 +75,45 @@ impl Plugin for StoryModePlugin {
             (setup_penguin_portraits, apply_deferred).chain(),
         );
         add_common_game_systems(app, AppState::StoryModeInGame);
-        app.add_systems(OnExit(AppState::StoryModeInGame), clear_inputs)
-            .add_systems(
-                Update,
-                (game_timer_tick, apply_deferred)
-                    .chain()
-                    .in_set(Set::TimeUpdate)
-                    .run_if(in_state(AppState::StoryModeInGame)),
-            )
-            // game end check
-            .add_systems(
-                Update,
-                (finish_level, apply_deferred)
-                    .chain()
-                    .after(Set::TimeUpdate)
-                    .after(Set::PlayerMovement)
-                    .after(Set::PlayerDeathEvent)
-                    .run_if(in_state(AppState::StoryModeInGame)),
-            )
-            // update HUD
-            .add_systems(
-                Update,
-                (hud_update, apply_deferred)
-                    .chain()
-                    .after(Set::TimeUpdate)
-                    .after(Set::PlayerDeathEvent)
-                    .run_if(in_state(AppState::StoryModeInGame)),
-            )
-            .add_systems(
-                Update,
-                (hud_lives_indicator_update, apply_deferred)
-                    .chain()
-                    .after(Set::DamageApplication)
-                    .run_if(in_state(AppState::StoryModeInGame)),
-            )
-            .add_systems(
-                Update,
-                (hud_points_indicator_update, apply_deferred)
-                    .chain()
-                    .after(Set::PlayerDeathEvent)
-                    .run_if(in_state(AppState::StoryModeInGame)),
-            );
+        app.add_systems(
+            Update,
+            (game_timer_tick, apply_deferred)
+                .chain()
+                .in_set(Set::TimeUpdate)
+                .run_if(in_state(AppState::StoryModeInGame)),
+        )
+        // game end check
+        .add_systems(
+            Update,
+            (finish_level, apply_deferred)
+                .chain()
+                .after(Set::TimeUpdate)
+                .after(Set::PlayerMovement)
+                .after(Set::PlayerDeathEvent)
+                .run_if(in_state(AppState::StoryModeInGame)),
+        )
+        // update HUD
+        .add_systems(
+            Update,
+            (hud_update, apply_deferred)
+                .chain()
+                .after(Set::TimeUpdate)
+                .after(Set::PlayerDeathEvent)
+                .run_if(in_state(AppState::StoryModeInGame)),
+        )
+        .add_systems(
+            Update,
+            (hud_lives_indicator_update, apply_deferred)
+                .chain()
+                .after(Set::DamageApplication)
+                .run_if(in_state(AppState::StoryModeInGame)),
+        )
+        .add_systems(
+            Update,
+            (hud_points_indicator_update, apply_deferred)
+                .chain()
+                .after(Set::PlayerDeathEvent)
+                .run_if(in_state(AppState::StoryModeInGame)),
+        );
     }
 }

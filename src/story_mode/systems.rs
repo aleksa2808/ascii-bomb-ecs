@@ -687,7 +687,7 @@ pub fn boss_speech_update(
     game_textures: Res<GameTextures>,
     mut boss_speech_script: ResMut<BossSpeechScript>,
     boss_speech_box_entities: Res<BossSpeechBoxEntities>,
-    mut inputs: ResMut<InputActionStatusTracker>,
+    inputs: Res<InputActionStatusTracker>,
     mut next_state: ResMut<NextState<AppState>>,
     mut query: Query<&mut Text>,
     mut query2: Query<&mut UiImage>,
@@ -713,7 +713,6 @@ pub fn boss_speech_update(
             commands.remove_resource::<BossSpeechScript>();
 
             next_state.set(AppState::StoryModeManager);
-            inputs.clear();
             return;
         }
     }
@@ -831,7 +830,7 @@ pub fn setup_high_score_name_input(
 pub fn high_score_name_input_update(
     mut commands: Commands,
     context: Res<HighScoreNameInputContext>,
-    mut inputs: ResMut<InputActionStatusTracker>,
+    inputs: Res<InputActionStatusTracker>,
     mut char_input_events: EventReader<ReceivedCharacter>,
     mut persistent_high_scores: ResMut<PersistentHighScores>,
     game_score: Res<GameScore>,
@@ -842,7 +841,6 @@ pub fn high_score_name_input_update(
         persistent_high_scores.insert_score(String::from("<unnamed_player>"), game_score.0);
         commands.remove_resource::<HighScoreNameInputContext>();
         next_state.set(AppState::StoryModeManager);
-        inputs.clear();
         return;
     }
 
@@ -868,7 +866,6 @@ pub fn high_score_name_input_update(
         persistent_high_scores.insert_score(name, game_score.0);
         commands.remove_resource::<HighScoreNameInputContext>();
         next_state.set(AppState::StoryModeManager);
-        inputs.clear();
     }
 }
 
