@@ -366,7 +366,7 @@ impl Default for MenuState {
                 }),
                 MenuType::HallOfFame,
                 MenuType::StaticText(
-                    r#"
+                    r"
 You are a penguin. With a top hat.
 You also have bombs.
 You also have enemies.
@@ -378,10 +378,11 @@ Made by
               Aleksa Pavlovic
               Nikola Vaic
               Dusan Mrvaljevic
-"#,
+"
+                    .trim_matches('\n'),
                 ),
                 MenuType::ControlsScreen(
-                    r#"
+                    r"
 Arrow Keys    - P1 movement
 Space Bar     - P1 bomb set
 WASD Keys     - P2 movement
@@ -393,16 +394,19 @@ ESC Key       - Back
 
 
 F Key - ???
-"#,
+"
+                    .trim_matches('\n'),
                 ),
                 MenuType::StaticText(
-                    r#"
-LIFE UP       - H+
+                    r"
+BOMBS UP      - Bomb+
 RANGE UP      - R+
-PUSHING       - Boot
-WALL CLIMB    - Ladders
+LIFE UP       - H+
+BOMB PUSHING  - Boot
+WALL CLIMBING - Ladders
 INVINCIBILITY - Top Hat
-"#,
+"
+                    .trim_matches('\n'),
                 ),
             ],
             menu_stack: vec![initial_state],

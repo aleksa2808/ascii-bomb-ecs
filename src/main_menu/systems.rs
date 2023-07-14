@@ -49,21 +49,23 @@ pub fn setup_menu(
     commands
         .spawn(NodeBundle {
             style: Style {
-                size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
                 ..Default::default()
             },
             background_color: menu_colors.background_color.into(),
             ..Default::default()
         })
         .with_children(|parent| {
-            let title_text = r#"
+            let title_text = r"
  ____   ____  __  __ ____  ______ _____  __  __          _   _ 
 |  _ \ / __ \|  \/  |  _ \|  ____|  __ \|  \/  |   /\   | \ | |
 | |_) | |  | | \  / | |_) | |__  | |__) | \  / |  /  \  |  \| |
 |  _ <| |  | | |\/| |  _ <|  __| |  _  /| |\/| | / /\ \ | . ` |
 | |_) | |__| | |  | | |_) | |____| | \ \| |  | |/ ____ \| |\  |
 |____/ \____/|_|  |_|____/|______|_|  \_\_|  |_/_/    \_\_| \_|
-"#;
+"
+            .trim_matches('\n'); // trimming newlines is needed because of a bevy 0.11 bug where the last line wouldn't show
             parent.spawn(TextBundle {
                 text: Text::from_section(
                     title_text.to_string(),
@@ -75,11 +77,8 @@ pub fn setup_menu(
                 ),
                 style: Style {
                     position_type: PositionType::Absolute,
-                    position: UiRect {
-                        top: Val::Px(12.0 * PIXEL_SCALE as f32),
-                        left: Val::Px(17.0 * PIXEL_SCALE as f32),
-                        ..Default::default()
-                    },
+                    top: Val::Px(12.0 * PIXEL_SCALE as f32),
+                    left: Val::Px(17.0 * PIXEL_SCALE as f32),
                     ..Default::default()
                 },
                 ..Default::default()
@@ -98,11 +97,8 @@ pub fn setup_menu(
                         ),
                         style: Style {
                             position_type: PositionType::Absolute,
-                            position: UiRect {
-                                top: Val::Px(y as f32 * 2.0 * PIXEL_SCALE as f32),
-                                left: Val::Px(x as f32 * PIXEL_SCALE as f32),
-                                ..Default::default()
-                            },
+                            top: Val::Px(y as f32 * 2.0 * PIXEL_SCALE as f32),
+                            left: Val::Px(x as f32 * PIXEL_SCALE as f32),
                             ..Default::default()
                         },
                         ..Default::default()
@@ -119,14 +115,15 @@ pub fn setup_menu(
             place_text(
                 39,
                 83,
-                r#"
+                r"
  \__/
   ██
 __██__
   ||
  =██=
   ||
-"#,
+"
+                .trim_matches('\n'),
                 8,
             );
 
@@ -158,12 +155,13 @@ __██__
                 place_text(
                     38,
                     82,
-                    r#"
+                    r"
  .    .
 
 
 .      .
-"#,
+"
+                    .trim_matches('\n'),
                     initial_value,
                 ),
                 MenuBackgroundEntityChangeParameters {
@@ -185,16 +183,11 @@ __██__
             parent
                 .spawn(NodeBundle {
                     style: Style {
-                        size: Size::new(
-                            Val::Px(40.0 * PIXEL_SCALE as f32),
-                            Val::Px(40.0 * PIXEL_SCALE as f32),
-                        ),
                         position_type: PositionType::Absolute,
-                        position: UiRect {
-                            left: Val::Px(30.0 * PIXEL_SCALE as f32),
-                            top: Val::Px(36.0 * PIXEL_SCALE as f32),
-                            ..Default::default()
-                        },
+                        left: Val::Px(30.0 * PIXEL_SCALE as f32),
+                        top: Val::Px(36.0 * PIXEL_SCALE as f32),
+                        width: Val::Px(40.0 * PIXEL_SCALE as f32),
+                        height: Val::Px(40.0 * PIXEL_SCALE as f32),
                         border: UiRect {
                             left: Val::Px(PIXEL_SCALE as f32),
                             top: Val::Px(2.0 * PIXEL_SCALE as f32),
@@ -210,7 +203,7 @@ __██__
                     // spawn modal border
                     parent.spawn(TextBundle {
                         text: Text::from_section(
-                            r#"
+                            r"
 ┌──────────────────────────────────────┐
 │                                      │
 │                                      │
@@ -231,7 +224,8 @@ __██__
 │                                      │
 │                                      │
 └──────────────────────────────────────┘
-"#,
+"
+                            .trim_matches('\n'),
                             TextStyle {
                                 font: fonts.mono.clone(),
                                 font_size: 2.0 * PIXEL_SCALE as f32,
@@ -240,11 +234,8 @@ __██__
                         ),
                         style: Style {
                             position_type: PositionType::Absolute,
-                            position: UiRect {
-                                top: Val::Px(-2.0 * PIXEL_SCALE as f32),
-                                left: Val::Px(-1.0 * PIXEL_SCALE as f32),
-                                ..Default::default()
-                            },
+                            top: Val::Px(-2.0 * PIXEL_SCALE as f32),
+                            left: Val::Px(-1.0 * PIXEL_SCALE as f32),
                             ..Default::default()
                         },
                         ..Default::default()
@@ -255,7 +246,8 @@ __██__
                         .spawn((
                             NodeBundle {
                                 style: Style {
-                                    size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                                    width: Val::Percent(100.0),
+                                    height: Val::Percent(100.0),
                                     ..Default::default()
                                 },
                                 background_color: menu_colors.modal_background_color.into(),
@@ -296,7 +288,7 @@ pub fn menu_navigation(
     mut menu_state: ResMut<MenuState>,
     mut game_option_store: ResMut<GameOptionStore>,
     persistent_high_scores: Res<PersistentHighScores>,
-    mut inputs: ResMut<InputActionStatusTracker>,
+    inputs: Res<InputActionStatusTracker>,
     mut query: Query<(Entity, &Children), With<MenuContentBox>>,
     mut query3: Query<(Entity, &Children), With<BattleModeSubMenuContentBox>>,
     mut ev_exit: EventWriter<AppExit>,
@@ -352,7 +344,6 @@ pub fn menu_navigation(
 
                     menu_state.battle_mode_sub_menu_state = None;
                     next_state.set(AppState::BattleModeSetup);
-                    inputs.clear();
                     return;
                 }
             }
@@ -373,7 +364,6 @@ pub fn menu_navigation(
                 }
                 MenuAction::LaunchStoryMode => {
                     next_state.set(AppState::StoryModeSetup);
-                    inputs.clear();
                     return;
                 }
                 MenuAction::OpenBattleModeSubMenu => {
@@ -465,7 +455,6 @@ pub fn menu_navigation(
         if let MenuType::ControlsScreen(_) = menu_state.get_current_menu() {
             if inputs.is_active(InputAction::F) {
                 next_state.set(AppState::SecretModeSetup);
-                inputs.clear();
                 return;
             }
         }

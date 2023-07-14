@@ -1,8 +1,8 @@
-use bevy::{ecs as bevy_ecs, prelude::*};
+use bevy::prelude::*;
 
 use crate::{
     game::{
-        add_common_game_systems,
+        common_game_systems,
         systems::{resize_window, setup_penguin_portraits, spawn_cameras},
         Set,
     },
@@ -14,62 +14,41 @@ use self::{resources::SecretModeMusic, systems::*};
 mod resources;
 mod systems;
 
-#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
-enum SecretModeLabel {
-    Setup,
-}
-
 pub struct SecretModePlugin;
 
 impl Plugin for SecretModePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<SecretModeMusic>()
             .add_systems(
-                (setup_secret_mode, apply_system_buffers)
-                    .chain()
-                    .in_set(SecretModeLabel::Setup)
-                    .in_schedule(OnEnter(AppState::SecretModeSetup)),
+                OnEnter(AppState::SecretModeSetup),
+                (
+                    setup_secret_mode,
+                    apply_deferred,
+                    (resize_window, spawn_cameras),
+                )
+                    .chain(),
             )
             .add_systems(
-                (resize_window, apply_system_buffers)
-                    .chain()
-                    .after(SecretModeLabel::Setup)
-                    .in_schedule(OnEnter(AppState::SecretModeSetup)),
+                Update,
+                secret_mode_manager.run_if(in_state(AppState::SecretModeManager)),
             )
-            .add_systems(
-                (spawn_cameras, apply_system_buffers)
-                    .chain()
-                    .after(SecretModeLabel::Setup)
-                    .in_schedule(OnEnter(AppState::SecretModeSetup)),
-            )
-            .add_systems(
-                (secret_mode_manager, apply_system_buffers)
-                    .chain()
-                    .in_set(OnUpdate(AppState::SecretModeManager)),
-            )
-            .add_systems(
-                (teardown, apply_system_buffers)
-                    .chain()
-                    .in_schedule(OnEnter(AppState::SecretModeTeardown)),
-            );
+            .add_systems(OnEnter(AppState::SecretModeTeardown), teardown);
 
+        app.add_systems(OnEnter(AppState::SecretModeInGame), setup_penguin_portraits);
         app.add_systems(
-            (setup_penguin_portraits, apply_system_buffers)
-                .chain()
-                .in_schedule(OnEnter(AppState::SecretModeInGame)),
-        );
-        add_common_game_systems(app, AppState::SecretModeInGame);
-        app.add_systems(
-            (update_secret_mode, apply_system_buffers)
-                .chain()
-                .in_set(OnUpdate(AppState::SecretModeInGame)),
-        )
-        .add_systems(
-            (finish_secret_mode, apply_system_buffers)
-                .chain()
-                .after(Set::PlayerMovement)
-                .before(Set::FireSpawn)
-                .in_set(OnUpdate(AppState::SecretModeInGame)),
+            Update,
+            (
+                common_game_systems(),
+                (
+                    update_secret_mode,
+                    apply_deferred,
+                    finish_secret_mode
+                        .after(Set::PlayerMovement)
+                        .before(Set::FireSpawn),
+                )
+                    .chain(),
+            )
+                .run_if(in_state(AppState::SecretModeInGame)),
         );
     }
 }

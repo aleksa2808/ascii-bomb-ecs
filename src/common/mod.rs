@@ -20,16 +20,13 @@ impl Plugin for CommonPlugin {
             .init_resource::<GameOptionStore>()
             .init_resource::<PersistentHighScores>()
             .init_resource::<Fonts>()
-            .add_startup_system(set_volume_based_on_options)
+            .add_systems(Startup, set_volume_based_on_options)
             .add_systems(
-                (clear_inputs, apply_system_buffers)
-                    .chain()
-                    .before(Label::InputMapping),
-            )
-            .add_systems(
-                (handle_keyboard_input, apply_system_buffers)
-                    .chain()
-                    .in_set(Label::InputMapping),
+                Update,
+                (
+                    clear_inputs.before(Label::InputMapping),
+                    handle_keyboard_input.in_set(Label::InputMapping),
+                ),
             );
     }
 }

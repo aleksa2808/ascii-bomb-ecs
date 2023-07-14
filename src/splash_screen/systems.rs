@@ -24,7 +24,8 @@ pub fn setup_splash_screen(mut commands: Commands, fonts: Res<Fonts>) {
     commands
         .spawn(NodeBundle {
             style: Style {
-                size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
                 ..Default::default()
             },
             background_color: COLORS[0].into(),
@@ -44,11 +45,8 @@ pub fn setup_splash_screen(mut commands: Commands, fonts: Res<Fonts>) {
                         ),
                         style: Style {
                             position_type: PositionType::Absolute,
-                            position: UiRect {
-                                top: Val::Px((MENU_HEIGHT / 2) as f32),
-                                left: Val::Px(0.0),
-                                ..Default::default()
-                            },
+                            top: Val::Px((MENU_HEIGHT / 2) as f32),
+                            left: Val::Px(0.0),
                             ..Default::default()
                         },
                         ..Default::default()
@@ -69,11 +67,8 @@ pub fn setup_splash_screen(mut commands: Commands, fonts: Res<Fonts>) {
                         ),
                         style: Style {
                             position_type: PositionType::Absolute,
-                            position: UiRect {
-                                top: Val::Px((MENU_HEIGHT / 2 + 2 * PIXEL_SCALE) as f32),
-                                left: Val::Px(right_position as f32),
-                                ..Default::default()
-                            },
+                            top: Val::Px((MENU_HEIGHT / 2 + 2 * PIXEL_SCALE) as f32),
+                            left: Val::Px(right_position as f32),
                             ..Default::default()
                         },
                         ..Default::default()
@@ -109,11 +104,8 @@ pub fn splash_screen_update(
 
                 splash_screen_context.left_position =
                     (splash_screen_context.left_position + PIXEL_SCALE).min(LEFT_END_POSITION);
-                query
-                    .get_mut(splash_screen_context.left_text)
-                    .unwrap()
-                    .position
-                    .left = Val::Px(splash_screen_context.left_position as f32);
+                query.get_mut(splash_screen_context.left_text).unwrap().left =
+                    Val::Px(splash_screen_context.left_position as f32);
 
                 splash_screen_context.right_position = splash_screen_context
                     .right_position
@@ -122,7 +114,6 @@ pub fn splash_screen_update(
                 query
                     .get_mut(splash_screen_context.right_text)
                     .unwrap()
-                    .position
                     .left = Val::Px(splash_screen_context.right_position as f32);
 
                 if splash_screen_context.left_position == LEFT_END_POSITION

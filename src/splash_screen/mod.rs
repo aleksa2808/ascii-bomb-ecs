@@ -12,16 +12,11 @@ pub struct SplashScreenPlugin;
 
 impl Plugin for SplashScreenPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            (setup_splash_screen, apply_system_buffers)
-                .chain()
-                .in_schedule(OnEnter(AppState::SplashScreen)),
-        )
-        .add_system(splash_screen_update.in_set(OnUpdate(AppState::SplashScreen)))
-        .add_systems(
-            (teardown, apply_system_buffers)
-                .chain()
-                .in_schedule(OnExit(AppState::SplashScreen)),
-        );
+        app.add_systems(OnEnter(AppState::SplashScreen), setup_splash_screen)
+            .add_systems(
+                Update,
+                splash_screen_update.run_if(in_state(AppState::SplashScreen)),
+            )
+            .add_systems(OnExit(AppState::SplashScreen), teardown);
     }
 }

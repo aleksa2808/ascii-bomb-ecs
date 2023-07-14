@@ -104,7 +104,7 @@ pub fn handle_user_input(
     mut commands: Commands,
     audio: Res<Audio>,
     sounds: Res<Sounds>,
-    mut inputs: ResMut<InputActionStatusTracker>,
+    inputs: Res<InputActionStatusTracker>,
     game_context: Res<GameContext>,
     query: Query<(Entity, &HumanControlled), With<Player>>,
     mut ev_player_action: EventWriter<PlayerActionEvent>,
@@ -159,16 +159,15 @@ pub fn handle_user_input(
 
     if inputs.is_active(InputAction::Return) && game_context.pausable {
         audio.play(sounds.pause);
+        // TODO: this resource can leak if, for example, the game is over in the same frame and the state change gets overriden
         commands.insert_resource(PauseContext {
-            next_state: state.0,
+            in_game_state: *state.get(),
         });
         next_state.set(AppState::Paused);
-        inputs.clear();
     }
 
     if inputs.is_active(InputAction::Escape) {
-        next_state.set(game_context.exit_state);
-        inputs.clear();
+        next_state.set(game_context.game_mode_manager_state);
     }
 }
 
@@ -917,7 +916,7 @@ pub fn burning_item_tick(
     }
 }
 
-pub fn bomb_update(
+pub fn explode_bombs(
     mut commands: Commands,
     game_textures: Res<GameTextures>,
     audio: Res<Audio>,
@@ -1462,24 +1461,23 @@ pub fn wall_of_death_update(
     }
 }
 
-pub fn pop_state_on_enter(
-    mut inputs: ResMut<InputActionStatusTracker>,
+pub fn unpause_on_enter(
+    inputs: Res<InputActionStatusTracker>,
     pause_context: Res<PauseContext>,
     mut next_state: ResMut<NextState<AppState>>,
 ) {
     if inputs.is_active(InputAction::Return) {
-        next_state.set(pause_context.next_state);
-        inputs.clear();
+        next_state.set(pause_context.in_game_state);
     }
 }
 
-pub fn pop_state_fallthrough_on_esc(
+pub fn quit_game_on_esc(
     inputs: Res<InputActionStatusTracker>,
     game_context: Res<GameContext>,
     mut next_state: ResMut<NextState<AppState>>,
 ) {
     if inputs.is_active(InputAction::Escape) {
-        next_state.set(game_context.exit_state);
+        next_state.set(game_context.game_mode_manager_state);
     }
 }
 

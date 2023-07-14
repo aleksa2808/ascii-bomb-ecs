@@ -82,7 +82,8 @@ pub fn setup_story_mode(
         .spawn((
             NodeBundle {
                 style: Style {
-                    size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
                     ..Default::default()
                 },
                 background_color: Color::NONE.into(),
@@ -114,11 +115,8 @@ pub fn setup_story_mode(
                             ),
                             style: Style {
                                 position_type: PositionType::Absolute,
-                                position: UiRect {
-                                    top: Val::Px(12.0 * PIXEL_SCALE as f32),
-                                    left: Val::Px(6.0 * PIXEL_SCALE as f32),
-                                    ..Default::default()
-                                },
+                                top: Val::Px(12.0 * PIXEL_SCALE as f32),
+                                left: Val::Px(6.0 * PIXEL_SCALE as f32),
                                 ..Default::default()
                             },
                             ..Default::default()
@@ -140,11 +138,8 @@ pub fn setup_story_mode(
                             ),
                             style: Style {
                                 position_type: PositionType::Absolute,
-                                position: UiRect {
-                                    top: Val::Px(12.0 * PIXEL_SCALE as f32),
-                                    left: Val::Px(16.0 * PIXEL_SCALE as f32),
-                                    ..Default::default()
-                                },
+                                top: Val::Px(12.0 * PIXEL_SCALE as f32),
+                                left: Val::Px(16.0 * PIXEL_SCALE as f32),
                                 ..Default::default()
                             },
                             ..Default::default()
@@ -162,10 +157,12 @@ pub fn setup_story_mode(
         level_outcome: None,
         game_completed: false,
     });
+
+    let game_mode_manager_state = AppState::StoryModeManager;
     commands.insert_resource(GameContext {
         pausable: true,
         reduced_loot: false,
-        exit_state: AppState::StoryModeTeardown,
+        game_mode_manager_state,
     });
     commands.insert_resource(GameScore(player_points));
     commands.insert_resource(GameTimer(Timer::from_seconds(
@@ -175,7 +172,7 @@ pub fn setup_story_mode(
     commands.insert_resource(world_id);
     commands.insert_resource(map_size);
 
-    next_state.set(AppState::StoryModeManager);
+    next_state.set(game_mode_manager_state);
 }
 
 pub fn story_mode_manager(
@@ -538,13 +535,11 @@ pub fn setup_boss_speech(
                 .spawn((
                     NodeBundle {
                         style: Style {
-                            size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
                             position_type: PositionType::Absolute,
-                            position: UiRect {
-                                left: Val::Px(0.0),
-                                top: Val::Px(0.0),
-                                ..Default::default()
-                            },
+                            left: Val::Px(0.0),
+                            top: Val::Px(0.0),
+                            width: Val::Percent(100.0),
+                            height: Val::Percent(100.0),
                             ..Default::default()
                         },
                         background_color: hud_colors.black_color.into(),
@@ -557,7 +552,7 @@ pub fn setup_boss_speech(
                     parent.spawn((
                         TextBundle {
                             text: Text::from_section(
-                                r#"
+                                r"
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
 │                                                                                        │
 │                                                                                        │
@@ -565,7 +560,8 @@ pub fn setup_boss_speech(
 │                                                                                        │
 │                                                                                        │
 └────────────────────────────────────────────────────────────────────────────────────────┘
-"#,
+"
+                                .trim_matches('\n'),
                                 TextStyle {
                                     font: fonts.mono.clone(),
                                     font_size: 2.0 * PIXEL_SCALE as f32,
@@ -574,11 +570,8 @@ pub fn setup_boss_speech(
                             ),
                             style: Style {
                                 position_type: PositionType::Absolute,
-                                position: UiRect {
-                                    top: Val::Px(0.0),
-                                    left: Val::Px(0.0),
-                                    ..Default::default()
-                                },
+                                left: Val::Px(0.0),
+                                top: Val::Px(0.0),
                                 ..Default::default()
                             },
                             ..Default::default()
@@ -591,16 +584,11 @@ pub fn setup_boss_speech(
                         .spawn((
                             NodeBundle {
                                 style: Style {
-                                    size: Size::new(
-                                        Val::Px(8.0 * PIXEL_SCALE as f32),
-                                        Val::Px(10.0 * PIXEL_SCALE as f32),
-                                    ),
                                     position_type: PositionType::Absolute,
-                                    position: UiRect {
-                                        left: Val::Px(4.0 * PIXEL_SCALE as f32),
-                                        top: Val::Px(2.0 * PIXEL_SCALE as f32),
-                                        ..Default::default()
-                                    },
+                                    left: Val::Px(4.0 * PIXEL_SCALE as f32),
+                                    top: Val::Px(2.0 * PIXEL_SCALE as f32),
+                                    width: Val::Px(8.0 * PIXEL_SCALE as f32),
+                                    height: Val::Px(10.0 * PIXEL_SCALE as f32),
                                     border: UiRect {
                                         left: Val::Px(PIXEL_SCALE as f32),
                                         top: Val::Px(PIXEL_SCALE as f32),
@@ -619,10 +607,8 @@ pub fn setup_boss_speech(
                                 .spawn((
                                     NodeBundle {
                                         style: Style {
-                                            size: Size::new(
-                                                Val::Percent(100.0),
-                                                Val::Percent(100.0),
-                                            ),
+                                            width: Val::Percent(100.0),
+                                            height: Val::Percent(100.0),
                                             ..Default::default()
                                         },
                                         background_color: hud_colors
@@ -638,10 +624,8 @@ pub fn setup_boss_speech(
                                             .spawn((
                                                 ImageBundle {
                                                     style: Style {
-                                                        size: Size::new(
-                                                            Val::Percent(100.0),
-                                                            Val::Percent(100.0),
-                                                        ),
+                                                        width: Val::Percent(100.0),
+                                                        height: Val::Percent(100.0),
                                                         ..Default::default()
                                                     },
                                                     image: game_textures
@@ -675,11 +659,8 @@ pub fn setup_boss_speech(
                                     ),
                                     style: Style {
                                         position_type: PositionType::Absolute,
-                                        position: UiRect {
-                                            top: Val::Px(6.0 * PIXEL_SCALE as f32),
-                                            left: Val::Px(16.0 * PIXEL_SCALE as f32),
-                                            ..Default::default()
-                                        },
+                                        top: Val::Px(6.0 * PIXEL_SCALE as f32),
+                                        left: Val::Px(16.0 * PIXEL_SCALE as f32),
                                         ..Default::default()
                                     },
                                     ..Default::default()
@@ -706,7 +687,7 @@ pub fn boss_speech_update(
     game_textures: Res<GameTextures>,
     mut boss_speech_script: ResMut<BossSpeechScript>,
     boss_speech_box_entities: Res<BossSpeechBoxEntities>,
-    mut inputs: ResMut<InputActionStatusTracker>,
+    inputs: Res<InputActionStatusTracker>,
     mut next_state: ResMut<NextState<AppState>>,
     mut query: Query<&mut Text>,
     mut query2: Query<&mut UiImage>,
@@ -732,7 +713,6 @@ pub fn boss_speech_update(
             commands.remove_resource::<BossSpeechScript>();
 
             next_state.set(AppState::StoryModeManager);
-            inputs.clear();
             return;
         }
     }
@@ -760,26 +740,20 @@ pub fn setup_high_score_name_input(
                 .spawn((
                     NodeBundle {
                         style: Style {
-                            size: Size::new(
-                                Val::Px(30.0 * PIXEL_SCALE as f32),
-                                Val::Px(10.0 * PIXEL_SCALE as f32),
-                            ),
                             position_type: PositionType::Absolute,
-                            position: UiRect {
-                                left: Val::Px(
-                                    ((map_size.columns * (TILE_WIDTH / PIXEL_SCALE) / 2 - 15)
-                                        * PIXEL_SCALE) as f32,
-                                ),
-                                top: Val::Px(
-                                    // messy equation that produces the same results as the C code (integer divisions)
-                                    ((((HUD_HEIGHT + map_size.rows * TILE_HEIGHT) / PIXEL_SCALE)
-                                        / 4
-                                        * 2
-                                        - 6)
-                                        * PIXEL_SCALE) as f32,
-                                ),
-                                ..Default::default()
-                            },
+                            left: Val::Px(
+                                ((map_size.columns * (TILE_WIDTH / PIXEL_SCALE) / 2 - 15)
+                                    * PIXEL_SCALE) as f32,
+                            ),
+                            top: Val::Px(
+                                // messy equation that produces the same results as the C code (integer divisions)
+                                ((((HUD_HEIGHT + map_size.rows * TILE_HEIGHT) / PIXEL_SCALE) / 4
+                                    * 2
+                                    - 6)
+                                    * PIXEL_SCALE) as f32,
+                            ),
+                            width: Val::Px(30.0 * PIXEL_SCALE as f32),
+                            height: Val::Px(10.0 * PIXEL_SCALE as f32),
                             ..Default::default()
                         },
                         background_color: hud_colors.black_color.into(),
@@ -792,13 +766,14 @@ pub fn setup_high_score_name_input(
                     parent.spawn((
                         TextBundle {
                             text: Text::from_section(
-                                r#"
+                                r"
 ┌────────────────────────────┐
 │                            │
 │ Name:                      │
 │                            │
 └────────────────────────────┘
-"#,
+"
+                                .trim_matches('\n'),
                                 TextStyle {
                                     font: fonts.mono.clone(),
                                     font_size: 2.0 * PIXEL_SCALE as f32,
@@ -807,11 +782,8 @@ pub fn setup_high_score_name_input(
                             ),
                             style: Style {
                                 position_type: PositionType::Absolute,
-                                position: UiRect {
-                                    top: Val::Px(0.0),
-                                    left: Val::Px(0.0),
-                                    ..Default::default()
-                                },
+                                top: Val::Px(0.0),
+                                left: Val::Px(0.0),
                                 ..Default::default()
                             },
                             ..Default::default()
@@ -834,11 +806,8 @@ pub fn setup_high_score_name_input(
                                     ),
                                     style: Style {
                                         position_type: PositionType::Absolute,
-                                        position: UiRect {
-                                            top: Val::Px(4.0 * PIXEL_SCALE as f32),
-                                            left: Val::Px(8.0 * PIXEL_SCALE as f32),
-                                            ..Default::default()
-                                        },
+                                        top: Val::Px(4.0 * PIXEL_SCALE as f32),
+                                        left: Val::Px(8.0 * PIXEL_SCALE as f32),
                                         ..Default::default()
                                     },
                                     ..Default::default()
@@ -861,7 +830,7 @@ pub fn setup_high_score_name_input(
 pub fn high_score_name_input_update(
     mut commands: Commands,
     context: Res<HighScoreNameInputContext>,
-    mut inputs: ResMut<InputActionStatusTracker>,
+    inputs: Res<InputActionStatusTracker>,
     mut char_input_events: EventReader<ReceivedCharacter>,
     mut persistent_high_scores: ResMut<PersistentHighScores>,
     game_score: Res<GameScore>,
@@ -872,7 +841,6 @@ pub fn high_score_name_input_update(
         persistent_high_scores.insert_score(String::from("<unnamed_player>"), game_score.0);
         commands.remove_resource::<HighScoreNameInputContext>();
         next_state.set(AppState::StoryModeManager);
-        inputs.clear();
         return;
     }
 
@@ -898,7 +866,6 @@ pub fn high_score_name_input_update(
         persistent_high_scores.insert_score(name, game_score.0);
         commands.remove_resource::<HighScoreNameInputContext>();
         next_state.set(AppState::StoryModeManager);
-        inputs.clear();
     }
 }
 

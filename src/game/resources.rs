@@ -254,12 +254,12 @@ pub struct GameScore(pub usize);
 pub struct GameContext {
     pub pausable: bool,
     pub reduced_loot: bool,
-    pub exit_state: AppState,
+    pub game_mode_manager_state: AppState,
 }
 
 #[derive(Resource)]
 pub struct PauseContext {
-    pub next_state: AppState,
+    pub in_game_state: AppState,
 }
 
 #[derive(Resource)]
