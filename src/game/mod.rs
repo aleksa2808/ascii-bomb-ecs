@@ -1,4 +1,7 @@
-use bevy::{ecs as bevy_ecs, prelude::*};
+use bevy::{
+    ecs::{self as bevy_ecs, schedule::SystemConfigs},
+    prelude::*,
+};
 
 use crate::AppState;
 
@@ -15,7 +18,6 @@ pub mod utils;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
 pub enum Set {
-    Setup,
     TimeUpdate,
     BombRestockEvent,
     ItemSpawn,
@@ -23,213 +25,98 @@ pub enum Set {
     PlayerMovement,
     BombSpawn,
     FireSpawn,
-    BurnEvent,
     PlayerSpawn,
     DamageEvent,
     DamageApplication,
     PlayerDeathEvent,
 }
 
-pub fn add_common_game_systems(app: &mut App, state: AppState) {
-    app.add_systems(
-        Update,
+pub fn common_game_systems() -> SystemConfigs {
+    (
         // time effect update
-        move_cooldown_tick
-            .in_set(Set::TimeUpdate)
-            .run_if(in_state(state)),
-    )
-    .add_systems(
-        Update,
-        (bomb_tick, apply_deferred)
-            .chain()
-            .in_set(Set::TimeUpdate)
-            .run_if(in_state(state)),
-    )
-    .add_systems(
-        Update,
-        (fire_tick, apply_deferred)
-            .chain()
-            .in_set(Set::TimeUpdate)
-            .run_if(in_state(state)),
-    )
-    .add_systems(
-        Update,
-        (crumbling_tick, apply_deferred)
-            .chain()
-            .in_set(Set::TimeUpdate)
-            .in_set(Set::ItemSpawn)
-            .run_if(in_state(state)),
-    )
-    .add_systems(
-        Update,
-        (burning_item_tick, apply_deferred)
-            .chain()
-            .in_set(Set::TimeUpdate)
-            .run_if(in_state(state)),
-    )
-    .add_systems(
-        Update,
-        (immortality_tick, apply_deferred)
-            .chain()
-            .in_set(Set::TimeUpdate)
-            .run_if(in_state(state)),
-    )
-    // handle input
-    .add_systems(
-        Update,
-        (handle_user_input, apply_deferred)
-            .chain()
-            .in_set(Set::Input)
-            .after(crate::common::Label::InputMapping)
-            .run_if(in_state(state)),
-    )
-    // handle AI
-    .add_systems(
-        Update,
-        (mob_ai, apply_deferred)
-            .chain()
-            .in_set(Set::Input)
-            .run_if(in_state(state)),
-    )
-    .add_systems(
-        Update,
-        (bot_ai, apply_deferred)
-            .chain()
-            .in_set(Set::Input)
-            .after(Set::TimeUpdate)
-            .run_if(in_state(state)),
-    )
-    // handle movement
-    .add_systems(
-        Update,
-        (player_move, apply_deferred)
-            .chain()
-            .in_set(Set::PlayerMovement)
-            .after(Set::Input)
-            .after(Set::TimeUpdate)
-            .run_if(in_state(state)),
-    )
-    .add_systems(
-        Update,
-        (moving_object_update, apply_deferred)
-            .chain()
-            .after(Set::TimeUpdate)
-            .run_if(in_state(state)),
-    )
-    // handle bomb logic
-    .add_systems(
-        Update,
+        (
+            move_cooldown_tick,
+            (bomb_tick, apply_deferred).chain(),
+            (fire_tick, apply_deferred),
+            (crumbling_tick, apply_deferred)
+                .chain()
+                .in_set(Set::ItemSpawn),
+            (burning_item_tick, apply_deferred).chain(),
+            (immortality_tick, apply_deferred).chain(),
+        )
+            .in_set(Set::TimeUpdate),
+        (
+            // handle user input
+            (handle_user_input, apply_deferred)
+                .chain()
+                .after(crate::common::Label::InputMapping),
+            // handle AI input
+            (mob_ai, apply_deferred).chain(),
+            (bot_ai, apply_deferred).chain().after(Set::TimeUpdate),
+        )
+            .in_set(Set::Input),
+        // handle movement
+        (
+            (player_move, apply_deferred)
+                .chain()
+                .in_set(Set::PlayerMovement)
+                .after(Set::Input),
+            (moving_object_update, apply_deferred).chain(),
+        )
+            .after(Set::TimeUpdate),
+        // handle bomb logic
         (bomb_drop, apply_deferred)
             .chain()
             .in_set(Set::BombSpawn)
-            .after(Set::Input)
-            .run_if(in_state(state)),
-    )
-    .add_systems(
-        Update,
+            .after(Set::Input),
         (bomb_update, apply_deferred)
             .chain()
             .in_set(Set::BombRestockEvent)
             .in_set(Set::FireSpawn)
-            .after(Set::TimeUpdate)
-            .run_if(in_state(state)),
-    )
-    .add_systems(
-        Update,
+            .after(Set::TimeUpdate),
         (bomb_restock, apply_deferred)
             .chain()
-            .after(Set::BombRestockEvent)
-            .run_if(in_state(state)),
-    )
-    .add_systems(
-        Update,
-        (fire_effect, apply_deferred)
-            .chain()
-            .in_set(Set::BurnEvent)
-            .after(Set::TimeUpdate)
-            .after(Set::FireSpawn)
-            .run_if(in_state(state)),
-    )
-    .add_systems(
-        Update,
-        (player_burn, apply_deferred)
-            .chain()
-            .in_set(Set::DamageEvent)
-            .after(Set::BurnEvent)
-            .after(Set::PlayerMovement)
-            .run_if(in_state(state)),
-    )
-    .add_systems(
-        Update,
-        (bomb_burn, apply_deferred)
-            .chain()
-            .after(Set::BurnEvent)
-            .after(Set::BombSpawn)
-            .run_if(in_state(state)),
-    )
-    .add_systems(
-        Update,
-        (destructible_wall_burn, apply_deferred)
-            .chain()
-            .after(Set::BurnEvent)
-            .run_if(in_state(state)),
-    )
-    .add_systems(
-        Update,
-        (item_burn, apply_deferred)
-            .chain()
-            .after(Set::BurnEvent)
-            .run_if(in_state(state)),
-    )
-    .add_systems(
-        Update,
-        (exit_burn, apply_deferred)
-            .chain()
-            .in_set(Set::PlayerSpawn)
-            .after(Set::BurnEvent)
-            .run_if(in_state(state)),
-    )
-    // player specifics
-    .add_systems(
-        Update,
-        (pick_up_item, apply_deferred)
-            .chain()
-            .after(Set::ItemSpawn)
-            .run_if(in_state(state)),
-    )
-    .add_systems(
-        Update,
+            .after(Set::BombRestockEvent),
+        (
+            // burn
+            (fire_effect, apply_deferred)
+                .chain()
+                .after(Set::TimeUpdate)
+                .after(Set::FireSpawn),
+            // burn reactions
+            (
+                (player_burn, apply_deferred)
+                    .chain()
+                    .in_set(Set::DamageEvent)
+                    .after(Set::PlayerMovement),
+                (bomb_burn, apply_deferred).chain().after(Set::BombSpawn),
+                (destructible_wall_burn, apply_deferred).chain(),
+                (item_burn, apply_deferred).chain(),
+                (exit_burn, apply_deferred).chain().in_set(Set::PlayerSpawn),
+            ),
+        )
+            .chain(),
+        // player specifics
+        (pick_up_item, apply_deferred).chain().after(Set::ItemSpawn),
         (melee_attack, apply_deferred)
             .chain()
             .in_set(Set::DamageEvent)
             .after(Set::PlayerSpawn)
-            .after(Set::PlayerMovement)
-            .run_if(in_state(state)),
-    )
-    .add_systems(
-        Update,
+            .after(Set::PlayerMovement),
         (player_damage, apply_deferred)
             .chain()
             .in_set(Set::DamageApplication)
             .in_set(Set::PlayerDeathEvent)
             .after(Set::PlayerMovement)
-            .run_if(in_state(state)),
+            .after(Set::DamageEvent),
+        // animation
+        (
+            (animate_fuse, apply_deferred).chain(),
+            (animate_immortality, apply_deferred).chain(),
+        )
+            .after(Set::TimeUpdate),
     )
-    // animation
-    .add_systems(
-        Update,
-        (animate_fuse, apply_deferred)
-            .chain()
-            .after(Set::TimeUpdate)
-            .run_if(in_state(state)),
-    )
-    .add_systems(
-        Update,
-        (animate_immortality, apply_deferred)
-            .chain()
-            .after(Set::TimeUpdate)
-            .run_if(in_state(state)),
-    );
+        .into_configs()
 }
 
 pub struct GamePlugin;
@@ -249,8 +136,8 @@ impl Plugin for GamePlugin {
             .add_systems(
                 Update,
                 (unpause_on_enter, quit_game_on_esc)
-                    .run_if(in_state(AppState::Paused))
-                    .after(crate::common::Label::InputMapping),
+                    .after(crate::common::Label::InputMapping)
+                    .run_if(in_state(AppState::Paused)),
             )
             .add_systems(OnExit(AppState::Paused), pause_teardown);
     }

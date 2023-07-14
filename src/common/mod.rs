@@ -23,15 +23,14 @@ impl Plugin for CommonPlugin {
             .add_systems(Startup, set_volume_based_on_options)
             .add_systems(
                 Update,
-                (clear_inputs, apply_deferred)
-                    .chain()
-                    .before(Label::InputMapping),
-            )
-            .add_systems(
-                Update,
-                (handle_keyboard_input, apply_deferred)
-                    .chain()
-                    .in_set(Label::InputMapping),
+                (
+                    (clear_inputs, apply_deferred)
+                        .chain()
+                        .before(Label::InputMapping),
+                    (handle_keyboard_input, apply_deferred)
+                        .chain()
+                        .in_set(Label::InputMapping),
+                ),
             );
     }
 }

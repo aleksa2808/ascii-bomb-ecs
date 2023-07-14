@@ -1,4 +1,4 @@
-use bevy::{ecs as bevy_ecs, prelude::*};
+use bevy::prelude::*;
 
 use crate::AppState;
 
@@ -15,12 +15,6 @@ mod utils;
 
 pub use constants::{MENU_HEIGHT, MENU_WIDTH};
 
-#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
-enum MenuLabel {
-    Setup,
-    Navigation,
-}
-
 pub struct MainMenuPlugin;
 
 impl Plugin for MainMenuPlugin {
@@ -30,15 +24,11 @@ impl Plugin for MainMenuPlugin {
             .init_resource::<MenuState>()
             .add_systems(
                 OnEnter(AppState::MainMenu),
-                (setup_menu, apply_deferred)
-                    .chain()
-                    .in_set(MenuLabel::Setup),
-            )
-            .add_systems(
-                OnEnter(AppState::MainMenu),
-                (resize_window, apply_deferred)
-                    .chain()
-                    .after(MenuLabel::Setup),
+                (
+                    (setup_menu, apply_deferred).chain(),
+                    (resize_window, apply_deferred).chain(),
+                )
+                    .chain(),
             )
             .add_systems(
                 OnExit(AppState::MainMenu),
@@ -46,24 +36,15 @@ impl Plugin for MainMenuPlugin {
             )
             .add_systems(
                 Update,
-                (menu_navigation, apply_deferred)
-                    .chain()
-                    .in_set(MenuLabel::Navigation)
-                    .after(crate::common::Label::InputMapping)
-                    .run_if(in_state(AppState::MainMenu)),
-            )
-            .add_systems(
-                Update,
-                (menu_demo_mode_trigger, apply_deferred)
-                    .chain()
-                    .after(MenuLabel::Navigation)
-                    .after(crate::common::Label::InputMapping)
-                    .run_if(in_state(AppState::MainMenu)),
-            )
-            .add_systems(
-                Update,
-                (animate_menu_background, apply_deferred)
-                    .chain()
+                (
+                    (
+                        (menu_navigation, apply_deferred).chain(),
+                        (menu_demo_mode_trigger, apply_deferred).chain(),
+                    )
+                        .chain()
+                        .after(crate::common::Label::InputMapping),
+                    (animate_menu_background, apply_deferred).chain(),
+                )
                     .run_if(in_state(AppState::MainMenu)),
             );
     }
