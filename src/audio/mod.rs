@@ -25,14 +25,12 @@ impl Plugin for AudioPlugin {
             .init_resource::<SoundHandles>()
             .init_resource::<Audio>()
             .init_non_send_resource::<AudioBackend>()
-            // TODO: this system should probably be placed after all other game systems, as it was before
-            .add_systems((play_queued_audio, apply_system_buffers).chain());
+            .add_systems(PostUpdate, (play_queued_audio, apply_deferred).chain());
 
         #[cfg(target_arch = "wasm32")]
         app.add_systems(
-            (prepare_webaudio_buffers, apply_system_buffers)
-                .chain()
-                .in_schedule(OnExit(AppState::Loading)),
+            OnExit(AppState::Loading),
+            (prepare_webaudio_buffers, apply_deferred).chain(),
         );
     }
 }

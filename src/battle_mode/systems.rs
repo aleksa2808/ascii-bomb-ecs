@@ -43,7 +43,8 @@ pub fn setup_battle_mode(
         .spawn((
             NodeBundle {
                 style: Style {
-                    size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
                     ..Default::default()
                 },
                 background_color: Color::NONE.into(),
@@ -91,17 +92,19 @@ pub fn setup_battle_mode(
         round_outcome: None,
         percent_of_passable_positions_to_fill,
     });
+
+    let game_mode_manager_state = AppState::BattleModeManager;
     commands.insert_resource(GameContext {
         pausable: battle_mode_configuration.amount_of_players > 0,
         reduced_loot: true,
-        exit_state: AppState::BattleModeTeardown,
+        game_mode_manager_state,
     });
     commands.insert_resource(world_id);
     commands.insert_resource(map_size);
 
     commands.remove_resource::<BattleModeConfiguration>();
 
-    next_state.set(AppState::BattleModeManager);
+    next_state.set(game_mode_manager_state);
 }
 
 pub fn battle_mode_manager(
@@ -310,13 +313,11 @@ pub fn setup_leaderboard_display(
                 .spawn((
                     NodeBundle {
                         style: Style {
-                            size: Size::new(Val::Px(window.width()), Val::Px(window.height())),
                             position_type: PositionType::Absolute,
-                            position: UiRect {
-                                left: Val::Px(0.0),
-                                top: Val::Px(0.0),
-                                ..Default::default()
-                            },
+                            left: Val::Px(0.0),
+                            top: Val::Px(0.0),
+                            width: Val::Px(window.width()),
+                            height: Val::Px(window.height()),
                             ..Default::default()
                         },
                         background_color: COLORS[0].into(),
@@ -330,16 +331,11 @@ pub fn setup_leaderboard_display(
                         parent.spawn((
                             NodeBundle {
                                 style: Style {
-                                    size: Size::new(
-                                        Val::Px(PIXEL_SCALE as f32),
-                                        Val::Px(PIXEL_SCALE as f32),
-                                    ),
                                     position_type: PositionType::Absolute,
-                                    position: UiRect {
-                                        left: Val::Px((x * PIXEL_SCALE) as f32),
-                                        top: Val::Px((y * PIXEL_SCALE) as f32),
-                                        ..Default::default()
-                                    },
+                                    left: Val::Px((x * PIXEL_SCALE) as f32),
+                                    top: Val::Px((y * PIXEL_SCALE) as f32),
+                                    width: Val::Px(PIXEL_SCALE as f32),
+                                    height: Val::Px(PIXEL_SCALE as f32),
                                     ..Default::default()
                                 },
                                 background_color: (*COLORS
@@ -374,18 +370,11 @@ pub fn setup_leaderboard_display(
                             .spawn((
                                 NodeBundle {
                                     style: Style {
-                                        size: Size::new(
-                                            Val::Px(TILE_WIDTH as f32),
-                                            Val::Px(TILE_HEIGHT as f32),
-                                        ),
                                         position_type: PositionType::Absolute,
-                                        position: UiRect {
-                                            left: Val::Px(4.0 * PIXEL_SCALE as f32),
-                                            top: Val::Px(
-                                                ((6 + penguin.0 * 12) * PIXEL_SCALE) as f32,
-                                            ),
-                                            ..Default::default()
-                                        },
+                                        left: Val::Px(4.0 * PIXEL_SCALE as f32),
+                                        top: Val::Px(((6 + penguin.0 * 12) * PIXEL_SCALE) as f32),
+                                        width: Val::Px(TILE_WIDTH as f32),
+                                        height: Val::Px(TILE_HEIGHT as f32),
                                         ..Default::default()
                                     },
                                     background_color: COLORS[2].into(),
@@ -397,10 +386,8 @@ pub fn setup_leaderboard_display(
                                 parent.spawn((
                                     ImageBundle {
                                         style: Style {
-                                            size: Size::new(
-                                                Val::Percent(100.0),
-                                                Val::Percent(100.0),
-                                            ),
+                                            width: Val::Percent(100.0),
+                                            height: Val::Percent(100.0),
                                             ..Default::default()
                                         },
                                         image: game_textures
@@ -418,18 +405,11 @@ pub fn setup_leaderboard_display(
                             parent.spawn((
                                 ImageBundle {
                                     style: Style {
-                                        size: Size::new(
-                                            Val::Px(5.0 * PIXEL_SCALE as f32),
-                                            Val::Px(7.0 * PIXEL_SCALE as f32),
-                                        ),
                                         position_type: PositionType::Absolute,
-                                        position: UiRect {
-                                            top: Val::Px(
-                                                ((7 + penguin.0 * 12) * PIXEL_SCALE) as f32,
-                                            ),
-                                            left: Val::Px(((15 + i * 9) * PIXEL_SCALE) as f32),
-                                            ..Default::default()
-                                        },
+                                        top: Val::Px(((7 + penguin.0 * 12) * PIXEL_SCALE) as f32),
+                                        left: Val::Px(((15 + i * 9) * PIXEL_SCALE) as f32),
+                                        width: Val::Px(5.0 * PIXEL_SCALE as f32),
+                                        height: Val::Px(7.0 * PIXEL_SCALE as f32),
                                         ..Default::default()
                                     },
                                     image: leaderboard_textures.trophy.clone().into(),
@@ -456,11 +436,8 @@ pub fn setup_leaderboard_display(
                                             ),
                                             style: Style {
                                                 position_type: PositionType::Absolute,
-                                                position: UiRect {
-                                                    top: Val::Px(y as f32 * PIXEL_SCALE as f32),
-                                                    left: Val::Px(x as f32 * PIXEL_SCALE as f32),
-                                                    ..Default::default()
-                                                },
+                                                top: Val::Px(y as f32 * PIXEL_SCALE as f32),
+                                                left: Val::Px(x as f32 * PIXEL_SCALE as f32),
                                                 ..Default::default()
                                             },
                                             ..Default::default()

@@ -45,13 +45,11 @@ pub fn init_hud(
     let mut ec = parent.spawn((
         NodeBundle {
             style: Style {
-                size: Size::new(Val::Px(width), Val::Px(HUD_HEIGHT as f32)),
                 position_type: PositionType::Absolute,
-                position: UiRect {
-                    left: Val::Px(0.0),
-                    top: Val::Px(0.0),
-                    ..Default::default()
-                },
+                left: Val::Px(0.0),
+                top: Val::Px(0.0),
+                width: Val::Px(width),
+                height: Val::Px(HUD_HEIGHT as f32),
                 ..Default::default()
             },
             background_color: hud_colors.get_background_color(world_id).into(),
@@ -71,16 +69,11 @@ pub fn init_hud(
                 .spawn((
                     NodeBundle {
                         style: Style {
-                            size: Size::new(
-                                Val::Px(5.0 * PIXEL_SCALE as f32),
-                                Val::Px(2.0 * PIXEL_SCALE as f32),
-                            ),
                             position_type: PositionType::Absolute,
-                            position: UiRect {
-                                left: Val::Px(width / 2.0 - 3.0 * PIXEL_SCALE as f32),
-                                top: Val::Px(12.0 * PIXEL_SCALE as f32),
-                                ..Default::default()
-                            },
+                            left: Val::Px(width / 2.0 - 3.0 * PIXEL_SCALE as f32),
+                            top: Val::Px(12.0 * PIXEL_SCALE as f32),
+                            width: Val::Px(5.0 * PIXEL_SCALE as f32),
+                            height: Val::Px(2.0 * PIXEL_SCALE as f32),
                             ..Default::default()
                         },
                         background_color: hud_colors.black_color.into(),
@@ -101,11 +94,8 @@ pub fn init_hud(
                             ),
                             style: Style {
                                 position_type: PositionType::Absolute,
-                                position: UiRect {
-                                    top: Val::Px(0.0),
-                                    left: Val::Px(0.0),
-                                    ..Default::default()
-                                },
+                                top: Val::Px(0.0),
+                                left: Val::Px(0.0),
                                 ..Default::default()
                             },
                             ..Default::default()
@@ -133,16 +123,11 @@ pub fn init_penguin_portraits(
             .spawn((
                 NodeBundle {
                     style: Style {
-                        size: Size::new(
-                            Val::Px(8.0 * PIXEL_SCALE as f32),
-                            Val::Px(10.0 * PIXEL_SCALE as f32),
-                        ),
                         position_type: PositionType::Absolute,
-                        position: UiRect {
-                            left: Val::Px(((5 + 12 * penguin.0) * PIXEL_SCALE) as f32),
-                            top: Val::Px(PIXEL_SCALE as f32),
-                            ..Default::default()
-                        },
+                        left: Val::Px(((5 + 12 * penguin.0) * PIXEL_SCALE) as f32),
+                        top: Val::Px(PIXEL_SCALE as f32),
+                        width: Val::Px(8.0 * PIXEL_SCALE as f32),
+                        height: Val::Px(10.0 * PIXEL_SCALE as f32),
                         border: UiRect {
                             left: Val::Px(PIXEL_SCALE as f32),
                             top: Val::Px(PIXEL_SCALE as f32),
@@ -162,7 +147,8 @@ pub fn init_penguin_portraits(
                     .spawn((
                         NodeBundle {
                             style: Style {
-                                size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                                width: Val::Percent(100.0),
+                                height: Val::Percent(100.0),
                                 ..Default::default()
                             },
                             background_color: hud_colors.portrait_background_color.into(),
@@ -174,7 +160,8 @@ pub fn init_penguin_portraits(
                         parent.spawn((
                             ImageBundle {
                                 style: Style {
-                                    size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                                    width: Val::Percent(100.0),
+                                    height: Val::Percent(100.0),
                                     ..Default::default()
                                 },
                                 image: game_textures.get_penguin_texture(*penguin).clone().into(),

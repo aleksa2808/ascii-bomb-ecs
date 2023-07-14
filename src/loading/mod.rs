@@ -19,9 +19,10 @@ impl Plugin for LoadingPlugin {
                 next_state: self.next_state,
             })
             .add_systems(
-                (loading_update, apply_system_buffers)
+                Update,
+                (loading_update, apply_deferred)
                     .chain()
-                    .in_set(OnUpdate(self.loading_state)),
+                    .run_if(in_state(self.loading_state)),
             );
     }
 }

@@ -98,29 +98,35 @@ pub fn run() {
             .set(ImagePlugin::default_nearest()),
     )
     .add_state::<AppState>()
-    .add_plugin(AudioPlugin);
+    .add_plugins(AudioPlugin);
 
     #[cfg(target_arch = "wasm32")]
-    app.add_plugin(LoadingPlugin {
+    app.add_plugins(LoadingPlugin {
         loading_state: AppState::Loading,
         next_state: AppState::WebReadyToStart,
     })
     .add_systems(
-        (handle_web_input, apply_system_buffers)
+        Update,
+        (handle_web_input, apply_deferred)
             .chain()
             .in_set(crate::common::Label::InputMapping),
     )
-    .add_system(web_ready_to_start_enter.in_schedule(OnEnter(AppState::WebReadyToStart)))
-    .add_system(web_ready_to_start_update.in_set(OnUpdate(AppState::WebReadyToStart)));
+    .add_systems(OnEnter(AppState::WebReadyToStart), web_ready_to_start_enter)
+    .add_systems(
+        Update,
+        web_ready_to_start_update.run_if(in_state(AppState::WebReadyToStart)),
+    );
 
-    app.add_plugin(CommonPlugin)
-        .add_plugin(SplashScreenPlugin)
-        .add_plugin(MainMenuPlugin)
-        .add_plugin(GamePlugin)
-        .add_plugin(MapTransitionPlugin)
-        .add_plugin(StoryModePlugin)
-        .add_plugin(BattleModePlugin)
-        .add_plugin(SecretModePlugin);
+    app.add_plugins((
+        CommonPlugin,
+        SplashScreenPlugin,
+        MainMenuPlugin,
+        GamePlugin,
+        MapTransitionPlugin,
+        StoryModePlugin,
+        BattleModePlugin,
+        SecretModePlugin,
+    ));
 
     app.run();
 }

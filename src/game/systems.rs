@@ -160,14 +160,14 @@ pub fn handle_user_input(
     if inputs.is_active(InputAction::Return) && game_context.pausable {
         audio.play(sounds.pause);
         commands.insert_resource(PauseContext {
-            next_state: state.0,
+            in_game_state: *state.get(),
         });
         next_state.set(AppState::Paused);
         inputs.clear();
     }
 
     if inputs.is_active(InputAction::Escape) {
-        next_state.set(game_context.exit_state);
+        next_state.set(game_context.game_mode_manager_state);
         inputs.clear();
     }
 }
@@ -1468,7 +1468,7 @@ pub fn pop_state_on_enter(
     mut next_state: ResMut<NextState<AppState>>,
 ) {
     if inputs.is_active(InputAction::Return) {
-        next_state.set(pause_context.next_state);
+        next_state.set(pause_context.in_game_state);
         inputs.clear();
     }
 }
@@ -1479,7 +1479,7 @@ pub fn pop_state_fallthrough_on_esc(
     mut next_state: ResMut<NextState<AppState>>,
 ) {
     if inputs.is_active(InputAction::Escape) {
-        next_state.set(game_context.exit_state);
+        next_state.set(game_context.game_mode_manager_state);
     }
 }
 

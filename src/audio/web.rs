@@ -4,8 +4,7 @@ use anyhow::Result;
 use bevy::{
     asset::{AssetLoader, BoxedFuture, LoadContext, LoadedAsset},
     prelude::*,
-    reflect as bevy_reflect,
-    reflect::TypeUuid,
+    reflect::{self as bevy_reflect, TypePath, TypeUuid},
     utils::HashMap,
 };
 use rodio::{Decoder, Source};
@@ -13,7 +12,7 @@ use web_sys::{AudioBuffer, AudioBufferSourceNode, AudioContext, GainNode};
 
 use super::{Audio, AudioCommand, SoundHandles, SoundID, SoundLoader};
 
-#[derive(Debug, Clone, TypeUuid)]
+#[derive(Debug, Clone, TypeUuid, TypePath)]
 #[uuid = "1fd07a42-d528-40e0-b5ff-3be79a9400b0"]
 pub struct Sound {
     num_of_channels: u32,

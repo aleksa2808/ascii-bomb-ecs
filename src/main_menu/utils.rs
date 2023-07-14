@@ -34,11 +34,8 @@ pub fn spawn_menu_type(
                 ),
                 style: Style {
                     position_type: PositionType::Absolute,
-                    position: UiRect {
-                        top: Val::Px(2.0 * PIXEL_SCALE as f32),
-                        left: Val::Px(3.0 * PIXEL_SCALE as f32),
-                        ..Default::default()
-                    },
+                    top: Val::Px(2.0 * PIXEL_SCALE as f32),
+                    left: Val::Px(3.0 * PIXEL_SCALE as f32),
                     ..Default::default()
                 },
                 ..Default::default()
@@ -57,14 +54,10 @@ pub fn spawn_menu_type(
                     ),
                     style: Style {
                         position_type: PositionType::Absolute,
-                        position: UiRect {
-                            top: Val::Px(
-                                ((2 + selectable_items.get_cursor_position() * 4) * PIXEL_SCALE)
-                                    as f32,
-                            ),
-                            left: Val::Px(PIXEL_SCALE as f32),
-                            ..Default::default()
-                        },
+                        top: Val::Px(
+                            ((2 + selectable_items.get_cursor_position() * 4) * PIXEL_SCALE) as f32,
+                        ),
+                        left: Val::Px(PIXEL_SCALE as f32),
                         ..Default::default()
                     },
                     ..Default::default()
@@ -103,11 +96,8 @@ pub fn spawn_menu_type(
                 ),
                 style: Style {
                     position_type: PositionType::Absolute,
-                    position: UiRect {
-                        top: Val::Px(2.0 * PIXEL_SCALE as f32),
-                        left: Val::Px(3.0 * PIXEL_SCALE as f32),
-                        ..Default::default()
-                    },
+                    top: Val::Px(2.0 * PIXEL_SCALE as f32),
+                    left: Val::Px(3.0 * PIXEL_SCALE as f32),
                     ..Default::default()
                 },
                 ..Default::default()
@@ -126,14 +116,11 @@ pub fn spawn_menu_type(
                     ),
                     style: Style {
                         position_type: PositionType::Absolute,
-                        position: UiRect {
-                            top: Val::Px(
-                                ((2 + toggleable_options.get_cursor_position() * 4) * PIXEL_SCALE)
-                                    as f32,
-                            ),
-                            left: Val::Px(PIXEL_SCALE as f32),
-                            ..Default::default()
-                        },
+                        top: Val::Px(
+                            ((2 + toggleable_options.get_cursor_position() * 4) * PIXEL_SCALE)
+                                as f32,
+                        ),
+                        left: Val::Px(PIXEL_SCALE as f32),
                         ..Default::default()
                     },
                     ..Default::default()
@@ -153,11 +140,8 @@ pub fn spawn_menu_type(
                 ),
                 style: Style {
                     position_type: PositionType::Absolute,
-                    position: UiRect {
-                        top: Val::Px(2.0 * PIXEL_SCALE as f32),
-                        left: Val::Px(PIXEL_SCALE as f32),
-                        ..Default::default()
-                    },
+                    top: Val::Px(2.0 * PIXEL_SCALE as f32),
+                    left: Val::Px(PIXEL_SCALE as f32),
                     ..Default::default()
                 },
                 ..Default::default()
@@ -167,16 +151,11 @@ pub fn spawn_menu_type(
             parent
                 .spawn(NodeBundle {
                     style: Style {
-                        size: Size::new(
-                            Val::Px(8.0 * PIXEL_SCALE as f32),
-                            Val::Px(2.0 * PIXEL_SCALE as f32),
-                        ),
                         position_type: PositionType::Absolute,
-                        position: UiRect {
-                            left: Val::Px(15.0 * PIXEL_SCALE as f32),
-                            top: Val::Px(32.0 * PIXEL_SCALE as f32),
-                            ..Default::default()
-                        },
+                        left: Val::Px(15.0 * PIXEL_SCALE as f32),
+                        top: Val::Px(32.0 * PIXEL_SCALE as f32),
+                        width: Val::Px(8.0 * PIXEL_SCALE as f32),
+                        height: Val::Px(2.0 * PIXEL_SCALE as f32),
                         ..Default::default()
                     },
                     background_color: menu_colors.modal_foreground_color.into(),
@@ -194,11 +173,8 @@ pub fn spawn_menu_type(
                         ),
                         style: Style {
                             position_type: PositionType::Absolute,
-                            position: UiRect {
-                                top: Val::Px(0.0),
-                                left: Val::Px(0.0),
-                                ..Default::default()
-                            },
+                            top: Val::Px(0.0),
+                            left: Val::Px(0.0),
                             ..Default::default()
                         },
                         ..Default::default()
@@ -217,11 +193,8 @@ pub fn spawn_menu_type(
                 ),
                 style: Style {
                     position_type: PositionType::Absolute,
-                    position: UiRect {
-                        top: Val::Px(2.0 * PIXEL_SCALE as f32),
-                        left: Val::Px(13.0 * PIXEL_SCALE as f32),
-                        ..Default::default()
-                    },
+                    top: Val::Px(2.0 * PIXEL_SCALE as f32),
+                    left: Val::Px(13.0 * PIXEL_SCALE as f32),
                     ..Default::default()
                 },
                 ..Default::default()
@@ -248,11 +221,8 @@ pub fn spawn_menu_type(
                 ),
                 style: Style {
                     position_type: PositionType::Absolute,
-                    position: UiRect {
-                        top: Val::Px(6.0 * PIXEL_SCALE as f32),
-                        left: Val::Px(PIXEL_SCALE as f32),
-                        ..Default::default()
-                    },
+                    top: Val::Px(6.0 * PIXEL_SCALE as f32),
+                    left: Val::Px(PIXEL_SCALE as f32),
                     ..Default::default()
                 },
                 ..Default::default()
@@ -262,16 +232,11 @@ pub fn spawn_menu_type(
             parent
                 .spawn(NodeBundle {
                     style: Style {
-                        size: Size::new(
-                            Val::Px(8.0 * PIXEL_SCALE as f32),
-                            Val::Px(2.0 * PIXEL_SCALE as f32),
-                        ),
                         position_type: PositionType::Absolute,
-                        position: UiRect {
-                            left: Val::Px(15.0 * PIXEL_SCALE as f32),
-                            top: Val::Px(32.0 * PIXEL_SCALE as f32),
-                            ..Default::default()
-                        },
+                        left: Val::Px(15.0 * PIXEL_SCALE as f32),
+                        top: Val::Px(32.0 * PIXEL_SCALE as f32),
+                        width: Val::Px(8.0 * PIXEL_SCALE as f32),
+                        height: Val::Px(2.0 * PIXEL_SCALE as f32),
                         ..Default::default()
                     },
                     background_color: menu_colors.modal_foreground_color.into(),
@@ -289,11 +254,8 @@ pub fn spawn_menu_type(
                         ),
                         style: Style {
                             position_type: PositionType::Absolute,
-                            position: UiRect {
-                                top: Val::Px(0.0),
-                                left: Val::Px(0.0),
-                                ..Default::default()
-                            },
+                            top: Val::Px(0.0),
+                            left: Val::Px(0.0),
                             ..Default::default()
                         },
                         ..Default::default()
@@ -312,16 +274,11 @@ pub fn spawn_battle_mode_sub_menu_modal(
     parent
         .spawn(NodeBundle {
             style: Style {
-                size: Size::new(
-                    Val::Px(26.0 * PIXEL_SCALE as f32),
-                    Val::Px(14.0 * PIXEL_SCALE as f32),
-                ),
                 position_type: PositionType::Absolute,
-                position: UiRect {
-                    left: Val::Px(6.0 * PIXEL_SCALE as f32),
-                    top: Val::Px(12.0 * PIXEL_SCALE as f32),
-                    ..Default::default()
-                },
+                left: Val::Px(6.0 * PIXEL_SCALE as f32),
+                top: Val::Px(12.0 * PIXEL_SCALE as f32),
+                width: Val::Px(26.0 * PIXEL_SCALE as f32),
+                height: Val::Px(14.0 * PIXEL_SCALE as f32),
                 border: UiRect {
                     left: Val::Px(PIXEL_SCALE as f32),
                     top: Val::Px(2.0 * PIXEL_SCALE as f32),
@@ -337,7 +294,7 @@ pub fn spawn_battle_mode_sub_menu_modal(
             // spawn modal border
             parent.spawn(TextBundle {
                 text: Text::from_section(
-                    r#"
+                    r"
 ┌────────────────────────┐
 │                        │
 │                        │
@@ -345,7 +302,8 @@ pub fn spawn_battle_mode_sub_menu_modal(
 │                        │
 │                        │
 └────────────────────────┘
-"#,
+"
+                    .trim_matches('\n'),
                     TextStyle {
                         font: fonts.mono.clone(),
                         font_size: 2.0 * PIXEL_SCALE as f32,
@@ -354,11 +312,8 @@ pub fn spawn_battle_mode_sub_menu_modal(
                 ),
                 style: Style {
                     position_type: PositionType::Absolute,
-                    position: UiRect {
-                        top: Val::Px(-2.0 * PIXEL_SCALE as f32),
-                        left: Val::Px(-1.0 * PIXEL_SCALE as f32),
-                        ..Default::default()
-                    },
+                    top: Val::Px(-2.0 * PIXEL_SCALE as f32),
+                    left: Val::Px(-1.0 * PIXEL_SCALE as f32),
                     ..Default::default()
                 },
                 ..Default::default()
@@ -369,7 +324,8 @@ pub fn spawn_battle_mode_sub_menu_modal(
                 .spawn((
                     NodeBundle {
                         style: Style {
-                            size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                            width: Val::Percent(100.0),
+                            height: Val::Percent(100.0),
                             ..Default::default()
                         },
                         background_color: menu_colors.modal_background_color.into(),
@@ -405,11 +361,8 @@ pub fn spawn_battle_mode_sub_menu_content(
         ),
         style: Style {
             position_type: PositionType::Absolute,
-            position: UiRect {
-                top: Val::Px(2.0 * PIXEL_SCALE as f32),
-                left: Val::Px(PIXEL_SCALE as f32),
-                ..Default::default()
-            },
+            top: Val::Px(2.0 * PIXEL_SCALE as f32),
+            left: Val::Px(PIXEL_SCALE as f32),
             ..Default::default()
         },
         ..Default::default()
@@ -444,11 +397,8 @@ pub fn spawn_battle_mode_sub_menu_content(
         ),
         style: Style {
             position_type: PositionType::Absolute,
-            position: UiRect {
-                top: Val::Px(4.0 * PIXEL_SCALE as f32),
-                left: Val::Px(PIXEL_SCALE as f32),
-                ..Default::default()
-            },
+            top: Val::Px(4.0 * PIXEL_SCALE as f32),
+            left: Val::Px(PIXEL_SCALE as f32),
             ..Default::default()
         },
         ..Default::default()

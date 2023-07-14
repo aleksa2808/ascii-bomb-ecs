@@ -29,39 +29,42 @@ impl Plugin for MainMenuPlugin {
             .init_resource::<MainMenuSoundEffects>()
             .init_resource::<MenuState>()
             .add_systems(
-                (setup_menu, apply_system_buffers)
+                OnEnter(AppState::MainMenu),
+                (setup_menu, apply_deferred)
                     .chain()
-                    .in_set(MenuLabel::Setup)
-                    .in_schedule(OnEnter(AppState::MainMenu)),
+                    .in_set(MenuLabel::Setup),
             )
             .add_systems(
-                (resize_window, apply_system_buffers)
+                OnEnter(AppState::MainMenu),
+                (resize_window, apply_deferred)
                     .chain()
-                    .after(MenuLabel::Setup)
-                    .in_schedule(OnEnter(AppState::MainMenu)),
+                    .after(MenuLabel::Setup),
             )
             .add_systems(
-                (teardown, apply_system_buffers)
-                    .chain()
-                    .in_schedule(OnExit(AppState::MainMenu)),
+                OnExit(AppState::MainMenu),
+                (teardown, apply_deferred).chain(),
             )
             .add_systems(
-                (menu_navigation, apply_system_buffers)
+                Update,
+                (menu_navigation, apply_deferred)
                     .chain()
                     .in_set(MenuLabel::Navigation)
                     .after(crate::common::Label::InputMapping)
-                    .in_set(OnUpdate(AppState::MainMenu)),
+                    .run_if(in_state(AppState::MainMenu)),
             )
             .add_systems(
-                (menu_demo_mode_trigger, apply_system_buffers)
+                Update,
+                (menu_demo_mode_trigger, apply_deferred)
                     .chain()
                     .after(MenuLabel::Navigation)
-                    .after(crate::common::Label::InputMapping),
+                    .after(crate::common::Label::InputMapping)
+                    .run_if(in_state(AppState::MainMenu)),
             )
             .add_systems(
-                (animate_menu_background, apply_system_buffers)
+                Update,
+                (animate_menu_background, apply_deferred)
                     .chain()
-                    .in_set(OnUpdate(AppState::MainMenu)),
+                    .run_if(in_state(AppState::MainMenu)),
             );
     }
 }

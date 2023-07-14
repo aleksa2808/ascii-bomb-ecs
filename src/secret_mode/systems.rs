@@ -38,7 +38,7 @@ pub fn setup_secret_mode(
     // to be a more granular loading wait implemented before the states that need certain assets.
     audio.play_looped(sounds.what_is_f);
 
-    const PATTERN: &str = r#"
+    const PATTERN: &str = r"
 *              *                  *****       ********************************************
  *             *                 *     *       *                     *       *            
   *            *        ***     *       *       *            **               *           
@@ -46,7 +46,7 @@ pub fn setup_secret_mode(
          *     ***        *     *       *     *    *     **      **                       
         *                 *      *     *          *              *         *              
        *                  *       *****            ************************************   
-"#;
+";
 
     let map_size = MapSize {
         rows: PATTERN.split('\n').count(),
@@ -61,7 +61,8 @@ pub fn setup_secret_mode(
         .spawn((
             NodeBundle {
                 style: Style {
-                    size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
                     ..Default::default()
                 },
                 background_color: Color::NONE.into(),
@@ -85,16 +86,11 @@ pub fn setup_secret_mode(
                         .spawn((
                             NodeBundle {
                                 style: Style {
-                                    size: Size::new(
-                                        Val::Px(43.0 * PIXEL_SCALE as f32),
-                                        Val::Px(2.0 * PIXEL_SCALE as f32),
-                                    ),
                                     position_type: PositionType::Absolute,
-                                    position: UiRect {
-                                        left: Val::Px(hud_width / 2.0 - 20.0 * PIXEL_SCALE as f32),
-                                        top: Val::Px(6.0 * PIXEL_SCALE as f32),
-                                        ..Default::default()
-                                    },
+                                    left: Val::Px(hud_width / 2.0 - 20.0 * PIXEL_SCALE as f32),
+                                    top: Val::Px(6.0 * PIXEL_SCALE as f32),
+                                    width: Val::Px(43.0 * PIXEL_SCALE as f32),
+                                    height: Val::Px(2.0 * PIXEL_SCALE as f32),
                                     ..Default::default()
                                 },
                                 background_color: hud_colors.black_color.into(),
@@ -115,11 +111,8 @@ pub fn setup_secret_mode(
                                     ),
                                     style: Style {
                                         position_type: PositionType::Absolute,
-                                        position: UiRect {
-                                            top: Val::Px(0.0),
-                                            left: Val::Px(0.0),
-                                            ..Default::default()
-                                        },
+                                        top: Val::Px(0.0),
+                                        left: Val::Px(0.0),
                                         ..Default::default()
                                     },
                                     ..Default::default()
@@ -132,16 +125,11 @@ pub fn setup_secret_mode(
                         .spawn((
                             NodeBundle {
                                 style: Style {
-                                    size: Size::new(
-                                        Val::Px(8.0 * PIXEL_SCALE as f32),
-                                        Val::Px(2.0 * PIXEL_SCALE as f32),
-                                    ),
                                     position_type: PositionType::Absolute,
-                                    position: UiRect {
-                                        left: Val::Px(hud_width / 2.0 + 10.0 * PIXEL_SCALE as f32),
-                                        top: Val::Px(10.0 * PIXEL_SCALE as f32),
-                                        ..Default::default()
-                                    },
+                                    left: Val::Px(hud_width / 2.0 + 10.0 * PIXEL_SCALE as f32),
+                                    top: Val::Px(10.0 * PIXEL_SCALE as f32),
+                                    width: Val::Px(8.0 * PIXEL_SCALE as f32),
+                                    height: Val::Px(2.0 * PIXEL_SCALE as f32),
                                     ..Default::default()
                                 },
                                 background_color: hud_colors.black_color.into(),
@@ -162,11 +150,8 @@ pub fn setup_secret_mode(
                                     ),
                                     style: Style {
                                         position_type: PositionType::Absolute,
-                                        position: UiRect {
-                                            top: Val::Px(0.0),
-                                            left: Val::Px(0.0),
-                                            ..Default::default()
-                                        },
+                                        top: Val::Px(0.0),
+                                        left: Val::Px(0.0),
                                         ..Default::default()
                                     },
                                     ..Default::default()
@@ -186,14 +171,16 @@ pub fn setup_secret_mode(
         in_game_state: SecretModeInGameState::Initial(Timer::from_seconds(2.5, TimerMode::Once)),
         pattern: PATTERN,
     });
+
+    let game_mode_manager_state = AppState::SecretModeManager;
     commands.insert_resource(GameContext {
         pausable: false,
         // irrelevant in this mode
         reduced_loot: false,
-        exit_state: AppState::SecretModeTeardown,
+        game_mode_manager_state,
     });
 
-    next_state.set(AppState::SecretModeManager);
+    next_state.set(game_mode_manager_state);
 }
 
 pub fn secret_mode_manager(

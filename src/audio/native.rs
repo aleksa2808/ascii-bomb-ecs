@@ -4,8 +4,7 @@ use anyhow::Result;
 use bevy::{
     asset::{AssetLoader, BoxedFuture, LoadContext, LoadedAsset},
     prelude::*,
-    reflect as bevy_reflect,
-    reflect::TypeUuid,
+    reflect::{self as bevy_reflect, TypePath, TypeUuid},
     utils::HashMap,
 };
 use itertools::Itertools;
@@ -19,7 +18,7 @@ use rodio::{Decoder, Source};
 
 use super::{Audio, AudioCommand, SoundHandles, SoundID, SoundLoader};
 
-#[derive(Debug, Clone, TypeUuid)]
+#[derive(Debug, Clone, TypeUuid, TypePath)]
 #[uuid = "5dc1e69a-70a3-4c99-8d8b-0d2ac17906cc"]
 pub struct Sound(KiraSound);
 
