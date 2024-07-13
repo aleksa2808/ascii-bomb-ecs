@@ -731,98 +731,92 @@ pub fn setup_high_score_name_input(
     query: Query<Entity, With<UIRoot>>,
     map_size: Res<MapSize>,
 ) {
-    let mut input_box = None;
     let mut name_text = None;
 
     commands.entity(query.single()).with_children(|parent| {
-        input_box = Some(
-            parent
-                .spawn((
-                    NodeBundle {
-                        style: Style {
-                            position_type: PositionType::Absolute,
-                            left: Val::Px(
-                                ((map_size.columns * (TILE_WIDTH / PIXEL_SCALE) / 2 - 15)
-                                    * PIXEL_SCALE) as f32,
-                            ),
-                            top: Val::Px(
-                                // messy equation that produces the same results as the C code (integer divisions)
-                                ((((HUD_HEIGHT + map_size.rows * TILE_HEIGHT) / PIXEL_SCALE) / 4
-                                    * 2
-                                    - 6)
-                                    * PIXEL_SCALE) as f32,
-                            ),
-                            width: Val::Px(30.0 * PIXEL_SCALE as f32),
-                            height: Val::Px(10.0 * PIXEL_SCALE as f32),
-                            ..Default::default()
-                        },
-                        background_color: hud_colors.black_color.into(),
+        parent
+            .spawn((
+                NodeBundle {
+                    style: Style {
+                        position_type: PositionType::Absolute,
+                        left: Val::Px(
+                            ((map_size.columns * (TILE_WIDTH / PIXEL_SCALE) / 2 - 15) * PIXEL_SCALE)
+                                as f32,
+                        ),
+                        top: Val::Px(
+                            // messy equation that produces the same results as the C code (integer divisions)
+                            ((((HUD_HEIGHT + map_size.rows * TILE_HEIGHT) / PIXEL_SCALE) / 4 * 2
+                                - 6)
+                                * PIXEL_SCALE) as f32,
+                        ),
+                        width: Val::Px(30.0 * PIXEL_SCALE as f32),
+                        height: Val::Px(10.0 * PIXEL_SCALE as f32),
                         ..Default::default()
                     },
-                    UIComponent,
-                ))
-                .with_children(|parent| {
-                    // dialog border
-                    parent.spawn((
-                        TextBundle {
-                            text: Text::from_section(
-                                r"
+                    background_color: hud_colors.black_color.into(),
+                    ..Default::default()
+                },
+                UIComponent,
+            ))
+            .with_children(|parent| {
+                // dialog border
+                parent.spawn((
+                    TextBundle {
+                        text: Text::from_section(
+                            r"
 ┌────────────────────────────┐
 │                            │
 │ Name:                      │
 │                            │
 └────────────────────────────┘
 "
-                                .trim_matches('\n'),
-                                TextStyle {
-                                    font: fonts.mono.clone(),
-                                    font_size: 2.0 * PIXEL_SCALE as f32,
-                                    color: COLORS[15].into(), // TODO: is this the right color?
-                                },
-                            ),
-                            style: Style {
-                                position_type: PositionType::Absolute,
-                                top: Val::Px(0.0),
-                                left: Val::Px(0.0),
-                                ..Default::default()
+                            .trim_matches('\n'),
+                            TextStyle {
+                                font: fonts.mono.clone(),
+                                font_size: 2.0 * PIXEL_SCALE as f32,
+                                color: COLORS[15].into(), // TODO: is this the right color?
                             },
+                        ),
+                        style: Style {
+                            position_type: PositionType::Absolute,
+                            top: Val::Px(0.0),
+                            left: Val::Px(0.0),
                             ..Default::default()
                         },
-                        UIComponent,
-                    ));
+                        ..Default::default()
+                    },
+                    UIComponent,
+                ));
 
-                    // name text
-                    name_text = Some(
-                        parent
-                            .spawn((
-                                TextBundle {
-                                    text: Text::from_section(
-                                        "",
-                                        TextStyle {
-                                            font: fonts.mono.clone(),
-                                            font_size: 2.0 * PIXEL_SCALE as f32,
-                                            color: COLORS[15].into(), // TODO: is this the right color?
-                                        },
-                                    ),
-                                    style: Style {
-                                        position_type: PositionType::Absolute,
-                                        top: Val::Px(4.0 * PIXEL_SCALE as f32),
-                                        left: Val::Px(8.0 * PIXEL_SCALE as f32),
-                                        ..Default::default()
+                // name text
+                name_text = Some(
+                    parent
+                        .spawn((
+                            TextBundle {
+                                text: Text::from_section(
+                                    "",
+                                    TextStyle {
+                                        font: fonts.mono.clone(),
+                                        font_size: 2.0 * PIXEL_SCALE as f32,
+                                        color: COLORS[15].into(), // TODO: is this the right color?
                                     },
+                                ),
+                                style: Style {
+                                    position_type: PositionType::Absolute,
+                                    top: Val::Px(4.0 * PIXEL_SCALE as f32),
+                                    left: Val::Px(8.0 * PIXEL_SCALE as f32),
                                     ..Default::default()
                                 },
-                                UIComponent,
-                            ))
-                            .id(),
-                    );
-                })
-                .id(),
-        );
+                                ..Default::default()
+                            },
+                            UIComponent,
+                        ))
+                        .id(),
+                );
+            });
     });
 
     commands.insert_resource(HighScoreNameInputContext {
-        input_box: input_box.unwrap(),
         name_text: name_text.unwrap(),
     });
 }
