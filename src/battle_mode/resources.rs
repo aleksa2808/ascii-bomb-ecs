@@ -2,7 +2,7 @@ use bevy::{ecs as bevy_ecs, prelude::*, utils::HashMap};
 
 use crate::{
     game::{components::Penguin, types::BotDifficulty},
-    loading::resources::AssetsLoading,
+    loading::resources::LoadingAssetHandles,
 };
 
 use super::types::PenguinControlType;
@@ -70,8 +70,8 @@ impl FromWorld for LeaderboardTextures {
             trophy: trophy_texture.clone(),
         };
 
-        if let Some(mut assets_loading) = world.get_resource_mut::<AssetsLoading>() {
-            assets_loading.0.push(trophy_texture.clone_untyped());
+        if let Some(mut loading_asset_handles) = world.get_resource_mut::<LoadingAssetHandles>() {
+            loading_asset_handles.0.push(trophy_texture.untyped());
         }
 
         leaderboard_textures

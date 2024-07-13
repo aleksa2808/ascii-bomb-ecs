@@ -14,7 +14,7 @@ pub struct LoadingPlugin {
 
 impl Plugin for LoadingPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<AssetsLoading>()
+        app.init_resource::<LoadingAssetHandles>()
             .insert_resource(LoadingContext {
                 next_state: self.next_state,
             })

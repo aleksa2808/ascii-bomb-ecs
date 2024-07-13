@@ -254,7 +254,7 @@ pub fn on_death_item_pinata(
     >,
     mut ev_player_death_event: EventReader<PlayerDeathEvent>,
 ) {
-    for _ in ev_player_death_event.iter() {
+    for _ in ev_player_death_event.read() {
         let invalid_positions: HashSet<Position> = query.iter().copied().collect();
         let valid_positions = (0..map_size.rows)
             .flat_map(|y| {

@@ -4,7 +4,7 @@ use crate::{
     audio::{SoundHandles, SoundID},
     common::{constants::COLORS, resources::GameOption},
     game::types::BotDifficulty,
-    loading::resources::AssetsLoading,
+    loading::resources::LoadingAssetHandles,
 };
 
 #[derive(Resource)]
@@ -37,10 +37,10 @@ impl FromWorld for MainMenuSoundEffects {
         let confirm_handle = asset_server.load("sounds/confirm.wav");
         let select_handle = asset_server.load("sounds/select.wav");
 
-        if let Some(mut assets_loading) = world.get_resource_mut::<AssetsLoading>() {
-            assets_loading.0.append(&mut vec![
-                confirm_handle.clone_untyped(),
-                select_handle.clone_untyped(),
+        if let Some(mut loading_asset_handles) = world.get_resource_mut::<LoadingAssetHandles>() {
+            loading_asset_handles.0.append(&mut vec![
+                confirm_handle.clone().untyped(),
+                select_handle.clone().untyped(),
             ]);
         }
 

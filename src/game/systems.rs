@@ -555,7 +555,7 @@ pub fn player_move(
         .map(|(e, _, p, d, b)| (*p, (e, d.is_some(), b.is_some())))
         .collect();
 
-    for (entity, direction) in ev_player_action.iter().filter_map(|p| {
+    for (entity, direction) in ev_player_action.read().filter_map(|p| {
         if let PlayerAction::Move(direction) = p.action {
             Some((p.player, direction))
         } else {
@@ -691,7 +691,7 @@ pub fn bomb_drop(
     query2: Query<&Position, Or<(With<Solid>, With<Exit>, With<BurningItem>)>>,
 ) {
     for entity in ev_player_action
-        .iter()
+        .read()
         .filter(|pa| matches!(pa.action, PlayerAction::DropBomb))
         .map(|pa| pa.player)
     {
@@ -927,7 +927,7 @@ pub fn explode_bombs(
     mut ev_bomb_restock: EventWriter<BombRestockEvent>,
     mut ev_burn: EventWriter<BurnEvent>,
 ) {
-    let exploded_bombs: HashSet<Entity> = ev_explosion.iter().map(|e| e.bomb).collect();
+    let exploded_bombs: HashSet<Entity> = ev_explosion.read().map(|e| e.bomb).collect();
     let fireproof_positions: HashSet<Position> = query1
         .iter()
         .filter_map(|(e, p, b)| {
@@ -998,7 +998,7 @@ pub fn bomb_restock(
     mut ev_bomb_restock: EventReader<BombRestockEvent>,
     mut query: Query<&mut BombSatchel>,
 ) {
-    for event in ev_bomb_restock.iter() {
+    for event in ev_bomb_restock.read() {
         if let Ok(mut bomb_satchel) = query.get_mut(event.satchel_owner) {
             bomb_satchel.bombs_available += 1;
         }
@@ -1049,7 +1049,7 @@ pub fn animate_immortality(
     }
 
     // revert the texture of players that stopped being immortal
-    for entity in removals.iter() {
+    for entity in removals.read() {
         if let Ok((mut texture, base_texture)) = p.p1().get_mut(entity) {
             *texture = base_texture.0.clone();
         }
@@ -1085,7 +1085,7 @@ pub fn player_burn(
     mut ev_burn: EventReader<BurnEvent>,
     mut ev_damage: EventWriter<DamageEvent>,
 ) {
-    for BurnEvent { position } in ev_burn.iter() {
+    for BurnEvent { position } in ev_burn.read() {
         for (pe, player_pos) in query.iter().filter(|(_, pp)| **pp == *position) {
             if query2.iter().any(|wall_pos| *wall_pos == *player_pos) {
                 // Anakin, I have the high ground
@@ -1119,7 +1119,7 @@ pub fn player_damage(
 ) {
     let mut damaged_players = HashSet::default();
 
-    for DamageEvent { target } in ev_damage.iter() {
+    for DamageEvent { target } in ev_damage.read() {
         if let Ok((
             pe,
             mut health,
@@ -1184,7 +1184,7 @@ pub fn player_damage(
 }
 
 pub fn bomb_burn(mut query: Query<(&mut Bomb, &Position)>, mut ev_burn: EventReader<BurnEvent>) {
-    for BurnEvent { position } in ev_burn.iter() {
+    for BurnEvent { position } in ev_burn.read() {
         query
             .iter_mut()
             .filter(|(_, p)| **p == *position)
@@ -1207,7 +1207,7 @@ pub fn destructible_wall_burn(
     >,
     mut ev_burn: EventReader<BurnEvent>,
 ) {
-    for BurnEvent { position } in ev_burn.iter() {
+    for BurnEvent { position } in ev_burn.read() {
         for (e, _, mut t, perishable) in query.iter_mut().filter(|(_, p, _, _)| **p == *position) {
             if perishable.is_none() {
                 commands.entity(e).insert(Crumbling {
@@ -1227,7 +1227,7 @@ pub fn item_burn(
 ) {
     let mut burned = HashSet::default();
 
-    for BurnEvent { position } in ev_burn.iter() {
+    for BurnEvent { position } in ev_burn.read() {
         for e in query
             .iter_mut()
             .filter(|(_, p)| **p == *position)
@@ -1273,7 +1273,7 @@ pub fn exit_burn(
         exit.spawn_cooldown.tick(time.delta());
     }
 
-    for BurnEvent { position } in ev_burn.iter() {
+    for BurnEvent { position } in ev_burn.read() {
         if let Ok((exit_position, mut exit)) = query.get_single_mut() {
             if *exit_position == *position && exit.spawn_cooldown.ready() {
                 println!("exit burned: {:?}", position);
