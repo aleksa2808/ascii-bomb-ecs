@@ -31,7 +31,7 @@ pub fn setup_battle_mode(
     battle_mode_configuration: Res<BattleModeConfiguration>,
     mut next_state: ResMut<NextState<AppState>>,
 ) {
-    let world_id = WorldID(rand::thread_rng().gen_range(1..=3));
+    let world_id = WorldID(rand::rng().random_range(1..=3));
     game_textures.set_map_textures(world_id);
 
     let (map_size, percent_of_passable_positions_to_fill) = get_battle_mode_map_size_fill(
@@ -264,7 +264,7 @@ pub fn on_death_item_pinata(
                 })
             })
             .filter(|p| !invalid_positions.contains(p));
-        for position in valid_positions.choose_multiple(&mut rand::thread_rng(), 3) {
+        for position in valid_positions.choose_multiple(&mut rand::rng(), 3) {
             generate_item_at_position(
                 position,
                 &mut commands,
@@ -340,7 +340,7 @@ pub fn setup_leaderboard_display(
                                 },
                                 background_color: (*COLORS
                                     .iter()
-                                    .choose(&mut rand::thread_rng())
+                                    .choose(&mut rand::rng())
                                     .unwrap())
                                 .into(),
                                 ..Default::default()

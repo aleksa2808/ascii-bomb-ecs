@@ -54,8 +54,8 @@ pub fn spawn_story_mode_mobs(
         map_size.rows - 4,
         7,
     ];
-    let mut rng = rand::thread_rng();
-    let bias = rng.gen::<usize>() % 20;
+    let mut rng = rand::rng();
+    let bias = rng.random_range(0..20) as usize;
 
     let mut mob_spawn_positions = vec![];
     for i in 0..mob_number {

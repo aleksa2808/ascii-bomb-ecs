@@ -6,7 +6,7 @@ use bevy::{
     window::PrimaryWindow,
 };
 use rand::{
-    prelude::{IteratorRandom, SliceRandom},
+    prelude::{IndexedRandom, IteratorRandom, SliceRandom},
     Rng,
 };
 
@@ -199,7 +199,7 @@ pub fn mob_ai(
             // pick potential directions in random order
             let mut potential_directions: Vec<Direction> =
                 potential_directions.into_iter().collect();
-            potential_directions.shuffle(&mut rand::thread_rng());
+            potential_directions.shuffle(&mut rand::rng());
 
             // move towards one that leads to passable terrain (if existing)
             let passable_dir = potential_directions.into_iter().find(|direction| {
@@ -247,7 +247,7 @@ pub fn bot_ai(
     mut ev_player_action: EventWriter<PlayerActionEvent>,
 ) {
     // TODO: this is wasted work for situations where there aren't any bots
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let fire_positions: HashSet<Position> = query2.iter().copied().collect();
     let bomb_positions: HashSet<Position> = query3.iter().copied().collect();
     let fireproof_positions: HashSet<Position> = query5.iter().copied().collect();
@@ -283,7 +283,7 @@ pub fn bot_ai(
         // miss?
         match bot_difficulty {
             BotDifficulty::Easy | BotDifficulty::Medium => {
-                if rng.gen_range(0..100)
+                if rng.random_range(0..100)
                     < match bot_difficulty {
                         BotDifficulty::Easy => 30,
                         BotDifficulty::Medium => 15,
@@ -308,14 +308,14 @@ pub fn bot_ai(
             // miss?
             match bot_difficulty {
                 BotDifficulty::Easy | BotDifficulty::Medium => {
-                    if rng.gen_range(0..100)
+                    if rng.random_range(0..100)
                         < match bot_difficulty {
                             BotDifficulty::Easy => 30,
                             BotDifficulty::Medium => 15,
                             BotDifficulty::Hard => unreachable!(),
                         }
                     {
-                        com = rng.gen_range(0..8);
+                        com = rng.random_range(0..8);
                     }
                 }
                 BotDifficulty::Hard => (),
@@ -441,7 +441,7 @@ pub fn bot_ai(
                     }
                 }
                 6 => {
-                    if nav_flag == -1 && rng.gen_bool(0.125) {
+                    if nav_flag == -1 && rng.random_bool(0.125) {
                         let direction = Direction::LIST.choose(&mut rng).unwrap();
                         let position = position.offset(*direction, 1);
 
@@ -653,7 +653,7 @@ pub fn pick_up_item(
     mut query: Query<(Entity, &mut Health, &Position, &mut BombSatchel), With<Player>>,
     query2: Query<(Entity, &Item, &Position)>,
 ) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     for (ie, i, ip) in query2.iter() {
         if let Some((pe, mut h, _, mut bomb_satchel)) = query
             .iter_mut()
@@ -891,7 +891,7 @@ pub fn crumbling_tick(
                     *position,
                     Exit::default(),
                 ));
-            } else if rand::thread_rng().gen_range(0.0..1.0) < ITEM_SPAWN_CHANCE {
+            } else if rand::rng().random_range(0.0..1.0) < ITEM_SPAWN_CHANCE {
                 generate_item_at_position(
                     *position,
                     &mut commands,

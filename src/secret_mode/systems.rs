@@ -53,7 +53,7 @@ pub fn setup_secret_mode(
         columns: 15,
     };
 
-    let world_id = WorldID(rand::thread_rng().gen_range(1..=3));
+    let world_id = WorldID(rand::rng().random_range(1..=3));
     game_textures.set_map_textures(world_id);
 
     // spawn HUD

@@ -1,6 +1,6 @@
 use bevy::{prelude::*, utils::HashSet};
 use rand::{
-    prelude::{IteratorRandom, SliceRandom},
+    prelude::{IndexedRandom, IteratorRandom},
     Rng,
 };
 
@@ -184,7 +184,7 @@ pub fn spawn_map(
     mob_spawn_positions: &[Position],
     spawn_exit: bool,
 ) -> Vec<Vec<Entity>> {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // place empty/passable tiles
     for j in 0..map_size.rows {
@@ -359,7 +359,7 @@ pub fn generate_item_at_position(
     game_textures: &GameTextures,
     reduced_loot: bool,
 ) {
-    let r = rand::thread_rng().gen::<usize>() % 100;
+    let r = rand::rng().random_range(0..100) as usize;
 
     /* "Loot tables" */
     let item = if !reduced_loot {
