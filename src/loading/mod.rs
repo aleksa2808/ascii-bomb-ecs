@@ -7,6 +7,7 @@ use self::{resources::*, systems::*};
 pub mod resources;
 mod systems;
 
+// currently only used for wasm builds, hence producing dead_code warnings
 pub struct LoadingPlugin {
     pub loading_state: AppState,
     pub next_state: AppState,
