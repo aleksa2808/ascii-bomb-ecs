@@ -371,7 +371,7 @@ pub fn destroy_blocks(
     }
 
     let mut directions: Vec<Direction> = Direction::LIST.into();
-    directions.shuffle(&mut rand::thread_rng());
+    directions.shuffle(&mut rand::rng());
     for direction in directions {
         let position = position.offset(direction, 1);
         if !impassable_positions.contains(&position)
@@ -506,7 +506,7 @@ pub fn hunt_players(
     fireproof_positions: &HashSet<Position>,
     wall_of_death: Option<&WallOfDeath>,
 ) -> HashSet<Direction> {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let mut minf = (map_size.rows + map_size.columns) as f32;
     let mut target = None;
     let mut result = HashSet::default();
@@ -525,7 +525,7 @@ pub fn hunt_players(
         if players_in_range(starting_position, &enemy_positions, 3) {
             for enemy_position in enemy_positions {
                 let dist = dist(starting_position, enemy_position);
-                if dist <= minf || (dist == minf && rng.gen_bool(0.5)) {
+                if dist <= minf || (dist == minf && rng.random_bool(0.5)) {
                     minf = dist;
                     target = Some(enemy_position);
                 }

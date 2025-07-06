@@ -8,17 +8,20 @@ name = "ascii_bomb_ecs_lib"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-rand = "0.8"
+rand = "0.9"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-parking_lot = "0.11.2"
+parking_lot = "0.12"
 cfg-if = "1.0"
-rodio = { version = "0.14", default-features = false, features = ["wav", "vorbis"] }
+rodio = { version = "0.14", default-features = false, features = [
+    "wav",
+    "vorbis",
+] }
 anyhow = "1.0"
-itertools = "0.10"
+itertools = "0.14"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-bevy = { version = "0.11", default-features = false, features = [
+bevy = { version = "0.12", default-features = false, features = [
     "dynamic_linking",
     "bevy_winit",
     "png",
@@ -28,11 +31,12 @@ bevy = { version = "0.11", default-features = false, features = [
     "bevy_ui",
     "x11",
     "bevy_asset",
+    "multi-threaded",
 ] }
 kira = "0.5.3"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-bevy = { version = "0.11", default-features = false, features = [
+bevy = { version = "0.12", default-features = false, features = [
     "bevy_winit",
     "png",
     "bevy_core_pipeline",
@@ -52,3 +56,7 @@ web-sys = { version = "0.3", features = [
     "AudioParam",
     "GainNode",
 ] }
+# needed in order for getrandom 0.3.3 to work on wasm32
+getrandom = { version = "0.3", features = ["wasm_js"] }
+# needed in order for uuid 1.17 to work on wasm32
+uuid = { version = "1.17", features = ["rng-getrandom"] }

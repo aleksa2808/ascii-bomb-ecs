@@ -2,7 +2,7 @@ use std::io::Cursor;
 
 use anyhow::Result;
 use bevy::{
-    asset::{AssetLoader, BoxedFuture, LoadContext, LoadedAsset},
+    asset::{self as bevy_asset, io::Reader, AssetLoader, AsyncReadExt, BoxedFuture, LoadContext},
     prelude::*,
     reflect::{self as bevy_reflect, TypePath, TypeUuid},
     utils::HashMap,
@@ -18,17 +18,24 @@ use rodio::{Decoder, Source};
 
 use super::{Audio, AudioCommand, SoundHandles, SoundID, SoundLoader};
 
-#[derive(Debug, Clone, TypeUuid, TypePath)]
+#[derive(Asset, Debug, Clone, TypeUuid, TypePath)]
 #[uuid = "5dc1e69a-70a3-4c99-8d8b-0d2ac17906cc"]
 pub struct Sound(KiraSound);
 
 impl AssetLoader for SoundLoader {
+    type Asset = Sound;
+    type Settings = ();
+    type Error = anyhow::Error;
+
     fn load<'a>(
         &'a self,
-        bytes: &'a [u8],
-        load_context: &'a mut LoadContext,
-    ) -> BoxedFuture<'a, Result<()>> {
+        reader: &'a mut Reader,
+        _settings: &'a Self::Settings,
+        _load_context: &'a mut LoadContext,
+    ) -> BoxedFuture<'a, Result<Self::Asset, Self::Error>> {
         Box::pin(async move {
+            let mut bytes = Vec::new();
+            reader.read_to_end(&mut bytes).await?;
             let decoder = Decoder::new(Cursor::new(bytes)).unwrap();
             let sample_rate = decoder.sample_rate();
             let num_of_channels = decoder.channels();
@@ -47,8 +54,7 @@ impl AssetLoader for SoundLoader {
 
             let sound = KiraSound::from_frames(sample_rate, frames, SoundSettings::default());
 
-            load_context.set_default_asset(LoadedAsset::new(Sound(sound)));
-            Ok(())
+            Ok(Sound(sound))
         })
     }
 

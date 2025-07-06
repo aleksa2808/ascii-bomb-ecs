@@ -7,7 +7,7 @@ use bevy::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::loading::resources::AssetsLoading;
+use crate::loading::resources::LoadingAssetHandles;
 
 use super::types::InputAction;
 
@@ -47,8 +47,8 @@ impl FromWorld for Fonts {
             mono: asset_server.load("fonts/UbuntuMono-R.ttf"),
         };
 
-        if let Some(mut assets_loading) = world.get_resource_mut::<AssetsLoading>() {
-            assets_loading.0.push(fonts.mono.clone_untyped());
+        if let Some(mut loading_asset_handles) = world.get_resource_mut::<LoadingAssetHandles>() {
+            loading_asset_handles.0.push(fonts.mono.clone().untyped());
         }
 
         fonts

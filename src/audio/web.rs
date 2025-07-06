@@ -2,7 +2,7 @@ use std::io::Cursor;
 
 use anyhow::Result;
 use bevy::{
-    asset::{AssetLoader, BoxedFuture, LoadContext, LoadedAsset},
+    asset::{self as bevy_asset, io::Reader, AssetLoader, AsyncReadExt, BoxedFuture, LoadContext},
     prelude::*,
     reflect::{self as bevy_reflect, TypePath, TypeUuid},
     utils::HashMap,
@@ -12,7 +12,7 @@ use web_sys::{AudioBuffer, AudioBufferSourceNode, AudioContext, GainNode};
 
 use super::{Audio, AudioCommand, SoundHandles, SoundID, SoundLoader};
 
-#[derive(Debug, Clone, TypeUuid, TypePath)]
+#[derive(Asset, Debug, Clone, TypeUuid, TypePath)]
 #[uuid = "1fd07a42-d528-40e0-b5ff-3be79a9400b0"]
 pub struct Sound {
     num_of_channels: u32,
@@ -21,12 +21,19 @@ pub struct Sound {
 }
 
 impl AssetLoader for SoundLoader {
+    type Asset = Sound;
+    type Settings = ();
+    type Error = anyhow::Error;
+
     fn load<'a>(
         &'a self,
-        bytes: &'a [u8],
-        load_context: &'a mut LoadContext,
-    ) -> BoxedFuture<'a, Result<()>> {
+        reader: &'a mut Reader,
+        _settings: &'a Self::Settings,
+        _load_context: &'a mut LoadContext,
+    ) -> BoxedFuture<'a, Result<Self::Asset, Self::Error>> {
         Box::pin(async move {
+            let mut bytes = Vec::new();
+            reader.read_to_end(&mut bytes).await?;
             let decoder = Decoder::new(Cursor::new(bytes)).unwrap();
             let sample_rate = decoder.sample_rate() as f32;
             let num_of_channels = decoder.channels() as u32;
@@ -36,12 +43,11 @@ impl AssetLoader for SoundLoader {
                 .zip((0..num_of_channels as usize).cycle())
                 .for_each(|(f, i)| channel_data[i].push(f));
 
-            load_context.set_default_asset(LoadedAsset::new(Sound {
+            Ok(Sound {
                 num_of_channels,
                 sample_rate,
                 channel_data,
-            }));
-            Ok(())
+            })
         })
     }
 
