@@ -1,10 +1,20 @@
-# ascii-bomb-ecs
+# 💣 ascii-bomb-ecs
 
-Port of the [ascii-bomb](https://github.com/aleksa2808/ascii-bomb) game in Rust using the Bevy engine. Available as a [web build](https://aleksa2808.github.io/ascii-bomb-ecs/)!
+A Rust remake of the [ascii-bomb](https://github.com/aleksa2808/ascii-bomb) game, built with the [Bevy](https://github.com/bevyengine/bevy) engine.
 
-#### UPDATE: Now there is also an [online multiplayer version](https://github.com/aleksa2808/ascii-bomb-ecs-mp)!
+🎮 **[Play it now in your browser!](https://aleksa2808.github.io/ascii-bomb-ecs/)**
 
-## Build
+🌐 **[Try out the multiplayer version!](https://github.com/aleksa2808/ascii-bomb-ecs-mp)**
+
+## 🚀 Features
+
+- **Story Mode**: Battle through three different areas with unique boss encounters
+- **Battle Mode**: Compete in fast-paced matches against up to 7 other AI players
+- **Cross-Platform**: Native desktop and web browser support
+- **Mobile-Friendly**: Touch controls optimized for mobile devices
+- **???**: Press F to pay respects... and discover something hidden away in the controls menu.
+
+## 🛠️ Build
 
 ### Native
 
@@ -14,51 +24,59 @@ From the root folder run:
 cargo run --release
 ```
 
-### Web
+### Web Build
 
-From the root folder run:
+1. From the root folder build the WebAssembly package:
+   ```bash
+   wasm-pack build --target web --release
+   ```
 
-```bash
-wasm-pack build --target web --release
-```
+2. Prepare the web assets:
+   ```bash
+   # Copy web files and assets to the pkg directory
+   cp -r web/* pkg/
+   cp -r assets pkg/
+   ```
 
-Then move the contents of `web` and the `assets` folder into `pkg`. After that, from the `pkg` folder you can start a local server by running:
+3. Serve locally:
+   ```bash
+   # Install the server if you haven't already
+   cargo install basic-http-server
+   
+   # Start the server from the pkg directory
+   cd pkg && basic-http-server
+   ```
 
-```bash
-# if basic-http-server is not yet installed
-cargo install basic-http-server
+4. Open your browser and navigate to `http://localhost:4000`
 
-basic-http-server
-```
+## 🎮 Gallery
 
-After that the game should be accessible on `localhost:4000`.
+### Battle Mode in Action
+![Battle mode showcase](doc/battle_mode.gif)
 
-## Battle mode showcase
+### Game Screens
 
-![Battle mode gif](doc/battle_mode.gif)
+<details>
+<summary>📸 View Screenshots</summary>
 
-## Screenshots
-
-### Main menu
-
+#### Main Menu
 ![Main menu](doc/main_menu.png)
 
-### Story mode
+#### Story Mode
+![Story mode gameplay](doc/story_mode1.png)
 
-![Story mode #1](doc/story_mode1.png)
+![Epic boss battle](doc/boss_room.png)
 
-![Boss room](doc/boss_room.png)
+![Story progression](doc/story_mode2.png)
 
-![Story mode #2](doc/story_mode2.png)
+#### Battle Mode
+![Battle mode action](doc/battle_mode1.png)
 
-### Battle mode
+![Global leaderboard](doc/leaderboard.png)
 
-![Battle mode #1](doc/battle_mode1.png)
+![Intense battles](doc/battle_mode2.png)
 
-![Leaderboard](doc/leaderboard.png)
+#### Mobile Experience
+![Mobile touch controls](doc/mobile.png)
 
-![Battle mode #2](doc/battle_mode2.png)
-
-### Mobile controls
-
-![Mobile controls](doc/mobile.png)
+</details>

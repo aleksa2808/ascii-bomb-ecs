@@ -1,16 +1,16 @@
 /* tslint:disable */
 /* eslint-disable */
-export function run(): void;
 export function start_game(): void;
 export function set_input_active(input: number): void;
+export function run(): void;
 
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
 export interface InitOutput {
   readonly memory: WebAssembly.Memory;
-  readonly run: () => void;
   readonly start_game: () => void;
   readonly set_input_active: (a: number) => void;
+  readonly run: () => void;
   readonly wgpu_compute_pass_set_pipeline: (a: number, b: bigint) => void;
   readonly wgpu_compute_pass_set_bind_group: (a: number, b: number, c: bigint, d: number, e: number) => void;
   readonly wgpu_compute_pass_set_push_constant: (a: number, b: number, c: number, d: number) => void;
@@ -50,6 +50,8 @@ export interface InitOutput {
   readonly wgpu_render_pass_push_debug_group: (a: number, b: number, c: number) => void;
   readonly wgpu_render_pass_pop_debug_group: (a: number) => void;
   readonly wgpu_render_pass_write_timestamp: (a: number, b: bigint, c: number) => void;
+  readonly wgpu_render_pass_begin_occlusion_query: (a: number, b: number) => void;
+  readonly wgpu_render_pass_end_occlusion_query: (a: number) => void;
   readonly wgpu_render_pass_begin_pipeline_statistics_query: (a: number, b: bigint, c: number) => void;
   readonly wgpu_render_pass_end_pipeline_statistics_query: (a: number) => void;
   readonly wgpu_render_pass_execute_bundles: (a: number, b: number, c: number) => void;
@@ -58,17 +60,19 @@ export interface InitOutput {
   readonly wgpu_render_bundle_pop_debug_group: (a: number) => void;
   readonly wgpu_render_bundle_insert_debug_marker: (a: number, b: number) => void;
   readonly wgpu_render_bundle_push_debug_group: (a: number, b: number) => void;
-  readonly __wbindgen_exn_store: (a: number) => void;
   readonly __externref_table_alloc: () => number;
-  readonly __wbindgen_export_2: WebAssembly.Table;
+  readonly __wbindgen_export_1: WebAssembly.Table;
+  readonly __wbindgen_exn_store: (a: number) => void;
   readonly __wbindgen_malloc: (a: number, b: number) => number;
   readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
   readonly __wbindgen_free: (a: number, b: number, c: number) => void;
   readonly __wbindgen_export_6: WebAssembly.Table;
-  readonly closure3976_externref_shim: (a: number, b: number, c: any) => void;
-  readonly closure4074_externref_shim: (a: number, b: number, c: any) => void;
-  readonly _dyn_core__ops__function__FnMut_____Output___R_as_wasm_bindgen__closure__WasmClosure___describe__invoke__hce9983d913385185: (a: number, b: number) => void;
-  readonly closure42519_externref_shim: (a: number, b: number, c: any) => void;
+  readonly closure4016_externref_shim: (a: number, b: number, c: any) => void;
+  readonly closure4019_externref_shim: (a: number, b: number, c: any, d: any) => void;
+  readonly closure4159_externref_shim: (a: number, b: number, c: any) => void;
+  readonly _dyn_core__ops__function__FnMut_____Output___R_as_wasm_bindgen__closure__WasmClosure___describe__invoke__hf47d6f389ebe3482: (a: number, b: number) => void;
+  readonly _dyn_core__ops__function__FnMut_____Output___R_as_wasm_bindgen__closure__WasmClosure___describe__invoke__h5838883ca59c3ad0: (a: number, b: number) => void;
+  readonly closure42699_externref_shim: (a: number, b: number, c: any) => void;
   readonly __wbindgen_start: () => void;
 }
 
