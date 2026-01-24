@@ -17,24 +17,24 @@ pub fn clear_inputs(mut inputs: ResMut<InputActionStatusTracker>) {
 }
 
 pub fn handle_keyboard_input(
-    keyboard_input: Res<Input<KeyCode>>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
     mut inputs: ResMut<InputActionStatusTracker>,
 ) {
     static BINDINGS: &[(KeyCode, InputAction)] = &[
-        (KeyCode::Up, InputAction::Up),
-        (KeyCode::Down, InputAction::Down),
-        (KeyCode::Left, InputAction::Left),
-        (KeyCode::Right, InputAction::Right),
+        (KeyCode::ArrowUp, InputAction::Up),
+        (KeyCode::ArrowDown, InputAction::Down),
+        (KeyCode::ArrowLeft, InputAction::Left),
+        (KeyCode::ArrowRight, InputAction::Right),
         (KeyCode::Space, InputAction::Space),
-        (KeyCode::W, InputAction::W),
-        (KeyCode::S, InputAction::S),
-        (KeyCode::A, InputAction::A),
-        (KeyCode::D, InputAction::D),
-        (KeyCode::G, InputAction::G),
-        (KeyCode::Return, InputAction::Return),
+        (KeyCode::KeyW, InputAction::W),
+        (KeyCode::KeyS, InputAction::S),
+        (KeyCode::KeyA, InputAction::A),
+        (KeyCode::KeyD, InputAction::D),
+        (KeyCode::KeyG, InputAction::G),
+        (KeyCode::Enter, InputAction::Return),
         (KeyCode::Escape, InputAction::Escape),
-        (KeyCode::Back, InputAction::Back),
-        (KeyCode::F, InputAction::F),
+        (KeyCode::Backspace, InputAction::Back),
+        (KeyCode::KeyF, InputAction::F),
     ];
 
     for (key_code, input_action) in BINDINGS {

@@ -361,7 +361,7 @@ pub fn update_secret_mode(
                                             color: fuse_color,
                                         },
                                     )
-                                    .with_alignment(TextAlignment::Center);
+                                    .with_justify(JustifyText::Center);
                                     text.sections.push(TextSection {
                                         value: "┐\n │".into(),
                                         style: TextStyle {

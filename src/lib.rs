@@ -97,7 +97,7 @@ pub fn run() {
             // fixes blurry textures
             .set(ImagePlugin::default_nearest()),
     )
-    .add_state::<AppState>()
+    .init_state::<AppState>()
     .add_plugins(AudioPlugin);
 
     #[cfg(target_arch = "wasm32")]

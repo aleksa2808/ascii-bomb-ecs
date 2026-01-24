@@ -21,7 +21,7 @@ anyhow = "1.0"
 itertools = "0.14"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-bevy = { version = "0.12", default-features = false, features = [
+bevy = { version = "0.13", default-features = false, features = [
     "dynamic_linking",
     "bevy_winit",
     "png",
@@ -36,7 +36,17 @@ bevy = { version = "0.12", default-features = false, features = [
 kira = "0.5.3"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-bevy = { version = "0.12", default-features = false, features = [
+# TODO: fix canvas resizing
+# With the current design, both a logical window size (game pixel count per axis) and a physical
+# window size (browser pixel count per axis) are needed. The working design was to set the logical
+# size via bevy which then changes the canvas width/height properties via winit. The `index.js`
+# script then reacts to it by scaling the canvas to the browser window(via style width/height
+# attributes).
+# However, since the 0.13 bevy version bevy started reacting to the style attribute changes,
+# modifying its logical window size based on them which breaks canvas scaling. One option around
+# this would be to use a patched version of bevy which doesn't react to canvas changes as in this
+# project the game should always be in charge of both the logical and the physical window sizes.
+bevy = { version = "0.13", default-features = false, features = [
     "bevy_winit",
     "png",
     "bevy_core_pipeline",

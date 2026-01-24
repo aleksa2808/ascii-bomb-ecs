@@ -25,7 +25,7 @@ pub fn safe(
     if let Some(w) = wall_of_death {
         let in_danger = match w {
             WallOfDeath::Dormant(t) => {
-                t.percent_left() * t.duration().as_secs_f32() < 5.0 && position.x == 1
+                t.fraction_remaining() * t.duration().as_secs_f32() < 5.0 && position.x == 1
             }
             WallOfDeath::Active(w) => match w.direction {
                 Direction::Left => {

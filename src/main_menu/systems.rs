@@ -525,7 +525,7 @@ pub fn animate_menu_background(
     mut query: Query<&mut Text>,
 ) {
     menu_background_animation_context.timer.tick(time.delta());
-    let k = (menu_background_animation_context.timer.percent() * 3000.0) as usize;
+    let k = (menu_background_animation_context.timer.fraction() * 3000.0) as usize;
 
     for (entity, change_parameters) in &menu_background_animation_context.entity_change_parameters {
         match &change_parameters.values {

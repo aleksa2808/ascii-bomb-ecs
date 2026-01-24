@@ -734,7 +734,7 @@ pub fn bomb_drop(
                                 color: fuse_color,
                             },
                         )
-                        .with_alignment(TextAlignment::Center);
+                        .with_justify(JustifyText::Center);
                         text.sections.push(TextSection {
                             value: "┐\n │".into(),
                             style: TextStyle {
@@ -773,19 +773,19 @@ pub fn animate_fuse(
 ) {
     for (parent, mut text, mut fuse, mut transform) in query2.iter_mut() {
         fuse.animation_timer.tick(time.delta());
-        let percent_left = fuse.animation_timer.percent_left();
-        let fuse_char = match percent_left {
-            _ if (0.0..0.33).contains(&percent_left) => 'x',
-            _ if (0.33..0.66).contains(&percent_left) => '+',
-            _ if (0.66..=1.0).contains(&percent_left) => '*',
+        let fraction_remaining = fuse.animation_timer.fraction_remaining();
+        let fuse_char = match fraction_remaining {
+            _ if (0.0..0.33).contains(&fraction_remaining) => 'x',
+            _ if (0.33..0.66).contains(&fraction_remaining) => '+',
+            _ if (0.66..=1.0).contains(&fraction_remaining) => '*',
             _ => unreachable!(),
         };
 
         let bomb = query.get(parent.get()).unwrap();
-        let percent_left = bomb.timer.percent_left();
+        let fraction_remaining = bomb.timer.fraction_remaining();
 
-        match percent_left {
-            _ if (0.66..1.0).contains(&percent_left) => {
+        match fraction_remaining {
+            _ if (0.66..1.0).contains(&fraction_remaining) => {
                 text.sections = vec![
                     TextSection {
                         value: fuse_char.into(),
@@ -808,7 +808,7 @@ pub fn animate_fuse(
                 translation.x = 0.0;
                 translation.y = TILE_HEIGHT as f32 / 8.0 * 2.0;
             }
-            _ if (0.33..0.66).contains(&percent_left) => {
+            _ if (0.33..0.66).contains(&fraction_remaining) => {
                 text.sections = vec![
                     TextSection {
                         value: fuse_char.into(),
@@ -831,7 +831,7 @@ pub fn animate_fuse(
                 translation.x = TILE_WIDTH as f32 / 12.0;
                 translation.y = TILE_HEIGHT as f32 / 8.0 * 2.0;
             }
-            _ if (0.0..0.33).contains(&percent_left) => {
+            _ if (0.0..0.33).contains(&fraction_remaining) => {
                 text.sections = vec![TextSection {
                     value: fuse_char.into(),
                     style: TextStyle {
@@ -952,7 +952,7 @@ pub fn explode_bombs(
         if let Some(owner) = bomb.owner {
             ev_bomb_restock.send(BombRestockEvent {
                 satchel_owner: owner,
-            })
+            });
         }
 
         if !sound_played {
@@ -1036,9 +1036,9 @@ pub fn animate_immortality(
     for (mut immortal, mut texture, base_texture, immortal_texture) in p.p0().iter_mut() {
         if !immortal.timer.finished() {
             immortal.animation_timer.tick(time.delta());
-            let percent_left = immortal.animation_timer.percent_left();
-            match percent_left {
-                _ if (0.5..=1.0).contains(&percent_left) => {
+            let fraction_remaining = immortal.animation_timer.fraction_remaining();
+            match fraction_remaining {
+                _ if (0.5..=1.0).contains(&fraction_remaining) => {
                     *texture = immortal_texture.0.clone();
                 }
                 _ => *texture = base_texture.0.clone(),
@@ -1388,7 +1388,7 @@ pub fn wall_of_death_update(
                 if let Some(owner) = bomb.owner {
                     ev_bomb_restock.send(BombRestockEvent {
                         satchel_owner: owner,
-                    })
+                    });
                 }
             }
         }

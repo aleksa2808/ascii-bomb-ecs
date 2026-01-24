@@ -841,8 +841,10 @@ pub fn high_score_name_input_update(
     let name = &mut query.get_mut(context.name_text).unwrap().sections[0].value;
 
     for event in char_input_events.read() {
-        if name.len() < 20 && (event.char == ' ' || event.char.is_ascii_graphic()) {
-            name.push(if event.char == ' ' { '_' } else { event.char });
+        for char in event.char.chars() {
+            if name.len() < 20 && (char == ' ' || char.is_ascii_graphic()) {
+                name.push(if char == ' ' { '_' } else { char });
+            }
         }
     }
 
