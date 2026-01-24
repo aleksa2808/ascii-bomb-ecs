@@ -2,7 +2,7 @@ use std::io::Cursor;
 
 use anyhow::Result;
 use bevy::{
-    asset::{self as bevy_asset, io::Reader, AssetLoader, AsyncReadExt, BoxedFuture, LoadContext},
+    asset::{self as bevy_asset, io::Reader, AssetLoader, AsyncReadExt, LoadContext},
     prelude::*,
     reflect::{self as bevy_reflect, TypePath},
     utils::HashMap,
@@ -24,29 +24,27 @@ impl AssetLoader for SoundLoader {
     type Settings = ();
     type Error = anyhow::Error;
 
-    fn load<'a>(
+    async fn load<'a>(
         &'a self,
-        reader: &'a mut Reader,
+        reader: &'a mut Reader<'_>,
         _settings: &'a Self::Settings,
-        _load_context: &'a mut LoadContext,
-    ) -> BoxedFuture<'a, Result<Self::Asset, Self::Error>> {
-        Box::pin(async move {
-            let mut bytes = Vec::new();
-            reader.read_to_end(&mut bytes).await?;
-            let decoder = Decoder::new(Cursor::new(bytes)).unwrap();
-            let sample_rate = decoder.sample_rate() as f32;
-            let num_of_channels = decoder.channels() as u32;
-            let mut channel_data: Vec<Vec<f32>> = vec![vec![]; num_of_channels as usize];
-            decoder
-                .convert_samples()
-                .zip((0..num_of_channels as usize).cycle())
-                .for_each(|(f, i)| channel_data[i].push(f));
+        _load_context: &'a mut LoadContext<'_>,
+    ) -> Result<Self::Asset, Self::Error> {
+        let mut bytes = Vec::new();
+        reader.read_to_end(&mut bytes).await?;
+        let decoder = Decoder::new(Cursor::new(bytes)).unwrap();
+        let sample_rate = decoder.sample_rate() as f32;
+        let num_of_channels = decoder.channels() as u32;
+        let mut channel_data: Vec<Vec<f32>> = vec![vec![]; num_of_channels as usize];
+        decoder
+            .convert_samples()
+            .zip((0..num_of_channels as usize).cycle())
+            .for_each(|(f, i)| channel_data[i].push(f));
 
-            Ok(Sound {
-                num_of_channels,
-                sample_rate,
-                channel_data,
-            })
+        Ok(Sound {
+            num_of_channels,
+            sample_rate,
+            channel_data,
         })
     }
 

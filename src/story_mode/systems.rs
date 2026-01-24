@@ -1,4 +1,9 @@
-use bevy::{ecs::event::Events, prelude::*, render::camera::Camera};
+use bevy::{
+    ecs::event::Events,
+    input::keyboard::{Key, KeyboardInput},
+    prelude::*,
+    render::camera::Camera,
+};
 
 use crate::{
     common::{
@@ -597,7 +602,7 @@ pub fn setup_boss_speech(
                                     },
                                     ..Default::default()
                                 },
-                                background_color: hud_colors.portrait_border_color.into(),
+                                border_color: hud_colors.portrait_border_color.into(),
                                 ..Default::default()
                             },
                             UIComponent,
@@ -825,7 +830,7 @@ pub fn high_score_name_input_update(
     mut commands: Commands,
     context: Res<HighScoreNameInputContext>,
     inputs: Res<InputActionStatusTracker>,
-    mut char_input_events: EventReader<ReceivedCharacter>,
+    mut char_input_events: EventReader<KeyboardInput>,
     mut persistent_high_scores: ResMut<PersistentHighScores>,
     game_score: Res<GameScore>,
     mut query: Query<&mut Text>,
@@ -841,10 +846,27 @@ pub fn high_score_name_input_update(
     let name = &mut query.get_mut(context.name_text).unwrap().sections[0].value;
 
     for event in char_input_events.read() {
-        for char in event.char.chars() {
-            if name.len() < 20 && (char == ' ' || char.is_ascii_graphic()) {
-                name.push(if char == ' ' { '_' } else { char });
+        // Only check for characters when the key is pressed.
+        // TODO: this was in the migration guide, but is it really needed if we get the input from an EventReader?
+        if !event.state.is_pressed() {
+            continue;
+        }
+
+        const MAX_NAME_LENGTH: usize = 20;
+        match &event.logical_key {
+            Key::Character(chars) => {
+                for char in chars.chars() {
+                    if name.len() < MAX_NAME_LENGTH && (char == ' ' || char.is_ascii_graphic()) {
+                        name.push(if char == ' ' { '_' } else { char });
+                    }
+                }
             }
+            Key::Space => {
+                if name.len() < MAX_NAME_LENGTH {
+                    name.push('_');
+                }
+            }
+            _ => {}
         }
     }
 

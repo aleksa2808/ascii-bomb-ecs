@@ -136,7 +136,7 @@ pub fn init_penguin_portraits(
                         },
                         ..Default::default()
                     },
-                    background_color: hud_colors.portrait_border_color.into(),
+                    border_color: hud_colors.portrait_border_color.into(),
                     ..Default::default()
                 },
                 PenguinPortrait(*penguin),

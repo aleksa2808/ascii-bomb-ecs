@@ -196,7 +196,7 @@ __██__
                         },
                         ..Default::default()
                     },
-                    background_color: menu_colors.modal_foreground_color.into(),
+                    border_color: menu_colors.modal_foreground_color.into(),
                     ..Default::default()
                 })
                 .with_children(|parent| {
@@ -405,7 +405,7 @@ pub fn menu_navigation(
                     }
                 }
                 MenuAction::Exit => {
-                    ev_exit.send(AppExit);
+                    ev_exit.send(AppExit::Success);
                     return;
                 }
                 MenuAction::Back => {
@@ -504,7 +504,7 @@ pub fn menu_demo_mode_trigger(
             demo_mode_start_timer.0.tick(time.delta());
             if demo_mode_start_timer.0.finished() {
                 // state switching should fail here if there's a manually triggered state already queued
-                if next_state.0.is_none() {
+                if let NextState::Unchanged = *next_state {
                     println!("Starting demo mode!");
                     commands.insert_resource(BattleModeConfiguration {
                         amount_of_players: 0,

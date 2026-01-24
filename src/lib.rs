@@ -11,7 +11,7 @@ mod story_mode;
 #[cfg(target_arch = "wasm32")]
 mod web;
 
-use bevy::{ecs as bevy_ecs, prelude::*, window::WindowResolution};
+use bevy::{prelude::*, state as bevy_state, window::WindowResolution};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 

@@ -23,7 +23,7 @@ pub fn loading_update(
             // if one of the assets is still loading then just skip until the next time this function is called
             LoadState::NotLoaded | LoadState::Loading => return,
             // situations where asset loading failed for some reason are not handled, just crash the app
-            LoadState::Failed => panic!("failed to load an asset"),
+            LoadState::Failed(error) => panic!("failed to load an asset! error: {}", error),
         }
     }
 

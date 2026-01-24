@@ -287,7 +287,7 @@ pub fn spawn_battle_mode_sub_menu_modal(
                 },
                 ..Default::default()
             },
-            background_color: menu_colors.modal_foreground_color.into(),
+            border_color: menu_colors.modal_foreground_color.into(),
             ..Default::default()
         })
         .with_children(|parent| {

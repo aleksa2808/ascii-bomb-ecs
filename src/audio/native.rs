@@ -2,7 +2,7 @@ use std::io::Cursor;
 
 use anyhow::Result;
 use bevy::{
-    asset::{self as bevy_asset, io::Reader, AssetLoader, AsyncReadExt, BoxedFuture, LoadContext},
+    asset::{self as bevy_asset, io::Reader, AssetLoader, AsyncReadExt, LoadContext},
     prelude::*,
     reflect::{self as bevy_reflect, TypePath},
     utils::HashMap,
@@ -26,35 +26,33 @@ impl AssetLoader for SoundLoader {
     type Settings = ();
     type Error = anyhow::Error;
 
-    fn load<'a>(
+    async fn load<'a>(
         &'a self,
-        reader: &'a mut Reader,
+        reader: &'a mut Reader<'_>,
         _settings: &'a Self::Settings,
-        _load_context: &'a mut LoadContext,
-    ) -> BoxedFuture<'a, Result<Self::Asset, Self::Error>> {
-        Box::pin(async move {
-            let mut bytes = Vec::new();
-            reader.read_to_end(&mut bytes).await?;
-            let decoder = Decoder::new(Cursor::new(bytes)).unwrap();
-            let sample_rate = decoder.sample_rate();
-            let num_of_channels = decoder.channels();
-            let data = decoder.convert_samples();
-            let frames = match num_of_channels {
-                1 => data
-                    .into_iter()
-                    .map(Frame::from_mono)
-                    .collect::<Vec<Frame>>(),
-                2 => data
-                    .tuples()
-                    .map(|(left, right)| Frame::new(left, right))
-                    .collect::<Vec<Frame>>(),
-                _ => unreachable!(),
-            };
+        _load_context: &'a mut LoadContext<'_>,
+    ) -> Result<Self::Asset, Self::Error> {
+        let mut bytes = Vec::new();
+        reader.read_to_end(&mut bytes).await?;
+        let decoder = Decoder::new(Cursor::new(bytes)).unwrap();
+        let sample_rate = decoder.sample_rate();
+        let num_of_channels = decoder.channels();
+        let data = decoder.convert_samples();
+        let frames = match num_of_channels {
+            1 => data
+                .into_iter()
+                .map(Frame::from_mono)
+                .collect::<Vec<Frame>>(),
+            2 => data
+                .tuples()
+                .map(|(left, right)| Frame::new(left, right))
+                .collect::<Vec<Frame>>(),
+            _ => unreachable!(),
+        };
 
-            let sound = KiraSound::from_frames(sample_rate, frames, SoundSettings::default());
+        let sound = KiraSound::from_frames(sample_rate, frames, SoundSettings::default());
 
-            Ok(Sound(sound))
-        })
+        Ok(Sound(sound))
     }
 
     fn extensions(&self) -> &[&str] {
