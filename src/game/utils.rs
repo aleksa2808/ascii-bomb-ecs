@@ -43,18 +43,15 @@ pub fn init_hud(
     extra_item_fn: Option<&dyn Fn(&mut ChildBuilder)>,
 ) {
     let mut ec = parent.spawn((
-        NodeBundle {
-            style: Style {
-                position_type: PositionType::Absolute,
-                left: Val::Px(0.0),
-                top: Val::Px(0.0),
-                width: Val::Px(width),
-                height: Val::Px(HUD_HEIGHT as f32),
-                ..Default::default()
-            },
-            background_color: hud_colors.get_background_color(world_id).into(),
+        Node {
+            position_type: PositionType::Absolute,
+            left: Val::Px(0.0),
+            top: Val::Px(0.0),
+            width: Val::Px(width),
+            height: Val::Px(HUD_HEIGHT as f32),
             ..Default::default()
         },
+        BackgroundColor(hud_colors.get_background_color(world_id)),
         UIComponent,
         HUDRoot,
     ));
@@ -67,39 +64,32 @@ pub fn init_hud(
             // clock / pause indicator
             parent
                 .spawn((
-                    NodeBundle {
-                        style: Style {
-                            position_type: PositionType::Absolute,
-                            left: Val::Px(width / 2.0 - 3.0 * PIXEL_SCALE as f32),
-                            top: Val::Px(12.0 * PIXEL_SCALE as f32),
-                            width: Val::Px(5.0 * PIXEL_SCALE as f32),
-                            height: Val::Px(2.0 * PIXEL_SCALE as f32),
-                            ..Default::default()
-                        },
-                        background_color: hud_colors.black_color.into(),
+                    Node {
+                        position_type: PositionType::Absolute,
+                        left: Val::Px(width / 2.0 - 3.0 * PIXEL_SCALE as f32),
+                        top: Val::Px(12.0 * PIXEL_SCALE as f32),
+                        width: Val::Px(5.0 * PIXEL_SCALE as f32),
+                        height: Val::Px(2.0 * PIXEL_SCALE as f32),
                         ..Default::default()
                     },
+                    BackgroundColor(hud_colors.black_color),
                     UIComponent,
                 ))
                 .with_children(|parent| {
                     parent.spawn((
-                        TextBundle {
-                            text: Text::from_section(
-                                "",
-                                TextStyle {
-                                    font: fonts.mono.clone(),
-                                    font_size: 2.0 * PIXEL_SCALE as f32,
-                                    color: COLORS[15].into(),
-                                },
-                            ),
-                            style: Style {
-                                position_type: PositionType::Absolute,
-                                top: Val::Px(0.0),
-                                left: Val::Px(0.0),
-                                ..Default::default()
-                            },
+                        Node {
+                            position_type: PositionType::Absolute,
+                            top: Val::Px(0.0),
+                            left: Val::Px(0.0),
                             ..Default::default()
                         },
+                        Text::new("--:--"),
+                        TextFont {
+                            font: fonts.mono.clone(),
+                            font_size: 2.0 * PIXEL_SCALE as f32,
+                            ..Default::default()
+                        },
+                        TextColor(COLORS[15].into()),
                         UIComponent,
                         GameTimerDisplay,
                     ));
@@ -121,49 +111,43 @@ pub fn init_penguin_portraits(
     for penguin in penguin_tags {
         parent
             .spawn((
-                NodeBundle {
-                    style: Style {
-                        position_type: PositionType::Absolute,
-                        left: Val::Px(((5 + 12 * penguin.0) * PIXEL_SCALE) as f32),
+                Node {
+                    position_type: PositionType::Absolute,
+                    left: Val::Px(((5 + 12 * penguin.0) * PIXEL_SCALE) as f32),
+                    top: Val::Px(PIXEL_SCALE as f32),
+                    width: Val::Px(8.0 * PIXEL_SCALE as f32),
+                    height: Val::Px(10.0 * PIXEL_SCALE as f32),
+                    border: UiRect {
+                        left: Val::Px(PIXEL_SCALE as f32),
                         top: Val::Px(PIXEL_SCALE as f32),
-                        width: Val::Px(8.0 * PIXEL_SCALE as f32),
-                        height: Val::Px(10.0 * PIXEL_SCALE as f32),
-                        border: UiRect {
-                            left: Val::Px(PIXEL_SCALE as f32),
-                            top: Val::Px(PIXEL_SCALE as f32),
-                            right: Val::Px(PIXEL_SCALE as f32),
-                            bottom: Val::Px(PIXEL_SCALE as f32),
-                        },
-                        ..Default::default()
+                        right: Val::Px(PIXEL_SCALE as f32),
+                        bottom: Val::Px(PIXEL_SCALE as f32),
                     },
-                    border_color: hud_colors.portrait_border_color.into(),
                     ..Default::default()
                 },
+                BorderColor(hud_colors.portrait_border_color),
                 PenguinPortrait(*penguin),
                 UIComponent,
             ))
             .with_children(|parent| {
                 parent
                     .spawn((
-                        NodeBundle {
-                            style: Style {
-                                width: Val::Percent(100.0),
-                                height: Val::Percent(100.0),
-                                ..Default::default()
-                            },
-                            background_color: hud_colors.portrait_background_color.into(),
+                        Node {
+                            width: Val::Percent(100.0),
+                            height: Val::Percent(100.0),
                             ..Default::default()
                         },
+                        BackgroundColor(hud_colors.portrait_background_color),
                         UIComponent,
                     ))
                     .with_children(|parent| {
                         parent.spawn((
-                            ImageBundle {
-                                style: Style {
-                                    width: Val::Percent(100.0),
-                                    height: Val::Percent(100.0),
-                                    ..Default::default()
-                                },
+                            Node {
+                                width: Val::Percent(100.0),
+                                height: Val::Percent(100.0),
+                                ..Default::default()
+                            },
+                            ImageNode {
                                 image: game_textures.get_penguin_texture(*penguin).clone().into(),
                                 ..Default::default()
                             },
@@ -189,15 +173,15 @@ pub fn spawn_map(
     // place empty/passable tiles
     for j in 0..map_size.rows {
         for i in 0..map_size.columns {
-            commands.spawn(SpriteBundle {
-                texture: game_textures.get_map_textures().empty.clone(),
-                transform: Transform::from_xyz(get_x(i as isize), get_y(j as isize), 0.0),
-                sprite: Sprite {
+            commands.spawn((
+                Transform::from_xyz(get_x(i as isize), get_y(j as isize), 0.0),
+                Sprite {
+                    image: game_textures.get_map_textures().empty.clone(),
                     custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
                     ..Default::default()
                 },
-                ..Default::default()
-            });
+                PostGameCleanup,
+            ));
         }
     }
 
@@ -244,18 +228,16 @@ pub fn spawn_map(
         for position in spawn_group {
             let entity = commands
                 .spawn((
-                    SpriteBundle {
-                        texture: game_textures.get_map_textures().wall.clone(),
-                        transform: Transform::from_xyz(get_x(position.x), get_y(position.y), 10.0),
-                        sprite: Sprite {
-                            custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
-                            ..Default::default()
-                        },
+                    Transform::from_xyz(get_x(position.x), get_y(position.y), 10.0),
+                    Sprite {
+                        image: game_textures.get_map_textures().wall.clone(),
+                        custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
                         ..Default::default()
                     },
                     Wall,
                     Solid,
                     *position,
+                    PostGameCleanup,
                 ))
                 .id();
             reveal_group.push(entity);
@@ -326,19 +308,17 @@ pub fn spawn_map(
     for position in &destructible_wall_positions {
         let entity = commands
             .spawn((
-                SpriteBundle {
-                    texture: game_textures.get_map_textures().destructible_wall.clone(),
-                    transform: Transform::from_xyz(get_x(position.x), get_y(position.y), 10.0),
-                    sprite: Sprite {
-                        custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
-                        ..Default::default()
-                    },
+                Transform::from_xyz(get_x(position.x), get_y(position.y), 10.0),
+                Sprite {
+                    image: game_textures.get_map_textures().destructible_wall.clone(),
+                    custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
                     ..Default::default()
                 },
                 Wall,
                 Solid,
                 Destructible,
                 *position,
+                PostGameCleanup,
             ))
             .id();
         wall_entity_reveal_groups.push(vec![entity]);
@@ -382,8 +362,9 @@ pub fn generate_item_at_position(
     };
 
     commands.spawn((
-        SpriteBundle {
-            texture: match item {
+        Transform::from_xyz(get_x(position.x), get_y(position.y), 20.0),
+        Sprite {
+            image: match item {
                 Item::Upgrade(Upgrade::BombsUp) => game_textures.bombs_up.clone(),
                 Item::Upgrade(Upgrade::RangeUp) => game_textures.range_up.clone(),
                 Item::Upgrade(Upgrade::LivesUp) => game_textures.lives_up.clone(),
@@ -391,14 +372,11 @@ pub fn generate_item_at_position(
                 Item::Power(Power::BombPush) => game_textures.bomb_push.clone(),
                 Item::Power(Power::Immortal) => game_textures.immortal.clone(),
             },
-            transform: Transform::from_xyz(get_x(position.x), get_y(position.y), 20.0),
-            sprite: Sprite {
-                custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
-                ..Default::default()
-            },
+            custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
             ..Default::default()
         },
         position,
         item,
+        PostGameCleanup,
     ));
 }

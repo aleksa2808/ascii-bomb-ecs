@@ -90,7 +90,6 @@ pub struct Bomb {
 
 #[derive(Component)]
 pub struct Fuse {
-    pub color: Color,
     pub animation_timer: Timer,
 }
 
@@ -192,3 +191,7 @@ pub struct PenguinPortraitDisplay;
 
 #[derive(Component)]
 pub struct PenguinPortrait(pub Penguin);
+
+// cleanup
+#[derive(Component)]
+pub struct PostGameCleanup;

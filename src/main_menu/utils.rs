@@ -23,51 +23,51 @@ pub fn spawn_menu_type(
 ) {
     match menu_type {
         MenuType::SelectableItems(selectable_items) => {
-            parent.spawn(TextBundle {
-                text: Text::from_section(
-                    selectable_items.get_item_names().join("\n\n"),
-                    TextStyle {
-                        font: fonts.mono.clone(),
-                        font_size: 2.0 * PIXEL_SCALE as f32,
-                        color: menu_colors.modal_foreground_color,
-                    },
-                ),
-                style: Style {
+            parent.spawn((
+                Node {
                     position_type: PositionType::Absolute,
                     top: Val::Px(2.0 * PIXEL_SCALE as f32),
                     left: Val::Px(3.0 * PIXEL_SCALE as f32),
                     ..Default::default()
                 },
-                ..Default::default()
-            });
+                Text::new(selectable_items.get_item_names().join("\n\n")),
+                TextFont {
+                    font: fonts.mono.clone(),
+                    font_size: 2.0 * PIXEL_SCALE as f32,
+                    ..Default::default()
+                },
+                TextColor(menu_colors.modal_foreground_color),
+            ));
 
             // spawn cursor
             parent.spawn((
-                TextBundle {
-                    text: Text::from_section(
-                        "»",
-                        TextStyle {
-                            font: fonts.mono.clone(),
-                            font_size: 2.0 * PIXEL_SCALE as f32,
-                            color: menu_colors.modal_foreground_color,
-                        },
+                Node {
+                    position_type: PositionType::Absolute,
+                    top: Val::Px(
+                        ((2 + selectable_items.get_cursor_position() * 4) * PIXEL_SCALE) as f32,
                     ),
-                    style: Style {
-                        position_type: PositionType::Absolute,
-                        top: Val::Px(
-                            ((2 + selectable_items.get_cursor_position() * 4) * PIXEL_SCALE) as f32,
-                        ),
-                        left: Val::Px(PIXEL_SCALE as f32),
-                        ..Default::default()
-                    },
+                    left: Val::Px(PIXEL_SCALE as f32),
                     ..Default::default()
                 },
+                Text::new("»"),
+                TextFont {
+                    font: fonts.mono.clone(),
+                    font_size: 2.0 * PIXEL_SCALE as f32,
+                    ..Default::default()
+                },
+                TextColor(menu_colors.modal_foreground_color),
                 Cursor,
             ));
         }
         MenuType::ToggleableOptions(toggleable_options) => {
-            parent.spawn(TextBundle {
-                text: Text::from_section(
+            parent.spawn((
+                Node {
+                    position_type: PositionType::Absolute,
+                    top: Val::Px(2.0 * PIXEL_SCALE as f32),
+                    left: Val::Px(3.0 * PIXEL_SCALE as f32),
+                    ..Default::default()
+                },
+                Text::new(
                     toggleable_options
                         .get_options()
                         .iter()
@@ -88,69 +88,56 @@ pub fn spawn_menu_type(
                         })
                         .collect::<Vec<String>>()
                         .join("\n\n"),
-                    TextStyle {
-                        font: fonts.mono.clone(),
-                        font_size: 2.0 * PIXEL_SCALE as f32,
-                        color: menu_colors.modal_foreground_color,
-                    },
                 ),
-                style: Style {
-                    position_type: PositionType::Absolute,
-                    top: Val::Px(2.0 * PIXEL_SCALE as f32),
-                    left: Val::Px(3.0 * PIXEL_SCALE as f32),
+                TextFont {
+                    font: fonts.mono.clone(),
+                    font_size: 2.0 * PIXEL_SCALE as f32,
                     ..Default::default()
                 },
-                ..Default::default()
-            });
+                TextColor(menu_colors.modal_foreground_color),
+            ));
 
             // spawn cursor
             parent.spawn((
-                TextBundle {
-                    text: Text::from_section(
-                        "»",
-                        TextStyle {
-                            font: fonts.mono.clone(),
-                            font_size: 2.0 * PIXEL_SCALE as f32,
-                            color: menu_colors.modal_foreground_color,
-                        },
+                Node {
+                    position_type: PositionType::Absolute,
+                    top: Val::Px(
+                        ((2 + toggleable_options.get_cursor_position() * 4) * PIXEL_SCALE) as f32,
                     ),
-                    style: Style {
-                        position_type: PositionType::Absolute,
-                        top: Val::Px(
-                            ((2 + toggleable_options.get_cursor_position() * 4) * PIXEL_SCALE)
-                                as f32,
-                        ),
-                        left: Val::Px(PIXEL_SCALE as f32),
-                        ..Default::default()
-                    },
+                    left: Val::Px(PIXEL_SCALE as f32),
                     ..Default::default()
                 },
+                Text::new("»"),
+                TextFont {
+                    font: fonts.mono.clone(),
+                    font_size: 2.0 * PIXEL_SCALE as f32,
+                    ..Default::default()
+                },
+                TextColor(menu_colors.modal_foreground_color),
                 Cursor,
             ));
         }
         MenuType::StaticText(static_text) | MenuType::ControlsScreen(static_text) => {
-            parent.spawn(TextBundle {
-                text: Text::from_section(
-                    *static_text,
-                    TextStyle {
-                        font: fonts.mono.clone(),
-                        font_size: 2.0 * PIXEL_SCALE as f32,
-                        color: menu_colors.modal_foreground_color,
-                    },
-                ),
-                style: Style {
+            parent.spawn((
+                Node {
                     position_type: PositionType::Absolute,
                     top: Val::Px(2.0 * PIXEL_SCALE as f32),
                     left: Val::Px(PIXEL_SCALE as f32),
                     ..Default::default()
                 },
-                ..Default::default()
-            });
+                Text::new(*static_text),
+                TextFont {
+                    font: fonts.mono.clone(),
+                    font_size: 2.0 * PIXEL_SCALE as f32,
+                    ..Default::default()
+                },
+                TextColor(menu_colors.modal_foreground_color),
+            ));
 
             // continue button
             parent
-                .spawn(NodeBundle {
-                    style: Style {
+                .spawn((
+                    Node {
                         position_type: PositionType::Absolute,
                         left: Val::Px(15.0 * PIXEL_SCALE as f32),
                         top: Val::Px(32.0 * PIXEL_SCALE as f32),
@@ -158,47 +145,42 @@ pub fn spawn_menu_type(
                         height: Val::Px(2.0 * PIXEL_SCALE as f32),
                         ..Default::default()
                     },
-                    background_color: menu_colors.modal_foreground_color.into(),
-                    ..Default::default()
-                })
+                    BackgroundColor(menu_colors.modal_foreground_color),
+                ))
                 .with_children(|parent| {
-                    parent.spawn(TextBundle {
-                        text: Text::from_section(
-                            "CONTINUE",
-                            TextStyle {
-                                font: fonts.mono.clone(),
-                                font_size: 2.0 * PIXEL_SCALE as f32,
-                                color: menu_colors.modal_background_color,
-                            },
-                        ),
-                        style: Style {
+                    parent.spawn((
+                        Node {
                             position_type: PositionType::Absolute,
                             top: Val::Px(0.0),
                             left: Val::Px(0.0),
                             ..Default::default()
                         },
-                        ..Default::default()
-                    });
+                        Text::new("CONTINUE"),
+                        TextFont {
+                            font: fonts.mono.clone(),
+                            font_size: 2.0 * PIXEL_SCALE as f32,
+                            ..Default::default()
+                        },
+                        TextColor(menu_colors.modal_background_color),
+                    ));
                 });
         }
         MenuType::HallOfFame => {
-            parent.spawn(TextBundle {
-                text: Text::from_section(
-                    "HIGH-SCORES",
-                    TextStyle {
-                        font: fonts.mono.clone(),
-                        font_size: 2.0 * PIXEL_SCALE as f32,
-                        color: menu_colors.modal_foreground_color,
-                    },
-                ),
-                style: Style {
+            parent.spawn((
+                Node {
                     position_type: PositionType::Absolute,
                     top: Val::Px(2.0 * PIXEL_SCALE as f32),
                     left: Val::Px(13.0 * PIXEL_SCALE as f32),
                     ..Default::default()
                 },
-                ..Default::default()
-            });
+                Text::new("HIGH-SCORES"),
+                TextFont {
+                    font: fonts.mono.clone(),
+                    font_size: 2.0 * PIXEL_SCALE as f32,
+                    ..Default::default()
+                },
+                TextColor(menu_colors.modal_foreground_color),
+            ));
 
             let high_scores_text = (0..HighScores::HIGH_SCORES_MAX_SIZE)
                 .map(|i| {
@@ -210,28 +192,26 @@ pub fn spawn_menu_type(
                 })
                 .collect::<Vec<String>>()
                 .join("\n");
-            parent.spawn(TextBundle {
-                text: Text::from_section(
-                    high_scores_text,
-                    TextStyle {
-                        font: fonts.mono.clone(),
-                        font_size: 2.0 * PIXEL_SCALE as f32,
-                        color: menu_colors.modal_foreground_color,
-                    },
-                ),
-                style: Style {
+            parent.spawn((
+                Node {
                     position_type: PositionType::Absolute,
                     top: Val::Px(6.0 * PIXEL_SCALE as f32),
                     left: Val::Px(PIXEL_SCALE as f32),
                     ..Default::default()
                 },
-                ..Default::default()
-            });
+                Text::new(high_scores_text),
+                TextFont {
+                    font: fonts.mono.clone(),
+                    font_size: 2.0 * PIXEL_SCALE as f32,
+                    ..Default::default()
+                },
+                TextColor(menu_colors.modal_foreground_color),
+            ));
 
             // continue button
             parent
-                .spawn(NodeBundle {
-                    style: Style {
+                .spawn((
+                    Node {
                         position_type: PositionType::Absolute,
                         left: Val::Px(15.0 * PIXEL_SCALE as f32),
                         top: Val::Px(32.0 * PIXEL_SCALE as f32),
@@ -239,27 +219,24 @@ pub fn spawn_menu_type(
                         height: Val::Px(2.0 * PIXEL_SCALE as f32),
                         ..Default::default()
                     },
-                    background_color: menu_colors.modal_foreground_color.into(),
-                    ..Default::default()
-                })
+                    BackgroundColor(menu_colors.modal_foreground_color),
+                ))
                 .with_children(|parent| {
-                    parent.spawn(TextBundle {
-                        text: Text::from_section(
-                            "CONTINUE",
-                            TextStyle {
-                                font: fonts.mono.clone(),
-                                font_size: 2.0 * PIXEL_SCALE as f32,
-                                color: menu_colors.modal_background_color,
-                            },
-                        ),
-                        style: Style {
+                    parent.spawn((
+                        Node {
                             position_type: PositionType::Absolute,
                             top: Val::Px(0.0),
                             left: Val::Px(0.0),
                             ..Default::default()
                         },
-                        ..Default::default()
-                    });
+                        Text::new("CONTINUE"),
+                        TextFont {
+                            font: fonts.mono.clone(),
+                            font_size: 2.0 * PIXEL_SCALE as f32,
+                            ..Default::default()
+                        },
+                        TextColor(menu_colors.modal_background_color),
+                    ));
                 });
         }
     }
@@ -272,8 +249,8 @@ pub fn spawn_battle_mode_sub_menu_modal(
     menu_colors: &MenuColors,
 ) {
     parent
-        .spawn(NodeBundle {
-            style: Style {
+        .spawn((
+            Node {
                 position_type: PositionType::Absolute,
                 left: Val::Px(6.0 * PIXEL_SCALE as f32),
                 top: Val::Px(12.0 * PIXEL_SCALE as f32),
@@ -287,13 +264,18 @@ pub fn spawn_battle_mode_sub_menu_modal(
                 },
                 ..Default::default()
             },
-            border_color: menu_colors.modal_foreground_color.into(),
-            ..Default::default()
-        })
+            BorderColor(menu_colors.modal_foreground_color),
+        ))
         .with_children(|parent| {
             // spawn modal border
-            parent.spawn(TextBundle {
-                text: Text::from_section(
+            parent.spawn((
+                Node {
+                    position_type: PositionType::Absolute,
+                    top: Val::Px(-2.0 * PIXEL_SCALE as f32),
+                    left: Val::Px(-1.0 * PIXEL_SCALE as f32),
+                    ..Default::default()
+                },
+                Text::new(
                     r"
 ┌────────────────────────┐
 │                        │
@@ -304,33 +286,24 @@ pub fn spawn_battle_mode_sub_menu_modal(
 └────────────────────────┘
 "
                     .trim_matches('\n'),
-                    TextStyle {
-                        font: fonts.mono.clone(),
-                        font_size: 2.0 * PIXEL_SCALE as f32,
-                        color: menu_colors.modal_background_color,
-                    },
                 ),
-                style: Style {
-                    position_type: PositionType::Absolute,
-                    top: Val::Px(-2.0 * PIXEL_SCALE as f32),
-                    left: Val::Px(-1.0 * PIXEL_SCALE as f32),
+                TextFont {
+                    font: fonts.mono.clone(),
+                    font_size: 2.0 * PIXEL_SCALE as f32,
                     ..Default::default()
                 },
-                ..Default::default()
-            });
+                TextColor(menu_colors.modal_background_color),
+            ));
 
             // spawn initial content
             parent
                 .spawn((
-                    NodeBundle {
-                        style: Style {
-                            width: Val::Percent(100.0),
-                            height: Val::Percent(100.0),
-                            ..Default::default()
-                        },
-                        background_color: menu_colors.modal_background_color.into(),
+                    Node {
+                        width: Val::Percent(100.0),
+                        height: Val::Percent(100.0),
                         ..Default::default()
                     },
+                    BackgroundColor(menu_colors.modal_background_color),
                     BattleModeSubMenuContentBox,
                 ))
                 .with_children(|parent| {
@@ -345,62 +318,58 @@ pub fn spawn_battle_mode_sub_menu_content(
     fonts: &Fonts,
     menu_colors: &MenuColors,
 ) {
-    parent.spawn(TextBundle {
-        text: Text::from_section(
-            match sub_menu_state.step {
-                BattleModeSubMenuStep::AmountOfPlayers => "AMOUNT OF PLAYERS:",
-                BattleModeSubMenuStep::AmountOfBots => "AMOUNT OF BOTS:",
-                BattleModeSubMenuStep::WinningScore => "AMOUNT OF WINS:",
-                BattleModeSubMenuStep::BotDifficulty => "DIFFICULTY:",
-            },
-            TextStyle {
-                font: fonts.mono.clone(),
-                font_size: 2.0 * PIXEL_SCALE as f32,
-                color: menu_colors.modal_foreground_color,
-            },
-        ),
-        style: Style {
+    parent.spawn((
+        Node {
             position_type: PositionType::Absolute,
             top: Val::Px(2.0 * PIXEL_SCALE as f32),
             left: Val::Px(PIXEL_SCALE as f32),
             ..Default::default()
         },
-        ..Default::default()
-    });
+        Text::new(match sub_menu_state.step {
+            BattleModeSubMenuStep::AmountOfPlayers => "AMOUNT OF PLAYERS:",
+            BattleModeSubMenuStep::AmountOfBots => "AMOUNT OF BOTS:",
+            BattleModeSubMenuStep::WinningScore => "AMOUNT OF WINS:",
+            BattleModeSubMenuStep::BotDifficulty => "DIFFICULTY:",
+        }),
+        TextFont {
+            font: fonts.mono.clone(),
+            font_size: 2.0 * PIXEL_SCALE as f32,
+            ..Default::default()
+        },
+        TextColor(menu_colors.modal_foreground_color),
+    ));
 
-    parent.spawn(TextBundle {
-        text: Text::from_section(
-            format!(
-                "« {} »",
-                match sub_menu_state.step {
-                    BattleModeSubMenuStep::AmountOfPlayers => sub_menu_state
-                        .amount_of_actors
-                        .amount_of_players()
-                        .to_string(),
-                    BattleModeSubMenuStep::AmountOfBots =>
-                        sub_menu_state.amount_of_actors.amount_of_bots().to_string(),
-                    BattleModeSubMenuStep::WinningScore =>
-                        sub_menu_state.winning_score.value().to_string(),
-                    BattleModeSubMenuStep::BotDifficulty =>
-                        String::from(match sub_menu_state.difficulty.value() {
-                            BotDifficulty::Easy => "EASY",
-                            BotDifficulty::Medium => "MEDIUM",
-                            BotDifficulty::Hard => "HARD",
-                        }),
-                }
-            ),
-            TextStyle {
-                font: fonts.mono.clone(),
-                font_size: 2.0 * PIXEL_SCALE as f32,
-                color: menu_colors.modal_foreground_color,
-            },
-        ),
-        style: Style {
+    parent.spawn((
+        Node {
             position_type: PositionType::Absolute,
             top: Val::Px(4.0 * PIXEL_SCALE as f32),
             left: Val::Px(PIXEL_SCALE as f32),
             ..Default::default()
         },
-        ..Default::default()
-    });
+        Text::new(format!(
+            "« {} »",
+            match sub_menu_state.step {
+                BattleModeSubMenuStep::AmountOfPlayers => sub_menu_state
+                    .amount_of_actors
+                    .amount_of_players()
+                    .to_string(),
+                BattleModeSubMenuStep::AmountOfBots =>
+                    sub_menu_state.amount_of_actors.amount_of_bots().to_string(),
+                BattleModeSubMenuStep::WinningScore =>
+                    sub_menu_state.winning_score.value().to_string(),
+                BattleModeSubMenuStep::BotDifficulty =>
+                    String::from(match sub_menu_state.difficulty.value() {
+                        BotDifficulty::Easy => "EASY",
+                        BotDifficulty::Medium => "MEDIUM",
+                        BotDifficulty::Hard => "HARD",
+                    }),
+            }
+        )),
+        TextFont {
+            font: fonts.mono.clone(),
+            font_size: 2.0 * PIXEL_SCALE as f32,
+            ..Default::default()
+        },
+        TextColor(menu_colors.modal_foreground_color),
+    ));
 }

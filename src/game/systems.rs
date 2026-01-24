@@ -41,14 +41,15 @@ pub fn resize_window(
 }
 
 pub fn spawn_cameras(mut commands: Commands, map_size: Res<MapSize>) {
-    commands.spawn(Camera2dBundle {
-        transform: Transform::from_xyz(
+    commands.spawn((
+        Camera2d,
+        Transform::from_xyz(
             ((map_size.columns * TILE_WIDTH) as f32) / 2.0,
             -((map_size.rows * TILE_HEIGHT - HUD_HEIGHT) as f32 / 2.0),
             999.9,
         ),
-        ..default()
-    });
+        PostGameCleanup,
+    ));
 }
 
 pub fn setup_penguin_portraits(
@@ -76,7 +77,7 @@ pub fn hud_update(
     let remaining_seconds = (game_timer.0.duration() - game_timer.0.elapsed())
         .as_secs_f32()
         .ceil() as usize;
-    query.single_mut().sections[0].value = format_hud_time(remaining_seconds);
+    query.single_mut().0 = format_hud_time(remaining_seconds);
 
     // remove dead penguin portraits :(
     for (entity, PenguinPortrait(penguin)) in query3.iter() {
@@ -87,7 +88,7 @@ pub fn hud_update(
 }
 
 pub fn hud_indicate_pause(mut query: Query<&mut Text, With<GameTimerDisplay>>) {
-    query.single_mut().sections[0].value = String::from("PAUSE");
+    query.single_mut().0 = String::from("PAUSE");
 }
 
 pub fn move_cooldown_tick(time: Res<Time>, mut query: Query<&mut MoveCooldown>) {
@@ -702,17 +703,10 @@ pub fn bomb_drop(
 
                 commands
                     .spawn((
-                        SpriteBundle {
-                            texture: game_textures.bomb.clone(),
-                            transform: Transform::from_xyz(
-                                get_x(position.x),
-                                get_y(position.y),
-                                25.0,
-                            ),
-                            sprite: Sprite {
-                                custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
-                                ..Default::default()
-                            },
+                        Transform::from_xyz(get_x(position.x), get_y(position.y), 25.0),
+                        Sprite {
+                            image: game_textures.bomb.clone(),
+                            custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
                             ..Default::default()
                         },
                         Bomb {
@@ -722,43 +716,40 @@ pub fn bomb_drop(
                         },
                         Solid,
                         *position,
+                        PostGameCleanup,
                     ))
                     .with_children(|parent| {
                         let fuse_color = COLORS[if world_id.0 == 2 { 12 } else { 14 }].into();
 
-                        let mut text = Text::from_section(
-                            '*',
-                            TextStyle {
-                                font: fonts.mono.clone(),
-                                font_size: 2.0 * PIXEL_SCALE as f32,
-                                color: fuse_color,
-                            },
-                        )
-                        .with_justify(JustifyText::Center);
-                        text.sections.push(TextSection {
-                            value: "┐\n │".into(),
-                            style: TextStyle {
-                                font: fonts.mono.clone(),
-                                font_size: 2.0 * PIXEL_SCALE as f32,
-                                color: COLORS[0].into(),
-                            },
-                        });
-
-                        parent.spawn((
-                            Text2dBundle {
-                                text,
-                                transform: Transform::from_xyz(
-                                    0.0,
-                                    TILE_HEIGHT as f32 / 8.0 * 2.0,
-                                    0.0,
-                                ),
-                                ..Default::default()
-                            },
-                            Fuse {
-                                color: fuse_color,
-                                animation_timer: Timer::from_seconds(0.1, TimerMode::Repeating),
-                            },
-                        ));
+                        parent
+                            .spawn((
+                                Text2d::default(),
+                                TextLayout::new_with_justify(JustifyText::Center),
+                                Transform::from_xyz(0.0, TILE_HEIGHT as f32 / 8.0 * 2.0, 0.0),
+                                Fuse {
+                                    animation_timer: Timer::from_seconds(0.1, TimerMode::Repeating),
+                                },
+                            ))
+                            .with_children(|p| {
+                                p.spawn((
+                                    TextSpan::new('*'),
+                                    TextFont {
+                                        font: fonts.mono.clone(),
+                                        font_size: 2.0 * PIXEL_SCALE as f32,
+                                        ..Default::default()
+                                    },
+                                    TextColor(fuse_color),
+                                ));
+                                p.spawn((
+                                    TextSpan::new("┐\n │"),
+                                    TextFont {
+                                        font: fonts.mono.clone(),
+                                        font_size: 2.0 * PIXEL_SCALE as f32,
+                                        ..Default::default()
+                                    },
+                                    TextColor(COLORS[0].into()),
+                                ));
+                            });
                     });
             }
         }
@@ -767,11 +758,11 @@ pub fn bomb_drop(
 
 pub fn animate_fuse(
     time: Res<Time>,
-    fonts: Res<Fonts>,
     query: Query<&Bomb>,
-    mut query2: Query<(&Parent, &mut Text, &mut Fuse, &mut Transform)>,
+    mut query2: Query<(Entity, &Parent, &mut Fuse, &mut Transform), With<Text2d>>,
+    mut writer: TextUiWriter,
 ) {
-    for (parent, mut text, mut fuse, mut transform) in query2.iter_mut() {
+    for (entity, parent, mut fuse, mut transform) in query2.iter_mut() {
         fuse.animation_timer.tick(time.delta());
         let fraction_remaining = fuse.animation_timer.fraction_remaining();
         let fuse_char = match fraction_remaining {
@@ -784,67 +775,26 @@ pub fn animate_fuse(
         let bomb = query.get(parent.get()).unwrap();
         let fraction_remaining = bomb.timer.fraction_remaining();
 
+        *writer.text(entity, 1) = fuse_char.into();
         match fraction_remaining {
-            _ if (0.66..1.0).contains(&fraction_remaining) => {
-                text.sections = vec![
-                    TextSection {
-                        value: fuse_char.into(),
-                        style: TextStyle {
-                            font: fonts.mono.clone(),
-                            font_size: 2.0 * PIXEL_SCALE as f32,
-                            color: fuse.color,
-                        },
-                    },
-                    TextSection {
-                        value: "┐\n │".into(),
-                        style: TextStyle {
-                            font: fonts.mono.clone(),
-                            font_size: 2.0 * PIXEL_SCALE as f32,
-                            color: COLORS[0].into(),
-                        },
-                    },
-                ];
+            _ if (0.66..=1.0).contains(&fraction_remaining) => {
                 let translation = &mut transform.translation;
                 translation.x = 0.0;
                 translation.y = TILE_HEIGHT as f32 / 8.0 * 2.0;
             }
             _ if (0.33..0.66).contains(&fraction_remaining) => {
-                text.sections = vec![
-                    TextSection {
-                        value: fuse_char.into(),
-                        style: TextStyle {
-                            font: fonts.mono.clone(),
-                            font_size: 2.0 * PIXEL_SCALE as f32,
-                            color: fuse.color,
-                        },
-                    },
-                    TextSection {
-                        value: "\n│".into(),
-                        style: TextStyle {
-                            font: fonts.mono.clone(),
-                            font_size: 2.0 * PIXEL_SCALE as f32,
-                            color: COLORS[0].into(),
-                        },
-                    },
-                ];
+                *writer.text(entity, 2) = "\n│".into();
                 let translation = &mut transform.translation;
                 translation.x = TILE_WIDTH as f32 / 12.0;
                 translation.y = TILE_HEIGHT as f32 / 8.0 * 2.0;
             }
             _ if (0.0..0.33).contains(&fraction_remaining) => {
-                text.sections = vec![TextSection {
-                    value: fuse_char.into(),
-                    style: TextStyle {
-                        font: fonts.mono.clone(),
-                        font_size: 2.0 * PIXEL_SCALE as f32,
-                        color: fuse.color,
-                    },
-                }];
+                *writer.text(entity, 2) = "".into();
                 let translation = &mut transform.translation;
                 translation.x = TILE_WIDTH as f32 / 12.0;
                 translation.y = TILE_HEIGHT as f32 / 8.0 * 1.0;
             }
-            _ => (),
+            _ => unreachable!(),
         }
     }
 }
@@ -879,17 +829,15 @@ pub fn crumbling_tick(
             commands.entity(entity).despawn_recursive();
             if matches!(exit_position, Some(ref p) if p.0 == *position) {
                 commands.spawn((
-                    SpriteBundle {
-                        texture: game_textures.exit.clone(),
-                        transform: Transform::from_xyz(get_x(position.x), get_y(position.y), 10.0),
-                        sprite: Sprite {
-                            custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
-                            ..Default::default()
-                        },
+                    Transform::from_xyz(get_x(position.x), get_y(position.y), 10.0),
+                    Sprite {
+                        image: game_textures.exit.clone(),
+                        custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
                         ..Default::default()
                     },
                     *position,
                     Exit::default(),
+                    PostGameCleanup,
                 ));
             } else if rand::rng().random_range(0.0..1.0) < ITEM_SPAWN_CHANCE {
                 generate_item_at_position(
@@ -962,19 +910,17 @@ pub fn explode_bombs(
 
         let spawn_fire = |commands: &mut Commands, position: Position| {
             commands.spawn((
-                SpriteBundle {
-                    texture: game_textures.fire.clone(),
-                    transform: Transform::from_xyz(get_x(position.x), get_y(position.y), 5.0),
-                    sprite: Sprite {
-                        custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
-                        ..Default::default()
-                    },
+                Transform::from_xyz(get_x(position.x), get_y(position.y), 5.0),
+                Sprite {
+                    image: game_textures.fire.clone(),
+                    custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
                     ..Default::default()
                 },
                 Fire {
                     timer: Timer::from_seconds(0.5, TimerMode::Once),
                 },
                 position,
+                PostGameCleanup,
             ));
         };
 
@@ -1022,36 +968,31 @@ pub fn immortality_tick(
 pub fn animate_immortality(
     time: Res<Time>,
     mut p: ParamSet<(
-        Query<(
-            &mut Immortal,
-            &mut Handle<Image>,
-            &BaseTexture,
-            &ImmortalTexture,
-        )>,
-        Query<(&mut Handle<Image>, &BaseTexture)>,
+        Query<(&mut Immortal, &mut Sprite, &BaseTexture, &ImmortalTexture)>,
+        Query<(&mut Sprite, &BaseTexture)>,
     )>,
     mut removals: RemovedComponents<Immortal>,
 ) {
     // animate currently immortal players
-    for (mut immortal, mut texture, base_texture, immortal_texture) in p.p0().iter_mut() {
+    for (mut immortal, mut sprite, base_texture, immortal_texture) in p.p0().iter_mut() {
         if !immortal.timer.finished() {
             immortal.animation_timer.tick(time.delta());
             let fraction_remaining = immortal.animation_timer.fraction_remaining();
             match fraction_remaining {
                 _ if (0.5..=1.0).contains(&fraction_remaining) => {
-                    *texture = immortal_texture.0.clone();
+                    sprite.image = immortal_texture.0.clone();
                 }
-                _ => *texture = base_texture.0.clone(),
+                _ => sprite.image = base_texture.0.clone(),
             };
         } else {
-            *texture = base_texture.0.clone();
+            sprite.image = base_texture.0.clone();
         }
     }
 
     // revert the texture of players that stopped being immortal
     for entity in removals.read() {
-        if let Ok((mut texture, base_texture)) = p.p1().get_mut(entity) {
-            *texture = base_texture.0.clone();
+        if let Ok((mut sprite, base_texture)) = p.p1().get_mut(entity) {
+            sprite.image = base_texture.0.clone();
         }
     }
 }
@@ -1104,12 +1045,11 @@ pub fn player_damage(
         (
             Entity,
             &mut Health,
-            &mut Handle<Image>,
+            &mut Sprite,
             &ImmortalTexture,
             &SpawnPosition,
             &mut Position,
             &mut Transform,
-            &mut Sprite,
             Option<&PointValue>,
         ),
         (With<Player>, Without<Immortal>),
@@ -1123,12 +1063,11 @@ pub fn player_damage(
         if let Ok((
             pe,
             mut health,
-            mut texture,
+            mut sprite,
             immortal_texture,
             spawn_position,
             mut position,
             mut transform,
-            mut sprite,
             point_value,
         )) = query.get_mut(*target)
         {
@@ -1177,7 +1116,7 @@ pub fn player_damage(
 
             if gain_immortality {
                 commands.entity(pe).insert(Immortal::default());
-                *texture = immortal_texture.0.clone();
+                sprite.image = immortal_texture.0.clone();
             }
         }
     }
@@ -1202,18 +1141,20 @@ pub fn destructible_wall_burn(
     game_textures: Res<GameTextures>,
     mut commands: Commands,
     mut query: Query<
-        (Entity, &Position, &mut Handle<Image>, Option<&Crumbling>),
+        (Entity, &Position, &mut Sprite, Option<&Crumbling>),
         (With<Wall>, With<Destructible>),
     >,
     mut ev_burn: EventReader<BurnEvent>,
 ) {
     for BurnEvent { position } in ev_burn.read() {
-        for (e, _, mut t, perishable) in query.iter_mut().filter(|(_, p, _, _)| **p == *position) {
+        for (e, _, mut sprite, perishable) in
+            query.iter_mut().filter(|(_, p, _, _)| **p == *position)
+        {
             if perishable.is_none() {
                 commands.entity(e).insert(Crumbling {
                     timer: Timer::from_seconds(0.5, TimerMode::Once),
                 });
-                *t = game_textures.get_map_textures().burning_wall.clone();
+                sprite.image = game_textures.get_map_textures().burning_wall.clone();
             }
         }
     }
@@ -1243,19 +1184,17 @@ pub fn item_burn(
             commands.entity(e).despawn_recursive();
             // burning item
             commands.spawn((
-                SpriteBundle {
-                    texture: game_textures.burning_item.clone(),
-                    transform: Transform::from_xyz(get_x(position.x), get_y(position.y), 20.0),
-                    sprite: Sprite {
-                        custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
-                        ..Default::default()
-                    },
+                Transform::from_xyz(get_x(position.x), get_y(position.y), 20.0),
+                Sprite {
+                    image: game_textures.burning_item.clone(),
+                    custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
                     ..Default::default()
                 },
                 *position,
                 BurningItem {
                     timer: Timer::from_seconds(0.5, TimerMode::Once),
                 },
+                PostGameCleanup,
             ));
         }
     }
@@ -1281,17 +1220,10 @@ pub fn exit_burn(
                 // spawn mob
                 let base_texture = game_textures.crook.clone();
                 commands.spawn((
-                    SpriteBundle {
-                        texture: base_texture.clone(),
-                        transform: Transform::from_xyz(
-                            get_x(exit_position.x),
-                            get_y(exit_position.y),
-                            50.0,
-                        ),
-                        sprite: Sprite {
-                            custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
-                            ..Default::default()
-                        },
+                    Transform::from_xyz(get_x(exit_position.x), get_y(exit_position.y), 50.0),
+                    Sprite {
+                        image: base_texture.clone(),
+                        custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
                         ..Default::default()
                     },
                     BaseTexture(base_texture),
@@ -1309,6 +1241,7 @@ pub fn exit_burn(
                     MeleeAttacker,
                     TeamID(1),
                     Immortal::default(),
+                    PostGameCleanup,
                 ));
 
                 exit.spawn_cooldown.trigger();
@@ -1394,18 +1327,16 @@ pub fn wall_of_death_update(
         }
 
         commands.spawn((
-            SpriteBundle {
-                texture: game_textures.get_map_textures().wall.clone(),
-                transform: Transform::from_xyz(get_x(position.x), get_y(position.y), 10.0),
-                sprite: Sprite {
-                    custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
-                    ..Default::default()
-                },
+            Transform::from_xyz(get_x(position.x), get_y(position.y), 10.0),
+            Sprite {
+                image: game_textures.get_map_textures().wall.clone(),
+                custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
                 ..Default::default()
             },
             Wall,
             Solid,
             position,
+            PostGameCleanup,
         ));
     };
 

@@ -41,17 +41,14 @@ pub fn setup_battle_mode(
     // spawn HUD
     commands
         .spawn((
-            NodeBundle {
-                style: Style {
-                    width: Val::Percent(100.0),
-                    height: Val::Percent(100.0),
-                    ..Default::default()
-                },
-                background_color: Color::NONE.into(),
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
                 ..Default::default()
             },
             UIRoot,
             UIComponent,
+            PostGameCleanup,
         ))
         .with_children(|parent| {
             init_hud(
@@ -146,8 +143,7 @@ pub fn battle_mode_manager(
                     TimerMode::Once,
                 )));
                 // update HUD clock
-                query4.single_mut().sections[0].value =
-                    format_hud_time(BATTLE_MODE_ROUND_DURATION_SECS);
+                query4.single_mut().0 = format_hud_time(BATTLE_MODE_ROUND_DURATION_SECS);
                 commands.insert_resource(WallOfDeath::Dormant(Timer::from_seconds(
                     BATTLE_MODE_ROUND_DURATION_SECS as f32 / 2.0,
                     TimerMode::Once,
@@ -311,40 +307,32 @@ pub fn setup_leaderboard_display(
         leaderboard_display_box = Some(
             parent
                 .spawn((
-                    NodeBundle {
-                        style: Style {
-                            position_type: PositionType::Absolute,
-                            left: Val::Px(0.0),
-                            top: Val::Px(0.0),
-                            width: Val::Px(window.width()),
-                            height: Val::Px(window.height()),
-                            ..Default::default()
-                        },
-                        background_color: COLORS[0].into(),
+                    Node {
+                        position_type: PositionType::Absolute,
+                        left: Val::Px(0.0),
+                        top: Val::Px(0.0),
+                        width: Val::Px(window.width()),
+                        height: Val::Px(window.height()),
                         ..Default::default()
                     },
+                    BackgroundColor(COLORS[0].into()),
                     UIComponent,
                 ))
                 .with_children(|parent| {
                     // spawn border
                     let mut spawn_color = |y: usize, x: usize| {
                         parent.spawn((
-                            NodeBundle {
-                                style: Style {
-                                    position_type: PositionType::Absolute,
-                                    left: Val::Px((x * PIXEL_SCALE) as f32),
-                                    top: Val::Px((y * PIXEL_SCALE) as f32),
-                                    width: Val::Px(PIXEL_SCALE as f32),
-                                    height: Val::Px(PIXEL_SCALE as f32),
-                                    ..Default::default()
-                                },
-                                background_color: (*COLORS
-                                    .iter()
-                                    .choose(&mut rand::rng())
-                                    .unwrap())
-                                .into(),
+                            Node {
+                                position_type: PositionType::Absolute,
+                                left: Val::Px((x * PIXEL_SCALE) as f32),
+                                top: Val::Px((y * PIXEL_SCALE) as f32),
+                                width: Val::Px(PIXEL_SCALE as f32),
+                                height: Val::Px(PIXEL_SCALE as f32),
                                 ..Default::default()
                             },
+                            BackgroundColor(
+                                (*COLORS.iter().choose(&mut rand::rng()).unwrap()).into(),
+                            ),
                             UIComponent,
                         ));
                     };
@@ -368,28 +356,25 @@ pub fn setup_leaderboard_display(
                         // spawn penguin portrait
                         parent
                             .spawn((
-                                NodeBundle {
-                                    style: Style {
-                                        position_type: PositionType::Absolute,
-                                        left: Val::Px(4.0 * PIXEL_SCALE as f32),
-                                        top: Val::Px(((6 + penguin.0 * 12) * PIXEL_SCALE) as f32),
-                                        width: Val::Px(TILE_WIDTH as f32),
-                                        height: Val::Px(TILE_HEIGHT as f32),
-                                        ..Default::default()
-                                    },
-                                    background_color: COLORS[2].into(),
+                                Node {
+                                    position_type: PositionType::Absolute,
+                                    left: Val::Px(4.0 * PIXEL_SCALE as f32),
+                                    top: Val::Px(((6 + penguin.0 * 12) * PIXEL_SCALE) as f32),
+                                    width: Val::Px(TILE_WIDTH as f32),
+                                    height: Val::Px(TILE_HEIGHT as f32),
                                     ..Default::default()
                                 },
+                                BackgroundColor(COLORS[2].into()),
                                 UIComponent,
                             ))
                             .with_children(|parent| {
                                 parent.spawn((
-                                    ImageBundle {
-                                        style: Style {
-                                            width: Val::Percent(100.0),
-                                            height: Val::Percent(100.0),
-                                            ..Default::default()
-                                        },
+                                    Node {
+                                        width: Val::Percent(100.0),
+                                        height: Val::Percent(100.0),
+                                        ..Default::default()
+                                    },
+                                    ImageNode {
                                         image: game_textures
                                             .get_penguin_texture(*penguin)
                                             .clone()
@@ -403,15 +388,15 @@ pub fn setup_leaderboard_display(
                         // spawn penguin trophies
                         for i in 0..*score {
                             parent.spawn((
-                                ImageBundle {
-                                    style: Style {
-                                        position_type: PositionType::Absolute,
-                                        top: Val::Px(((7 + penguin.0 * 12) * PIXEL_SCALE) as f32),
-                                        left: Val::Px(((15 + i * 9) * PIXEL_SCALE) as f32),
-                                        width: Val::Px(5.0 * PIXEL_SCALE as f32),
-                                        height: Val::Px(7.0 * PIXEL_SCALE as f32),
-                                        ..Default::default()
-                                    },
+                                Node {
+                                    position_type: PositionType::Absolute,
+                                    top: Val::Px(((7 + penguin.0 * 12) * PIXEL_SCALE) as f32),
+                                    left: Val::Px(((15 + i * 9) * PIXEL_SCALE) as f32),
+                                    width: Val::Px(5.0 * PIXEL_SCALE as f32),
+                                    height: Val::Px(7.0 * PIXEL_SCALE as f32),
+                                    ..Default::default()
+                                },
+                                ImageNode {
                                     image: leaderboard_textures.trophy.clone().into(),
                                     ..Default::default()
                                 },
@@ -425,23 +410,19 @@ pub fn setup_leaderboard_display(
                             if *penguin == round_winner_penguin {
                                 let mut place_text = |y, x, str: &str, c: usize| {
                                     parent.spawn((
-                                        TextBundle {
-                                            text: Text::from_section(
-                                                str.to_string(),
-                                                TextStyle {
-                                                    font: fonts.mono.clone(),
-                                                    font_size: 2.0 * PIXEL_SCALE as f32,
-                                                    color: COLORS[c].into(),
-                                                },
-                                            ),
-                                            style: Style {
-                                                position_type: PositionType::Absolute,
-                                                top: Val::Px(y as f32 * PIXEL_SCALE as f32),
-                                                left: Val::Px(x as f32 * PIXEL_SCALE as f32),
-                                                ..Default::default()
-                                            },
+                                        Node {
+                                            position_type: PositionType::Absolute,
+                                            top: Val::Px(y as f32 * PIXEL_SCALE as f32),
+                                            left: Val::Px(x as f32 * PIXEL_SCALE as f32),
                                             ..Default::default()
                                         },
+                                        Text::new(str),
+                                        TextFont {
+                                            font: fonts.mono.clone(),
+                                            font_size: 2.0 * PIXEL_SCALE as f32,
+                                            ..Default::default()
+                                        },
+                                        TextColor(COLORS[c].into()),
                                         UIComponent,
                                     ));
                                 };
@@ -481,7 +462,7 @@ pub fn leaderboard_display_update(
 
 pub fn teardown(
     mut commands: Commands,
-    query: Query<Entity, Without<Window>>,
+    query: Query<Entity, With<PostGameCleanup>>,
     mut player_action_events: ResMut<Events<PlayerActionEvent>>,
     mut explosion_events: ResMut<Events<ExplosionEvent>>,
     mut burn_events: ResMut<Events<BurnEvent>>,
@@ -490,7 +471,7 @@ pub fn teardown(
 ) {
     // clear entities
     for entity in query.iter() {
-        commands.entity(entity).despawn();
+        commands.entity(entity).despawn_recursive();
     }
 
     // clear events

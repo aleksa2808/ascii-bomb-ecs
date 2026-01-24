@@ -59,17 +59,14 @@ pub fn setup_secret_mode(
     // spawn HUD
     commands
         .spawn((
-            NodeBundle {
-                style: Style {
-                    width: Val::Percent(100.0),
-                    height: Val::Percent(100.0),
-                    ..Default::default()
-                },
-                background_color: Color::NONE.into(),
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
                 ..Default::default()
             },
             UIRoot,
             UIComponent,
+            PostGameCleanup,
         ))
         .with_children(|parent| {
             let hud_width = (map_size.columns * TILE_WIDTH) as f32;
@@ -84,78 +81,64 @@ pub fn setup_secret_mode(
                 Some(&|parent: &mut ChildBuilder| {
                     parent
                         .spawn((
-                            NodeBundle {
-                                style: Style {
-                                    position_type: PositionType::Absolute,
-                                    left: Val::Px(hud_width / 2.0 - 20.0 * PIXEL_SCALE as f32),
-                                    top: Val::Px(6.0 * PIXEL_SCALE as f32),
-                                    width: Val::Px(43.0 * PIXEL_SCALE as f32),
-                                    height: Val::Px(2.0 * PIXEL_SCALE as f32),
-                                    ..Default::default()
-                                },
-                                background_color: hud_colors.black_color.into(),
+                            Node {
+                                position_type: PositionType::Absolute,
+                                left: Val::Px(hud_width / 2.0 - 20.0 * PIXEL_SCALE as f32),
+                                top: Val::Px(6.0 * PIXEL_SCALE as f32),
+                                width: Val::Px(43.0 * PIXEL_SCALE as f32),
+                                height: Val::Px(2.0 * PIXEL_SCALE as f32),
                                 ..Default::default()
                             },
+                            BackgroundColor(hud_colors.black_color),
                             UIComponent,
                         ))
                         .with_children(|parent| {
                             parent.spawn((
-                                TextBundle {
-                                    text: Text::from_section(
-                                        "Hope you had fun with this little game! ^_^",
-                                        TextStyle {
-                                            font: fonts.mono.clone(),
-                                            font_size: 2.0 * PIXEL_SCALE as f32,
-                                            color: COLORS[15].into(),
-                                        },
-                                    ),
-                                    style: Style {
-                                        position_type: PositionType::Absolute,
-                                        top: Val::Px(0.0),
-                                        left: Val::Px(0.0),
-                                        ..Default::default()
-                                    },
+                                Node {
+                                    position_type: PositionType::Absolute,
+                                    top: Val::Px(0.0),
+                                    left: Val::Px(0.0),
                                     ..Default::default()
                                 },
+                                Text::new("Hope you had fun with this little game! ^_^"),
+                                TextFont {
+                                    font: fonts.mono.clone(),
+                                    font_size: 2.0 * PIXEL_SCALE as f32,
+                                    ..Default::default()
+                                },
+                                TextColor(COLORS[15].into()),
                                 UIComponent,
                             ));
                         });
 
                     parent
                         .spawn((
-                            NodeBundle {
-                                style: Style {
-                                    position_type: PositionType::Absolute,
-                                    left: Val::Px(hud_width / 2.0 + 10.0 * PIXEL_SCALE as f32),
-                                    top: Val::Px(10.0 * PIXEL_SCALE as f32),
-                                    width: Val::Px(8.0 * PIXEL_SCALE as f32),
-                                    height: Val::Px(2.0 * PIXEL_SCALE as f32),
-                                    ..Default::default()
-                                },
-                                background_color: hud_colors.black_color.into(),
+                            Node {
+                                position_type: PositionType::Absolute,
+                                left: Val::Px(hud_width / 2.0 + 10.0 * PIXEL_SCALE as f32),
+                                top: Val::Px(10.0 * PIXEL_SCALE as f32),
+                                width: Val::Px(8.0 * PIXEL_SCALE as f32),
+                                height: Val::Px(2.0 * PIXEL_SCALE as f32),
                                 ..Default::default()
                             },
+                            BackgroundColor(hud_colors.black_color),
                             UIComponent,
                         ))
                         .with_children(|parent| {
                             parent.spawn((
-                                TextBundle {
-                                    text: Text::from_section(
-                                        "Now RUN!",
-                                        TextStyle {
-                                            font: fonts.mono.clone(),
-                                            font_size: 2.0 * PIXEL_SCALE as f32,
-                                            color: COLORS[15].into(),
-                                        },
-                                    ),
-                                    style: Style {
-                                        position_type: PositionType::Absolute,
-                                        top: Val::Px(0.0),
-                                        left: Val::Px(0.0),
-                                        ..Default::default()
-                                    },
+                                Node {
+                                    position_type: PositionType::Absolute,
+                                    top: Val::Px(0.0),
+                                    left: Val::Px(0.0),
                                     ..Default::default()
                                 },
+                                Text::new("Now RUN!"),
+                                TextFont {
+                                    font: fonts.mono.clone(),
+                                    font_size: 2.0 * PIXEL_SCALE as f32,
+                                    ..Default::default()
+                                },
+                                TextColor(COLORS[15].into()),
                                 UIComponent,
                             ));
                         });
@@ -203,17 +186,14 @@ pub fn secret_mode_manager(
             let base_texture = game_textures.get_penguin_texture(Penguin(0)).clone();
             let immortal_texture = game_textures.immortal_penguin.clone();
             commands.spawn((
-                SpriteBundle {
-                    texture: base_texture.clone(),
-                    transform: Transform::from_xyz(
-                        get_x(player_spawn_position.x),
-                        get_y(player_spawn_position.y),
-                        50.0,
-                    ),
-                    sprite: Sprite {
-                        custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
-                        ..Default::default()
-                    },
+                Transform::from_xyz(
+                    get_x(player_spawn_position.x),
+                    get_y(player_spawn_position.y),
+                    50.0,
+                ),
+                Sprite {
+                    image: base_texture.clone(),
+                    custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
                     ..Default::default()
                 },
                 BaseTexture(base_texture),
@@ -222,6 +202,7 @@ pub fn secret_mode_manager(
                 HumanControlled(0),
                 player_spawn_position,
                 SpawnPosition(player_spawn_position),
+                PostGameCleanup,
             ));
 
             let wall_entity_reveal_groups = spawn_map(
@@ -270,7 +251,7 @@ pub fn update_secret_mode(
         Query<(Entity, &mut Position, &mut Transform), With<Bomb>>,
         Query<&Position, With<Wall>>,
     )>,
-    mut query: Query<(Entity, &mut Handle<Image>, &mut BaseTexture), With<Player>>,
+    mut query: Query<(Entity, &mut Sprite, &mut BaseTexture), With<Player>>,
 ) {
     let pattern = secret_mode_context.pattern;
 
@@ -326,20 +307,13 @@ pub fn update_secret_mode(
                             };
                             commands
                                 .spawn((
-                                    SpriteBundle {
-                                        texture: game_textures.bomb.clone(),
-                                        transform: Transform::from_xyz(
-                                            get_x(position.x),
-                                            get_y(position.y),
-                                            25.0,
-                                        ),
-                                        sprite: Sprite {
-                                            custom_size: Some(Vec2::new(
-                                                TILE_WIDTH as f32,
-                                                TILE_HEIGHT as f32,
-                                            )),
-                                            ..Default::default()
-                                        },
+                                    Transform::from_xyz(get_x(position.x), get_y(position.y), 25.0),
+                                    Sprite {
+                                        image: game_textures.bomb.clone(),
+                                        custom_size: Some(Vec2::new(
+                                            TILE_WIDTH as f32,
+                                            TILE_HEIGHT as f32,
+                                        )),
                                         ..Default::default()
                                     },
                                     Bomb {
@@ -348,47 +322,48 @@ pub fn update_secret_mode(
                                         timer: Timer::from_seconds(9999.0, TimerMode::Once),
                                     },
                                     position,
+                                    PostGameCleanup,
                                 ))
                                 .with_children(|parent| {
                                     let fuse_color =
                                         COLORS[if world_id.0 == 2 { 12 } else { 14 }].into();
 
-                                    let mut text = Text::from_section(
-                                        '*',
-                                        TextStyle {
-                                            font: fonts.mono.clone(),
-                                            font_size: 2.0 * PIXEL_SCALE as f32,
-                                            color: fuse_color,
-                                        },
-                                    )
-                                    .with_justify(JustifyText::Center);
-                                    text.sections.push(TextSection {
-                                        value: "┐\n │".into(),
-                                        style: TextStyle {
-                                            font: fonts.mono.clone(),
-                                            font_size: 2.0 * PIXEL_SCALE as f32,
-                                            color: COLORS[0].into(),
-                                        },
-                                    });
-
-                                    parent.spawn((
-                                        Text2dBundle {
-                                            text,
-                                            transform: Transform::from_xyz(
+                                    parent
+                                        .spawn((
+                                            Text2d::default(),
+                                            TextLayout::new_with_justify(JustifyText::Center),
+                                            Transform::from_xyz(
                                                 0.0,
                                                 TILE_HEIGHT as f32 / 8.0 * 2.0,
                                                 0.0,
                                             ),
-                                            ..Default::default()
-                                        },
-                                        Fuse {
-                                            color: fuse_color,
-                                            animation_timer: Timer::from_seconds(
-                                                0.1,
-                                                TimerMode::Repeating,
-                                            ),
-                                        },
-                                    ));
+                                            Fuse {
+                                                animation_timer: Timer::from_seconds(
+                                                    0.1,
+                                                    TimerMode::Repeating,
+                                                ),
+                                            },
+                                        ))
+                                        .with_children(|p| {
+                                            p.spawn((
+                                                TextSpan::new('*'),
+                                                TextFont {
+                                                    font: fonts.mono.clone(),
+                                                    font_size: 2.0 * PIXEL_SCALE as f32,
+                                                    ..Default::default()
+                                                },
+                                                TextColor(fuse_color),
+                                            ));
+                                            p.spawn((
+                                                TextSpan::new("┐\n │"),
+                                                TextFont {
+                                                    font: fonts.mono.clone(),
+                                                    font_size: 2.0 * PIXEL_SCALE as f32,
+                                                    ..Default::default()
+                                                },
+                                                TextColor(COLORS[0].into()),
+                                            ));
+                                        });
                                 });
                         }
                     }
@@ -400,8 +375,8 @@ pub fn update_secret_mode(
                         *round_progress = 0;
 
                         let new_texture = game_textures.get_penguin_texture(Penguin(*round));
-                        let (entity, mut texture, mut base_texture) = query.single_mut();
-                        *texture = new_texture.clone();
+                        let (entity, mut sprite, mut base_texture) = query.single_mut();
+                        sprite.image = new_texture.clone();
                         *base_texture = BaseTexture(new_texture.clone());
 
                         commands.entity(entity).insert(Immortal::default());
@@ -458,11 +433,11 @@ pub fn finish_secret_mode(
 pub fn teardown(
     mut commands: Commands,
     audio: Res<Audio>,
-    query: Query<Entity, Without<Window>>,
+    query: Query<Entity, With<PostGameCleanup>>,
     mut next_state: ResMut<NextState<AppState>>,
 ) {
     for entity in query.iter() {
-        commands.entity(entity).despawn();
+        commands.entity(entity).despawn_recursive();
     }
 
     commands.remove_resource::<WorldID>();

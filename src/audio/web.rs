@@ -2,7 +2,7 @@ use std::io::Cursor;
 
 use anyhow::Result;
 use bevy::{
-    asset::{self as bevy_asset, io::Reader, AssetLoader, AsyncReadExt, LoadContext},
+    asset::{self as bevy_asset, io::Reader, AssetLoader, LoadContext},
     prelude::*,
     reflect::{self as bevy_reflect, TypePath},
     utils::HashMap,
@@ -24,11 +24,11 @@ impl AssetLoader for SoundLoader {
     type Settings = ();
     type Error = anyhow::Error;
 
-    async fn load<'a>(
-        &'a self,
-        reader: &'a mut Reader<'_>,
-        _settings: &'a Self::Settings,
-        _load_context: &'a mut LoadContext<'_>,
+    async fn load(
+        &self,
+        reader: &mut dyn Reader,
+        _settings: &Self::Settings,
+        _load_context: &mut LoadContext<'_>,
     ) -> Result<Self::Asset, Self::Error> {
         let mut bytes = Vec::new();
         reader.read_to_end(&mut bytes).await?;

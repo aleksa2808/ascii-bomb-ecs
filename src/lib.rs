@@ -98,6 +98,7 @@ pub fn run() {
             .set(ImagePlugin::default_nearest()),
     )
     .init_state::<AppState>()
+    .enable_state_scoped_entities::<AppState>()
     .add_plugins(AudioPlugin);
 
     #[cfg(target_arch = "wasm32")]
