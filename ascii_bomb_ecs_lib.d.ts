@@ -11,9 +11,9 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
-    readonly run: () => void;
     readonly set_input_active: (a: number) => void;
     readonly start_game: () => void;
+    readonly run: () => void;
     readonly wasm_bindgen_59a928b5ac64dd9e___closure__destroy___dyn_core_10728d4c20eeb4de___ops__function__FnMut__core_10728d4c20eeb4de___option__Option_web_sys_3934d01d52738957___features__gen_Blob__Blob_____Output_______: (a: number, b: number) => void;
     readonly wasm_bindgen_59a928b5ac64dd9e___closure__destroy___dyn_core_10728d4c20eeb4de___ops__function__FnMut__wasm_bindgen_59a928b5ac64dd9e___JsValue____Output_______: (a: number, b: number) => void;
     readonly wasm_bindgen_59a928b5ac64dd9e___convert__closures_____invoke___js_sys_ced2c258707ecdde___Array__web_sys_3934d01d52738957___features__gen_ResizeObserver__ResizeObserver_____: (a: number, b: number, c: any, d: any) => void;
