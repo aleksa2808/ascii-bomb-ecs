@@ -113,9 +113,9 @@ pub fn setup_story_mode(
                         TextFont {
                             font: fonts.mono.clone(),
                             font_size: 2.0 * PIXEL_SCALE as f32,
-                            line_height: LineHeight::RelativeToFont(1.0),
                             ..Default::default()
                         },
+                        LineHeight::RelativeToFont(1.0),
                         TextColor(COLORS[0].into()),
                         UIComponent,
                         BottomLeftDisplay1,
@@ -133,9 +133,9 @@ pub fn setup_story_mode(
                         TextFont {
                             font: fonts.mono.clone(),
                             font_size: 2.0 * PIXEL_SCALE as f32,
-                            line_height: LineHeight::RelativeToFont(1.0),
                             ..Default::default()
                         },
+                        LineHeight::RelativeToFont(1.0),
                         TextColor(COLORS[0].into()),
                         UIComponent,
                         BottomLeftDisplay2,
@@ -563,9 +563,9 @@ pub fn setup_boss_speech(
                             TextFont {
                                 font: fonts.mono.clone(),
                                 font_size: 2.0 * PIXEL_SCALE as f32,
-                                line_height: LineHeight::RelativeToFont(1.0),
                                 ..Default::default()
                             },
+                            LineHeight::RelativeToFont(1.0),
                             TextColor(COLORS[15].into()), // TODO: is this the right color?
                             UIComponent,
                         ));
@@ -641,9 +641,9 @@ pub fn setup_boss_speech(
                                     TextFont {
                                         font: fonts.mono.clone(),
                                         font_size: 2.0 * PIXEL_SCALE as f32,
-                                        line_height: LineHeight::RelativeToFont(1.0),
                                         ..Default::default()
                                     },
+                                    LineHeight::RelativeToFont(1.0),
                                     TextColor(COLORS[15].into()), // TODO: is this the right color?
                                     UIComponent,
                                 ))
@@ -758,9 +758,9 @@ pub fn setup_high_score_name_input(
                         TextFont {
                             font: fonts.mono.clone(),
                             font_size: 2.0 * PIXEL_SCALE as f32,
-                            line_height: LineHeight::RelativeToFont(1.0),
                             ..Default::default()
                         },
+                        LineHeight::RelativeToFont(1.0),
                         TextColor(COLORS[15].into()), // TODO: is this the right color?
                         UIComponent,
                     ));
@@ -779,9 +779,9 @@ pub fn setup_high_score_name_input(
                                 TextFont {
                                     font: fonts.mono.clone(),
                                     font_size: 2.0 * PIXEL_SCALE as f32,
-                                    line_height: LineHeight::RelativeToFont(1.0),
                                     ..Default::default()
                                 },
+                                LineHeight::RelativeToFont(1.0),
                                 TextColor(COLORS[15].into()), // TODO: is this the right color?
                                 UIComponent,
                             ))

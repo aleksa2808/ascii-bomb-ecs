@@ -5,7 +5,7 @@ mod web;
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use bevy::{ecs as bevy_ecs, platform::collections::HashMap, prelude::*};
+use bevy::{ecs as bevy_ecs, platform::collections::HashMap, prelude::*, reflect as bevy_reflect};
 use parking_lot::RwLock;
 
 #[cfg(target_arch = "wasm32")]
@@ -32,7 +32,7 @@ impl Plugin for AudioPlugin {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, TypePath)]
 pub struct SoundLoader;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]

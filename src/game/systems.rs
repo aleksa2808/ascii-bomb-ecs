@@ -737,9 +737,9 @@ pub fn bomb_drop(
                                     TextFont {
                                         font: fonts.mono.clone(),
                                         font_size: 2.0 * PIXEL_SCALE as f32,
-                                        line_height: LineHeight::RelativeToFont(1.0),
                                         ..Default::default()
                                     },
+                                    LineHeight::RelativeToFont(1.0),
                                     TextColor(fuse_color),
                                 ));
                                 p.spawn((
@@ -747,9 +747,9 @@ pub fn bomb_drop(
                                     TextFont {
                                         font: fonts.mono.clone(),
                                         font_size: 2.0 * PIXEL_SCALE as f32,
-                                        line_height: LineHeight::RelativeToFont(1.0),
                                         ..Default::default()
                                     },
+                                    LineHeight::RelativeToFont(1.0),
                                     TextColor(COLORS[0].into()),
                                 ));
                             });

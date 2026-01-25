@@ -104,9 +104,9 @@ pub fn setup_secret_mode(
                                 TextFont {
                                     font: fonts.mono.clone(),
                                     font_size: 2.0 * PIXEL_SCALE as f32,
-                                    line_height: LineHeight::RelativeToFont(1.0),
                                     ..Default::default()
                                 },
+                                LineHeight::RelativeToFont(1.0),
                                 TextColor(COLORS[15].into()),
                                 UIComponent,
                             ));
@@ -137,9 +137,9 @@ pub fn setup_secret_mode(
                                 TextFont {
                                     font: fonts.mono.clone(),
                                     font_size: 2.0 * PIXEL_SCALE as f32,
-                                    line_height: LineHeight::RelativeToFont(1.0),
                                     ..Default::default()
                                 },
+                                LineHeight::RelativeToFont(1.0),
                                 TextColor(COLORS[15].into()),
                                 UIComponent,
                             ));
@@ -352,9 +352,9 @@ pub fn update_secret_mode(
                                                 TextFont {
                                                     font: fonts.mono.clone(),
                                                     font_size: 2.0 * PIXEL_SCALE as f32,
-                                                    line_height: LineHeight::RelativeToFont(1.0),
                                                     ..Default::default()
                                                 },
+                                                LineHeight::RelativeToFont(1.0),
                                                 TextColor(fuse_color),
                                             ));
                                             p.spawn((
@@ -362,9 +362,9 @@ pub fn update_secret_mode(
                                                 TextFont {
                                                     font: fonts.mono.clone(),
                                                     font_size: 2.0 * PIXEL_SCALE as f32,
-                                                    line_height: LineHeight::RelativeToFont(1.0),
                                                     ..Default::default()
                                                 },
+                                                LineHeight::RelativeToFont(1.0),
                                                 TextColor(COLORS[0].into()),
                                             ));
                                         });

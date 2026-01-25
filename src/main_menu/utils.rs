@@ -30,13 +30,15 @@ pub fn spawn_menu_type(
                     left: Val::Px(3.0 * PIXEL_SCALE as f32),
                     ..Default::default()
                 },
-                Text::new(selectable_items.get_item_names().join("\n\n")),
+                // since bevy 0.18 empty lines seem to take less vertical space than normal,
+                // so a blank character (space) is inserted to adjust the line height
+                Text::new(selectable_items.get_item_names().join("\n \n")),
                 TextFont {
                     font: fonts.mono.clone(),
                     font_size: 2.0 * PIXEL_SCALE as f32,
-                    line_height: LineHeight::RelativeToFont(1.0),
                     ..Default::default()
                 },
+                LineHeight::RelativeToFont(1.0),
                 TextColor(menu_colors.modal_foreground_color),
             ));
 
@@ -54,9 +56,9 @@ pub fn spawn_menu_type(
                 TextFont {
                     font: fonts.mono.clone(),
                     font_size: 2.0 * PIXEL_SCALE as f32,
-                    line_height: LineHeight::RelativeToFont(1.0),
                     ..Default::default()
                 },
+                LineHeight::RelativeToFont(1.0),
                 TextColor(menu_colors.modal_foreground_color),
                 Cursor,
             ));
@@ -89,14 +91,16 @@ pub fn spawn_menu_type(
                             )
                         })
                         .collect::<Vec<String>>()
-                        .join("\n\n"),
+                        // since bevy 0.18 empty lines seem to take less vertical space than normal,
+                        // so a blank character (space) is inserted to adjust the line height
+                        .join("\n \n"),
                 ),
                 TextFont {
                     font: fonts.mono.clone(),
                     font_size: 2.0 * PIXEL_SCALE as f32,
-                    line_height: LineHeight::RelativeToFont(1.0),
                     ..Default::default()
                 },
+                LineHeight::RelativeToFont(1.0),
                 TextColor(menu_colors.modal_foreground_color),
             ));
 
@@ -114,9 +118,9 @@ pub fn spawn_menu_type(
                 TextFont {
                     font: fonts.mono.clone(),
                     font_size: 2.0 * PIXEL_SCALE as f32,
-                    line_height: LineHeight::RelativeToFont(1.0),
                     ..Default::default()
                 },
+                LineHeight::RelativeToFont(1.0),
                 TextColor(menu_colors.modal_foreground_color),
                 Cursor,
             ));
@@ -133,9 +137,9 @@ pub fn spawn_menu_type(
                 TextFont {
                     font: fonts.mono.clone(),
                     font_size: 2.0 * PIXEL_SCALE as f32,
-                    line_height: LineHeight::RelativeToFont(1.0),
                     ..Default::default()
                 },
+                LineHeight::RelativeToFont(1.0),
                 TextColor(menu_colors.modal_foreground_color),
             ));
 
@@ -164,9 +168,9 @@ pub fn spawn_menu_type(
                         TextFont {
                             font: fonts.mono.clone(),
                             font_size: 2.0 * PIXEL_SCALE as f32,
-                            line_height: LineHeight::RelativeToFont(1.0),
                             ..Default::default()
                         },
+                        LineHeight::RelativeToFont(1.0),
                         TextColor(menu_colors.modal_background_color),
                     ));
                 });
@@ -183,9 +187,9 @@ pub fn spawn_menu_type(
                 TextFont {
                     font: fonts.mono.clone(),
                     font_size: 2.0 * PIXEL_SCALE as f32,
-                    line_height: LineHeight::RelativeToFont(1.0),
                     ..Default::default()
                 },
+                LineHeight::RelativeToFont(1.0),
                 TextColor(menu_colors.modal_foreground_color),
             ));
 
@@ -210,9 +214,9 @@ pub fn spawn_menu_type(
                 TextFont {
                     font: fonts.mono.clone(),
                     font_size: 2.0 * PIXEL_SCALE as f32,
-                    line_height: LineHeight::RelativeToFont(1.0),
                     ..Default::default()
                 },
+                LineHeight::RelativeToFont(1.0),
                 TextColor(menu_colors.modal_foreground_color),
             ));
 
@@ -241,9 +245,9 @@ pub fn spawn_menu_type(
                         TextFont {
                             font: fonts.mono.clone(),
                             font_size: 2.0 * PIXEL_SCALE as f32,
-                            line_height: LineHeight::RelativeToFont(1.0),
                             ..Default::default()
                         },
+                        LineHeight::RelativeToFont(1.0),
                         TextColor(menu_colors.modal_background_color),
                     ));
                 });
@@ -299,9 +303,9 @@ pub fn spawn_battle_mode_sub_menu_modal(
                 TextFont {
                     font: fonts.mono.clone(),
                     font_size: 2.0 * PIXEL_SCALE as f32,
-                    line_height: LineHeight::RelativeToFont(1.0),
                     ..Default::default()
                 },
+                LineHeight::RelativeToFont(1.0),
                 TextColor(menu_colors.modal_background_color),
             ));
 
@@ -344,9 +348,9 @@ pub fn spawn_battle_mode_sub_menu_content(
         TextFont {
             font: fonts.mono.clone(),
             font_size: 2.0 * PIXEL_SCALE as f32,
-            line_height: LineHeight::RelativeToFont(1.0),
             ..Default::default()
         },
+        LineHeight::RelativeToFont(1.0),
         TextColor(menu_colors.modal_foreground_color),
     ));
 
@@ -379,9 +383,9 @@ pub fn spawn_battle_mode_sub_menu_content(
         TextFont {
             font: fonts.mono.clone(),
             font_size: 2.0 * PIXEL_SCALE as f32,
-            line_height: LineHeight::RelativeToFont(1.0),
             ..Default::default()
         },
+        LineHeight::RelativeToFont(1.0),
         TextColor(menu_colors.modal_foreground_color),
     ));
 }
