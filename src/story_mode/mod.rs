@@ -25,12 +25,7 @@ impl Plugin for StoryModePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             OnEnter(AppState::StoryModeSetup),
-            (
-                setup_story_mode,
-                apply_deferred,
-                (resize_window, spawn_cameras),
-            )
-                .chain(),
+            (setup_story_mode, (resize_window, spawn_cameras)).chain(),
         )
         .add_systems(OnEnter(AppState::StoryModeTeardown), teardown)
         .add_systems(

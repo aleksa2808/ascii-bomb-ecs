@@ -28,12 +28,7 @@ impl Plugin for BattleModePlugin {
         app.init_resource::<LeaderboardTextures>()
             .add_systems(
                 OnEnter(AppState::BattleModeSetup),
-                (
-                    setup_battle_mode,
-                    apply_deferred,
-                    (resize_window, spawn_cameras),
-                )
-                    .chain(),
+                (setup_battle_mode, (resize_window, spawn_cameras)).chain(),
             )
             .add_systems(OnEnter(AppState::BattleModeTeardown), teardown)
             .add_systems(
@@ -59,15 +54,12 @@ impl Plugin for BattleModePlugin {
             (
                 common_game_systems(),
                 game_timer_tick.in_set(Set::TimeUpdate),
-                (wall_of_death_update, apply_deferred)
-                    .chain()
+                wall_of_death_update
                     .in_set(Set::PlayerDeathEvent)
                     .in_set(Set::BombRestockEvent)
                     .in_set(Set::ItemDespawn),
                 (
-                    (on_death_item_pinata, apply_deferred)
-                        .chain()
-                        .in_set(Set::ItemSpawn),
+                    on_death_item_pinata.in_set(Set::ItemSpawn),
                     (finish_round, hud_update).after(Set::TimeUpdate),
                 )
                     .after(Set::PlayerDeathEvent),

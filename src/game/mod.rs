@@ -39,14 +39,8 @@ pub fn common_game_systems() -> ScheduleConfigs<ScheduleSystem> {
         (
             move_cooldown_tick,
             bomb_tick,
-            (
-                (fire_tick, burning_item_tick, immortality_tick),
-                apply_deferred,
-            )
-                .chain(),
-            (crumbling_tick, apply_deferred)
-                .chain()
-                .in_set(Set::ItemSpawn),
+            (fire_tick, burning_item_tick, immortality_tick),
+            crumbling_tick.in_set(Set::ItemSpawn),
         )
             .in_set(Set::TimeUpdate),
         (
@@ -59,22 +53,13 @@ pub fn common_game_systems() -> ScheduleConfigs<ScheduleSystem> {
             .in_set(Set::Input),
         // handle movement
         (
-            (player_move, apply_deferred)
-                .chain()
-                .in_set(Set::PlayerMovement)
-                .after(Set::Input),
-            (moving_object_update, apply_deferred)
-                .chain()
-                .in_set(Set::MovingObjectUpdate),
+            player_move.in_set(Set::PlayerMovement).after(Set::Input),
+            moving_object_update.in_set(Set::MovingObjectUpdate),
         )
             .after(Set::TimeUpdate),
         // handle bomb logic
-        (bomb_drop, apply_deferred)
-            .chain()
-            .in_set(Set::BombSpawn)
-            .after(Set::Input),
-        (explode_bombs, apply_deferred)
-            .chain()
+        bomb_drop.in_set(Set::BombSpawn).after(Set::Input),
+        explode_bombs
             .in_set(Set::BombRestockEvent)
             .in_set(Set::FireSpawn)
             .after(Set::TimeUpdate)
@@ -92,8 +77,8 @@ pub fn common_game_systems() -> ScheduleConfigs<ScheduleSystem> {
                     .after(Set::BombSpawn)
                     .after(Set::MovingObjectUpdate),
                 destructible_wall_burn,
-                (item_burn, apply_deferred).chain().in_set(Set::ItemDespawn),
-                (exit_burn, apply_deferred).chain().in_set(Set::PlayerSpawn),
+                item_burn.in_set(Set::ItemDespawn),
+                exit_burn.in_set(Set::PlayerSpawn),
             ),
         )
             .chain(),
@@ -102,8 +87,7 @@ pub fn common_game_systems() -> ScheduleConfigs<ScheduleSystem> {
             .in_set(Set::DamageEvent)
             .after(Set::PlayerSpawn)
             .after(Set::PlayerMovement),
-        (player_damage, apply_deferred)
-            .chain()
+        player_damage
             .in_set(Set::DamageApplication)
             .in_set(Set::PlayerDeathEvent)
             .after(Set::PlayerMovement)

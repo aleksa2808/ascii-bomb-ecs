@@ -30,7 +30,7 @@ impl Plugin for MainMenuPlugin {
             .add_systems(
                 Update,
                 (
-                    (menu_navigation, apply_deferred, menu_demo_mode_trigger)
+                    (menu_navigation, menu_demo_mode_trigger)
                         .chain()
                         .after(crate::common::Label::InputMapping),
                     animate_menu_background,
