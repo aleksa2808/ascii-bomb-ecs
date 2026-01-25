@@ -1,4 +1,4 @@
-use bevy::{ecs as bevy_ecs, prelude::*, utils::HashMap};
+use bevy::{ecs as bevy_ecs, platform::collections::HashMap, prelude::*};
 
 use crate::{
     game::{components::Penguin, types::BotDifficulty},

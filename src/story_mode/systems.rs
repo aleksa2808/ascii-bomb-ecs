@@ -2,7 +2,7 @@ use bevy::{
     ecs::event::Events,
     input::keyboard::{Key, KeyboardInput},
     prelude::*,
-    render::camera::Camera,
+    text::LineHeight,
 };
 
 use crate::{
@@ -101,7 +101,7 @@ pub fn setup_story_mode(
                 world_id,
                 true,
                 true,
-                Some(&|parent: &mut ChildBuilder| {
+                Some(&|parent: &mut ChildSpawnerCommands| {
                     // lives display
                     parent.spawn((
                         Node {
@@ -114,6 +114,7 @@ pub fn setup_story_mode(
                         TextFont {
                             font: fonts.mono.clone(),
                             font_size: 2.0 * PIXEL_SCALE as f32,
+                            line_height: LineHeight::RelativeToFont(1.0),
                             ..Default::default()
                         },
                         TextColor(COLORS[0].into()),
@@ -133,6 +134,7 @@ pub fn setup_story_mode(
                         TextFont {
                             font: fonts.mono.clone(),
                             font_size: 2.0 * PIXEL_SCALE as f32,
+                            line_height: LineHeight::RelativeToFont(1.0),
                             ..Default::default()
                         },
                         TextColor(COLORS[0].into()),
@@ -206,8 +208,8 @@ pub fn story_mode_manager(
     query2: Query<
         Entity,
         (
-            Without<Window>,
-            Without<Camera>,
+            With<PostGameCleanup>,
+            Without<Camera2d>,
             Without<UIComponent>,
             Without<Protagonist>,
         ),
@@ -225,7 +227,7 @@ pub fn story_mode_manager(
                     mut player_spawn_position,
                     mut transform,
                     mut sprite,
-                ) = tmp.single_mut();
+                ) = tmp.single_mut().unwrap();
 
                 // move player to spawn
                 *player_position = match story_mode_context.level {
@@ -315,7 +317,7 @@ pub fn story_mode_manager(
 
                 game_timer.0.reset();
                 // update HUD clock
-                p2.p1().single_mut().0 =
+                p2.p1().single_mut().unwrap().0 =
                     format_hud_time(game_timer.0.duration().as_secs_f32().ceil() as usize);
 
                 story_mode_context.level_outcome = None;
@@ -361,7 +363,7 @@ pub fn story_mode_manager(
                         game_score.0 += 5
                             * (game_timer.0.duration() - game_timer.0.elapsed()).as_secs() as usize;
                         // update HUD points
-                        p2.p0().single_mut().0 = format_hud_points(game_score.0);
+                        p2.p0().single_mut().unwrap().0 = format_hud_points(game_score.0);
 
                         match (story_mode_context.level, world_id.0) {
                             (Level::BossRoom, 3) => {
@@ -375,7 +377,7 @@ pub fn story_mode_manager(
                             (Level::BossRoom, _) => {
                                 world_id.0 += 1;
                                 story_mode_context.level = Level::Regular(1);
-                                *p.p2().single_mut() =
+                                *p.p2().single_mut().unwrap() =
                                     hud_colors.get_background_color(*world_id).into();
                                 game_textures.set_map_textures(*world_id);
                             }
@@ -390,7 +392,7 @@ pub fn story_mode_manager(
 
                         let mut tmp = p.p0();
                         let (player_entity, mut player_sprite, base_texture, mut bomb_satchel) =
-                            tmp.single_mut();
+                            tmp.single_mut().unwrap();
 
                         // reset the player's texture (clears immortality animation effects)
                         player_sprite.image = base_texture.0.clone();
@@ -406,7 +408,7 @@ pub fn story_mode_manager(
 
                         // clear penguin portraits
                         for entity in query.iter() {
-                            commands.entity(entity).despawn_recursive();
+                            commands.entity(entity).despawn();
                         }
 
                         // bomb refill
@@ -448,8 +450,8 @@ pub fn hud_lives_indicator_update(
     query2: Query<&Health, (With<Protagonist>, Changed<Health>)>,
 ) {
     // need to be careful around death edge cases here
-    if let Ok(player) = query2.get_single() {
-        query.single_mut().0 = format_hud_lives(player.lives);
+    if let Ok(player) = query2.single() {
+        query.single_mut().unwrap().0 = format_hud_lives(player.lives);
     }
 }
 
@@ -458,7 +460,7 @@ pub fn hud_points_indicator_update(
     mut query: Query<&mut Text, With<BottomLeftDisplay2>>,
 ) {
     if game_score.is_changed() {
-        query.single_mut().0 = format_hud_points(game_score.0);
+        query.single_mut().unwrap().0 = format_hud_points(game_score.0);
     }
 }
 
@@ -478,7 +480,7 @@ pub fn finish_level(
     match story_mode_context.level {
         Level::Regular(_) => {
             // if an exit is spawned...
-            if let Ok(exit_position) = p.p1().get_single().map(|p| *p) {
+            if let Ok(exit_position) = p.p1().single().map(|p| *p) {
                 // ...check if a protagonist reached it when all the enemies are dead
                 if p.p0().iter_mut().any(|(pp, ptid)| {
                     *pp == exit_position && !query2.iter().any(|tid| tid.0 != ptid.0)
@@ -521,32 +523,34 @@ pub fn setup_boss_speech(
     let mut speaker_portrait = None;
     let mut speech_text = None;
 
-    commands.entity(query.single()).with_children(|parent| {
-        speech_box = Some(
-            parent
-                .spawn((
-                    Node {
-                        position_type: PositionType::Absolute,
-                        left: Val::Px(0.0),
-                        top: Val::Px(0.0),
-                        width: Val::Percent(100.0),
-                        height: Val::Percent(100.0),
-                        ..Default::default()
-                    },
-                    BackgroundColor(hud_colors.black_color),
-                    UIComponent,
-                ))
-                .with_children(|parent| {
-                    // dialog border
-                    parent.spawn((
+    commands
+        .entity(query.single().unwrap())
+        .with_children(|parent| {
+            speech_box = Some(
+                parent
+                    .spawn((
                         Node {
                             position_type: PositionType::Absolute,
                             left: Val::Px(0.0),
                             top: Val::Px(0.0),
+                            width: Val::Percent(100.0),
+                            height: Val::Percent(100.0),
                             ..Default::default()
                         },
-                        Text::new(
-                            r"
+                        BackgroundColor(hud_colors.black_color),
+                        UIComponent,
+                    ))
+                    .with_children(|parent| {
+                        // dialog border
+                        parent.spawn((
+                            Node {
+                                position_type: PositionType::Absolute,
+                                left: Val::Px(0.0),
+                                top: Val::Px(0.0),
+                                ..Default::default()
+                            },
+                            Text::new(
+                                r"
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
 │                                                                                        │
 │                                                                                        │
@@ -555,99 +559,101 @@ pub fn setup_boss_speech(
 │                                                                                        │
 └────────────────────────────────────────────────────────────────────────────────────────┘
 "
-                            .trim_matches('\n'),
-                        ),
-                        TextFont {
-                            font: fonts.mono.clone(),
-                            font_size: 2.0 * PIXEL_SCALE as f32,
-                            ..Default::default()
-                        },
-                        TextColor(COLORS[15].into()), // TODO: is this the right color?
-                        UIComponent,
-                    ));
-
-                    // player portrait
-                    parent
-                        .spawn((
-                            Node {
-                                position_type: PositionType::Absolute,
-                                left: Val::Px(4.0 * PIXEL_SCALE as f32),
-                                top: Val::Px(2.0 * PIXEL_SCALE as f32),
-                                width: Val::Px(8.0 * PIXEL_SCALE as f32),
-                                height: Val::Px(10.0 * PIXEL_SCALE as f32),
-                                border: UiRect {
-                                    left: Val::Px(PIXEL_SCALE as f32),
-                                    top: Val::Px(PIXEL_SCALE as f32),
-                                    right: Val::Px(PIXEL_SCALE as f32),
-                                    bottom: Val::Px(PIXEL_SCALE as f32),
-                                },
+                                .trim_matches('\n'),
+                            ),
+                            TextFont {
+                                font: fonts.mono.clone(),
+                                font_size: 2.0 * PIXEL_SCALE as f32,
+                                line_height: LineHeight::RelativeToFont(1.0),
                                 ..Default::default()
                             },
-                            BorderColor(hud_colors.portrait_border_color),
+                            TextColor(COLORS[15].into()), // TODO: is this the right color?
                             UIComponent,
-                        ))
-                        .with_children(|parent| {
-                            parent
-                                .spawn((
-                                    Node {
-                                        width: Val::Percent(100.0),
-                                        height: Val::Percent(100.0),
-                                        ..Default::default()
-                                    },
-                                    BackgroundColor(hud_colors.portrait_background_color),
-                                    UIComponent,
-                                ))
-                                .with_children(|parent| {
-                                    speaker_portrait = Some(
-                                        parent
-                                            .spawn((
-                                                Node {
-                                                    width: Val::Percent(100.0),
-                                                    height: Val::Percent(100.0),
-                                                    ..Default::default()
-                                                },
-                                                ImageNode {
-                                                    image: game_textures
-                                                        .get_penguin_texture(
-                                                            boss_speech_script
-                                                                .get_current_speaker(),
-                                                        )
-                                                        .clone()
-                                                        .into(),
-                                                    ..Default::default()
-                                                },
-                                                UIComponent,
-                                            ))
-                                            .id(),
-                                    );
-                                });
-                        });
+                        ));
 
-                    // speech text
-                    speech_text = Some(
+                        // player portrait
                         parent
                             .spawn((
                                 Node {
                                     position_type: PositionType::Absolute,
-                                    top: Val::Px(6.0 * PIXEL_SCALE as f32),
-                                    left: Val::Px(16.0 * PIXEL_SCALE as f32),
+                                    left: Val::Px(4.0 * PIXEL_SCALE as f32),
+                                    top: Val::Px(2.0 * PIXEL_SCALE as f32),
+                                    width: Val::Px(8.0 * PIXEL_SCALE as f32),
+                                    height: Val::Px(10.0 * PIXEL_SCALE as f32),
+                                    border: UiRect {
+                                        left: Val::Px(PIXEL_SCALE as f32),
+                                        top: Val::Px(PIXEL_SCALE as f32),
+                                        right: Val::Px(PIXEL_SCALE as f32),
+                                        bottom: Val::Px(PIXEL_SCALE as f32),
+                                    },
                                     ..Default::default()
                                 },
-                                Text::new(boss_speech_script.get_current_line_state()),
-                                TextFont {
-                                    font: fonts.mono.clone(),
-                                    font_size: 2.0 * PIXEL_SCALE as f32,
-                                    ..Default::default()
-                                },
-                                TextColor(COLORS[15].into()), // TODO: is this the right color?
+                                BorderColor(hud_colors.portrait_border_color),
                                 UIComponent,
                             ))
-                            .id(),
-                    );
-                })
-                .id(),
-        );
-    });
+                            .with_children(|parent| {
+                                parent
+                                    .spawn((
+                                        Node {
+                                            width: Val::Percent(100.0),
+                                            height: Val::Percent(100.0),
+                                            ..Default::default()
+                                        },
+                                        BackgroundColor(hud_colors.portrait_background_color),
+                                        UIComponent,
+                                    ))
+                                    .with_children(|parent| {
+                                        speaker_portrait = Some(
+                                            parent
+                                                .spawn((
+                                                    Node {
+                                                        width: Val::Percent(100.0),
+                                                        height: Val::Percent(100.0),
+                                                        ..Default::default()
+                                                    },
+                                                    ImageNode {
+                                                        image: game_textures
+                                                            .get_penguin_texture(
+                                                                boss_speech_script
+                                                                    .get_current_speaker(),
+                                                            )
+                                                            .clone()
+                                                            .into(),
+                                                        ..Default::default()
+                                                    },
+                                                    UIComponent,
+                                                ))
+                                                .id(),
+                                        );
+                                    });
+                            });
+
+                        // speech text
+                        speech_text = Some(
+                            parent
+                                .spawn((
+                                    Node {
+                                        position_type: PositionType::Absolute,
+                                        top: Val::Px(6.0 * PIXEL_SCALE as f32),
+                                        left: Val::Px(16.0 * PIXEL_SCALE as f32),
+                                        ..Default::default()
+                                    },
+                                    Text::new(boss_speech_script.get_current_line_state()),
+                                    TextFont {
+                                        font: fonts.mono.clone(),
+                                        font_size: 2.0 * PIXEL_SCALE as f32,
+                                        line_height: LineHeight::RelativeToFont(1.0),
+                                        ..Default::default()
+                                    },
+                                    TextColor(COLORS[15].into()), // TODO: is this the right color?
+                                    UIComponent,
+                                ))
+                                .id(),
+                        );
+                    })
+                    .id(),
+            );
+        });
 
     commands.insert_resource(BossSpeechBoxEntities {
         speech_box: speech_box.unwrap(),
@@ -682,7 +688,7 @@ pub fn boss_speech_update(
         } else {
             commands
                 .entity(boss_speech_box_entities.speech_box)
-                .despawn_recursive();
+                .despawn();
 
             commands.remove_resource::<BossSpeechBoxEntities>();
             commands.remove_resource::<BossSpeechScript>();
@@ -707,78 +713,83 @@ pub fn setup_high_score_name_input(
 ) {
     let mut name_text = None;
 
-    commands.entity(query.single()).with_children(|parent| {
-        parent
-            .spawn((
-                Node {
-                    position_type: PositionType::Absolute,
-                    left: Val::Px(
-                        ((map_size.columns * (TILE_WIDTH / PIXEL_SCALE) / 2 - 15) * PIXEL_SCALE)
-                            as f32,
-                    ),
-                    top: Val::Px(
-                        // messy equation that produces the same results as the C code (integer divisions)
-                        ((((HUD_HEIGHT + map_size.rows * TILE_HEIGHT) / PIXEL_SCALE) / 4 * 2 - 6)
-                            * PIXEL_SCALE) as f32,
-                    ),
-                    width: Val::Px(30.0 * PIXEL_SCALE as f32),
-                    height: Val::Px(10.0 * PIXEL_SCALE as f32),
-                    ..Default::default()
-                },
-                BackgroundColor(hud_colors.black_color),
-                UIComponent,
-            ))
-            .with_children(|parent| {
-                // dialog border
-                parent.spawn((
+    commands
+        .entity(query.single().unwrap())
+        .with_children(|parent| {
+            parent
+                .spawn((
                     Node {
                         position_type: PositionType::Absolute,
-                        top: Val::Px(0.0),
-                        left: Val::Px(0.0),
+                        left: Val::Px(
+                            ((map_size.columns * (TILE_WIDTH / PIXEL_SCALE) / 2 - 15) * PIXEL_SCALE)
+                                as f32,
+                        ),
+                        top: Val::Px(
+                            // messy equation that produces the same results as the C code (integer divisions)
+                            ((((HUD_HEIGHT + map_size.rows * TILE_HEIGHT) / PIXEL_SCALE) / 4 * 2
+                                - 6)
+                                * PIXEL_SCALE) as f32,
+                        ),
+                        width: Val::Px(30.0 * PIXEL_SCALE as f32),
+                        height: Val::Px(10.0 * PIXEL_SCALE as f32),
                         ..Default::default()
                     },
-                    Text::new(
-                        r"
+                    BackgroundColor(hud_colors.black_color),
+                    UIComponent,
+                ))
+                .with_children(|parent| {
+                    // dialog border
+                    parent.spawn((
+                        Node {
+                            position_type: PositionType::Absolute,
+                            top: Val::Px(0.0),
+                            left: Val::Px(0.0),
+                            ..Default::default()
+                        },
+                        Text::new(
+                            r"
 ┌────────────────────────────┐
 │                            │
 │ Name:                      │
 │                            │
 └────────────────────────────┘
 "
-                        .trim_matches('\n'),
-                    ),
-                    TextFont {
-                        font: fonts.mono.clone(),
-                        font_size: 2.0 * PIXEL_SCALE as f32,
-                        ..Default::default()
-                    },
-                    TextColor(COLORS[15].into()), // TODO: is this the right color?
-                    UIComponent,
-                ));
+                            .trim_matches('\n'),
+                        ),
+                        TextFont {
+                            font: fonts.mono.clone(),
+                            font_size: 2.0 * PIXEL_SCALE as f32,
+                            line_height: LineHeight::RelativeToFont(1.0),
+                            ..Default::default()
+                        },
+                        TextColor(COLORS[15].into()), // TODO: is this the right color?
+                        UIComponent,
+                    ));
 
-                // name text
-                name_text = Some(
-                    parent
-                        .spawn((
-                            Node {
-                                position_type: PositionType::Absolute,
-                                top: Val::Px(4.0 * PIXEL_SCALE as f32),
-                                left: Val::Px(8.0 * PIXEL_SCALE as f32),
-                                ..Default::default()
-                            },
-                            Text::new(""),
-                            TextFont {
-                                font: fonts.mono.clone(),
-                                font_size: 2.0 * PIXEL_SCALE as f32,
-                                ..Default::default()
-                            },
-                            TextColor(COLORS[15].into()), // TODO: is this the right color?
-                            UIComponent,
-                        ))
-                        .id(),
-                );
-            });
-    });
+                    // name text
+                    name_text = Some(
+                        parent
+                            .spawn((
+                                Node {
+                                    position_type: PositionType::Absolute,
+                                    top: Val::Px(4.0 * PIXEL_SCALE as f32),
+                                    left: Val::Px(8.0 * PIXEL_SCALE as f32),
+                                    ..Default::default()
+                                },
+                                Text::new(""),
+                                TextFont {
+                                    font: fonts.mono.clone(),
+                                    font_size: 2.0 * PIXEL_SCALE as f32,
+                                    line_height: LineHeight::RelativeToFont(1.0),
+                                    ..Default::default()
+                                },
+                                TextColor(COLORS[15].into()), // TODO: is this the right color?
+                                UIComponent,
+                            ))
+                            .id(),
+                    );
+                });
+        });
 
     commands.insert_resource(HighScoreNameInputContext {
         name_text: name_text.unwrap(),
@@ -858,7 +869,7 @@ pub fn teardown(
 ) {
     // clear entities
     for entity in query.iter() {
-        commands.entity(entity).despawn_recursive();
+        commands.entity(entity).despawn();
     }
 
     // clear events

@@ -1,4 +1,4 @@
-use bevy::{prelude::*, utils::HashSet};
+use bevy::{platform::collections::HashSet, prelude::*, text::LineHeight};
 use rand::{
     prelude::{IndexedRandom, IteratorRandom},
     Rng,
@@ -33,14 +33,14 @@ pub fn format_hud_time(remaining_seconds: usize) -> String {
 }
 
 pub fn init_hud(
-    parent: &mut ChildBuilder,
+    parent: &mut ChildSpawnerCommands,
     hud_colors: &HUDColors,
     fonts: &Fonts,
     width: f32,
     world_id: WorldID,
     with_penguin_portrait_display: bool,
     with_clock: bool,
-    extra_item_fn: Option<&dyn Fn(&mut ChildBuilder)>,
+    extra_item_fn: Option<&dyn Fn(&mut ChildSpawnerCommands)>,
 ) {
     let mut ec = parent.spawn((
         Node {
@@ -87,6 +87,7 @@ pub fn init_hud(
                         TextFont {
                             font: fonts.mono.clone(),
                             font_size: 2.0 * PIXEL_SCALE as f32,
+                            line_height: LineHeight::RelativeToFont(1.0),
                             ..Default::default()
                         },
                         TextColor(COLORS[15].into()),
@@ -103,7 +104,7 @@ pub fn init_hud(
 }
 
 pub fn init_penguin_portraits(
-    parent: &mut ChildBuilder,
+    parent: &mut ChildSpawnerCommands,
     penguin_tags: &[Penguin],
     hud_colors: &HUDColors,
     game_textures: &GameTextures,

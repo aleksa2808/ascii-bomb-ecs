@@ -1,11 +1,10 @@
 use std::io::Cursor;
 
-use anyhow::Result;
 use bevy::{
     asset::{self as bevy_asset, io::Reader, AssetLoader, LoadContext},
+    platform::collections::HashMap,
     prelude::*,
     reflect::{self as bevy_reflect, TypePath},
-    utils::HashMap,
 };
 use itertools::Itertools;
 use kira::{

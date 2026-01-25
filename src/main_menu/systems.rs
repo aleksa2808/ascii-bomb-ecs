@@ -1,4 +1,7 @@
-use bevy::{app::AppExit, prelude::*, utils::HashMap, window::PrimaryWindow};
+use bevy::{
+    app::AppExit, platform::collections::HashMap, prelude::*, text::LineHeight,
+    window::PrimaryWindow,
+};
 
 use crate::{
     audio::Audio,
@@ -29,7 +32,7 @@ use super::{
 
 pub fn resize_window(mut primary_query: Query<&mut Window, With<PrimaryWindow>>) {
     primary_query
-        .get_single_mut()
+        .single_mut()
         .unwrap()
         .resolution
         .set(MENU_WIDTH as f32, MENU_HEIGHT as f32);
@@ -77,6 +80,7 @@ pub fn setup_menu(
                 TextFont {
                     font: fonts.mono.clone(),
                     font_size: 2.0 * PIXEL_SCALE as f32,
+                    line_height: LineHeight::RelativeToFont(1.0),
                     ..Default::default()
                 },
                 TextColor(COLORS[15].into()),
@@ -95,6 +99,7 @@ pub fn setup_menu(
                         TextFont {
                             font: fonts.mono.clone(),
                             font_size: 2.0 * PIXEL_SCALE as f32,
+                            line_height: LineHeight::RelativeToFont(1.0),
                             ..Default::default()
                         },
                         TextColor(COLORS[c].into()),
@@ -231,6 +236,7 @@ __██__
                         TextFont {
                             font: fonts.mono.clone(),
                             font_size: 2.0 * PIXEL_SCALE as f32,
+                            line_height: LineHeight::RelativeToFont(1.0),
                             ..Default::default()
                         },
                         TextColor(menu_colors.modal_background_color),
@@ -360,14 +366,16 @@ pub fn menu_navigation(
                 }
                 MenuAction::OpenBattleModeSubMenu => {
                     let sub_menu_state = BattleModeSubMenuState::default();
-                    commands.entity(query.single().0).with_children(|parent| {
-                        spawn_battle_mode_sub_menu_modal(
-                            parent,
-                            &sub_menu_state,
-                            &fonts,
-                            &menu_colors,
-                        );
-                    });
+                    commands
+                        .entity(query.single().unwrap().0)
+                        .with_children(|parent| {
+                            spawn_battle_mode_sub_menu_modal(
+                                parent,
+                                &sub_menu_state,
+                                &fonts,
+                                &menu_colors,
+                            );
+                        });
                     menu_state.battle_mode_sub_menu_state = Some(sub_menu_state);
                     return;
                 }
@@ -397,7 +405,7 @@ pub fn menu_navigation(
                     }
                 }
                 MenuAction::Exit => {
-                    ev_exit.send(AppExit::Success);
+                    ev_exit.write(AppExit::Success);
                     return;
                 }
                 MenuAction::Back => {
@@ -455,18 +463,18 @@ pub fn menu_navigation(
     if menu_changed {
         if let Some(sub_menu_state) = &menu_state.battle_mode_sub_menu_state {
             // refresh sub menu
-            let (entity, children) = query3.single_mut();
+            let (entity, children) = query3.single_mut().unwrap();
             for child in children.iter() {
-                commands.entity(*child).despawn_recursive();
+                commands.entity(child).despawn();
             }
             commands.entity(entity).with_children(|parent| {
                 spawn_battle_mode_sub_menu_content(parent, sub_menu_state, &fonts, &menu_colors);
             });
         } else {
             // refresh main menu
-            let (entity, children) = query.single_mut();
+            let (entity, children) = query.single_mut().unwrap();
             for child in children.iter() {
-                commands.entity(*child).despawn_recursive();
+                commands.entity(child).despawn();
             }
             commands.entity(entity).with_children(|parent| {
                 spawn_menu_type(

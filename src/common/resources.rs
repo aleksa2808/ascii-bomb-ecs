@@ -2,8 +2,8 @@ use std::{cmp::Reverse, fs};
 
 use bevy::{
     ecs as bevy_ecs,
+    platform::collections::{HashMap, HashSet},
     prelude::*,
-    utils::{HashMap, HashSet},
 };
 use serde::{Deserialize, Serialize};
 

@@ -5,7 +5,7 @@ mod web;
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use bevy::{ecs as bevy_ecs, prelude::*, utils::HashMap};
+use bevy::{ecs as bevy_ecs, platform::collections::HashMap, prelude::*};
 use parking_lot::RwLock;
 
 #[cfg(target_arch = "wasm32")]

@@ -1,5 +1,5 @@
 use bevy::{
-    ecs::{self as bevy_ecs, schedule::SystemConfigs},
+    ecs::{self as bevy_ecs, schedule::ScheduleConfigs, system::ScheduleSystem},
     prelude::*,
 };
 
@@ -33,7 +33,7 @@ pub enum Set {
     PlayerDeathEvent,
 }
 
-pub fn common_game_systems() -> SystemConfigs {
+pub fn common_game_systems() -> ScheduleConfigs<ScheduleSystem> {
     (
         // time effect update
         (

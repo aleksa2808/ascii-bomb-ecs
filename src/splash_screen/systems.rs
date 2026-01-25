@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, text::LineHeight};
 
 use crate::{
     common::{
@@ -45,6 +45,7 @@ pub fn setup_splash_screen(mut commands: Commands, fonts: Res<Fonts>) {
                         TextFont {
                             font: fonts.mono.clone(),
                             font_size: 2.0 * PIXEL_SCALE as f32,
+                            line_height: LineHeight::RelativeToFont(1.0),
                             ..Default::default()
                         },
                         TextColor(COLORS[15].into()),
@@ -65,6 +66,7 @@ pub fn setup_splash_screen(mut commands: Commands, fonts: Res<Fonts>) {
                         TextFont {
                             font: fonts.mono.clone(),
                             font_size: 2.0 * PIXEL_SCALE as f32,
+                            line_height: LineHeight::RelativeToFont(1.0),
                             ..Default::default()
                         },
                         TextColor(COLORS[15].into()),

@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, text::LineHeight};
 
 use crate::{
     common::{
@@ -14,7 +14,7 @@ use super::{
 };
 
 pub fn spawn_menu_type(
-    parent: &mut ChildBuilder,
+    parent: &mut ChildSpawnerCommands,
     menu_type: &MenuType,
     fonts: &Fonts,
     menu_colors: &MenuColors,
@@ -34,6 +34,7 @@ pub fn spawn_menu_type(
                 TextFont {
                     font: fonts.mono.clone(),
                     font_size: 2.0 * PIXEL_SCALE as f32,
+                    line_height: LineHeight::RelativeToFont(1.0),
                     ..Default::default()
                 },
                 TextColor(menu_colors.modal_foreground_color),
@@ -53,6 +54,7 @@ pub fn spawn_menu_type(
                 TextFont {
                     font: fonts.mono.clone(),
                     font_size: 2.0 * PIXEL_SCALE as f32,
+                    line_height: LineHeight::RelativeToFont(1.0),
                     ..Default::default()
                 },
                 TextColor(menu_colors.modal_foreground_color),
@@ -92,6 +94,7 @@ pub fn spawn_menu_type(
                 TextFont {
                     font: fonts.mono.clone(),
                     font_size: 2.0 * PIXEL_SCALE as f32,
+                    line_height: LineHeight::RelativeToFont(1.0),
                     ..Default::default()
                 },
                 TextColor(menu_colors.modal_foreground_color),
@@ -111,6 +114,7 @@ pub fn spawn_menu_type(
                 TextFont {
                     font: fonts.mono.clone(),
                     font_size: 2.0 * PIXEL_SCALE as f32,
+                    line_height: LineHeight::RelativeToFont(1.0),
                     ..Default::default()
                 },
                 TextColor(menu_colors.modal_foreground_color),
@@ -129,6 +133,7 @@ pub fn spawn_menu_type(
                 TextFont {
                     font: fonts.mono.clone(),
                     font_size: 2.0 * PIXEL_SCALE as f32,
+                    line_height: LineHeight::RelativeToFont(1.0),
                     ..Default::default()
                 },
                 TextColor(menu_colors.modal_foreground_color),
@@ -159,6 +164,7 @@ pub fn spawn_menu_type(
                         TextFont {
                             font: fonts.mono.clone(),
                             font_size: 2.0 * PIXEL_SCALE as f32,
+                            line_height: LineHeight::RelativeToFont(1.0),
                             ..Default::default()
                         },
                         TextColor(menu_colors.modal_background_color),
@@ -177,6 +183,7 @@ pub fn spawn_menu_type(
                 TextFont {
                     font: fonts.mono.clone(),
                     font_size: 2.0 * PIXEL_SCALE as f32,
+                    line_height: LineHeight::RelativeToFont(1.0),
                     ..Default::default()
                 },
                 TextColor(menu_colors.modal_foreground_color),
@@ -203,6 +210,7 @@ pub fn spawn_menu_type(
                 TextFont {
                     font: fonts.mono.clone(),
                     font_size: 2.0 * PIXEL_SCALE as f32,
+                    line_height: LineHeight::RelativeToFont(1.0),
                     ..Default::default()
                 },
                 TextColor(menu_colors.modal_foreground_color),
@@ -233,6 +241,7 @@ pub fn spawn_menu_type(
                         TextFont {
                             font: fonts.mono.clone(),
                             font_size: 2.0 * PIXEL_SCALE as f32,
+                            line_height: LineHeight::RelativeToFont(1.0),
                             ..Default::default()
                         },
                         TextColor(menu_colors.modal_background_color),
@@ -243,7 +252,7 @@ pub fn spawn_menu_type(
 }
 
 pub fn spawn_battle_mode_sub_menu_modal(
-    parent: &mut ChildBuilder,
+    parent: &mut ChildSpawnerCommands,
     sub_menu_state: &BattleModeSubMenuState,
     fonts: &Fonts,
     menu_colors: &MenuColors,
@@ -290,6 +299,7 @@ pub fn spawn_battle_mode_sub_menu_modal(
                 TextFont {
                     font: fonts.mono.clone(),
                     font_size: 2.0 * PIXEL_SCALE as f32,
+                    line_height: LineHeight::RelativeToFont(1.0),
                     ..Default::default()
                 },
                 TextColor(menu_colors.modal_background_color),
@@ -313,7 +323,7 @@ pub fn spawn_battle_mode_sub_menu_modal(
 }
 
 pub fn spawn_battle_mode_sub_menu_content(
-    parent: &mut ChildBuilder,
+    parent: &mut ChildSpawnerCommands,
     sub_menu_state: &BattleModeSubMenuState,
     fonts: &Fonts,
     menu_colors: &MenuColors,
@@ -334,6 +344,7 @@ pub fn spawn_battle_mode_sub_menu_content(
         TextFont {
             font: fonts.mono.clone(),
             font_size: 2.0 * PIXEL_SCALE as f32,
+            line_height: LineHeight::RelativeToFont(1.0),
             ..Default::default()
         },
         TextColor(menu_colors.modal_foreground_color),
@@ -368,6 +379,7 @@ pub fn spawn_battle_mode_sub_menu_content(
         TextFont {
             font: fonts.mono.clone(),
             font_size: 2.0 * PIXEL_SCALE as f32,
+            line_height: LineHeight::RelativeToFont(1.0),
             ..Default::default()
         },
         TextColor(menu_colors.modal_foreground_color),

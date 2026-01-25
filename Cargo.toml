@@ -21,7 +21,7 @@ anyhow = "1.0"
 itertools = "0.14"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-bevy = { version = "0.15", default-features = false, features = [
+bevy = { version = "0.16", default-features = false, features = [
     "dynamic_linking",
     "bevy_winit",
     "png",
@@ -47,7 +47,7 @@ kira = "0.5.3"
 # modifying its logical window size based on them which breaks canvas scaling. One option around
 # this would be to use a patched version of bevy which doesn't react to canvas changes as in this
 # project the game should always be in charge of both the logical and the physical window sizes.
-bevy = { version = "0.15", default-features = false, features = [
+bevy = { version = "0.16", default-features = false, features = [
     "bevy_winit",
     "png",
     "bevy_core_pipeline",

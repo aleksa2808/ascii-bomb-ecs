@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use bevy::{prelude::*, utils::HashSet};
+use bevy::{platform::collections::HashSet, prelude::*, text::LineHeight};
 use rand::Rng;
 
 use crate::{
@@ -78,7 +78,7 @@ pub fn setup_secret_mode(
                 world_id,
                 false,
                 false,
-                Some(&|parent: &mut ChildBuilder| {
+                Some(&|parent: &mut ChildSpawnerCommands| {
                     parent
                         .spawn((
                             Node {
@@ -104,6 +104,7 @@ pub fn setup_secret_mode(
                                 TextFont {
                                     font: fonts.mono.clone(),
                                     font_size: 2.0 * PIXEL_SCALE as f32,
+                                    line_height: LineHeight::RelativeToFont(1.0),
                                     ..Default::default()
                                 },
                                 TextColor(COLORS[15].into()),
@@ -136,6 +137,7 @@ pub fn setup_secret_mode(
                                 TextFont {
                                     font: fonts.mono.clone(),
                                     font_size: 2.0 * PIXEL_SCALE as f32,
+                                    line_height: LineHeight::RelativeToFont(1.0),
                                     ..Default::default()
                                 },
                                 TextColor(COLORS[15].into()),
@@ -283,7 +285,7 @@ pub fn update_secret_mode(
                         let new_position = position.offset(Direction::Left, 1);
 
                         if walls.contains(&new_position) {
-                            commands.entity(entity).despawn_recursive();
+                            commands.entity(entity).despawn();
                         } else {
                             *position = new_position;
 
@@ -350,6 +352,7 @@ pub fn update_secret_mode(
                                                 TextFont {
                                                     font: fonts.mono.clone(),
                                                     font_size: 2.0 * PIXEL_SCALE as f32,
+                                                    line_height: LineHeight::RelativeToFont(1.0),
                                                     ..Default::default()
                                                 },
                                                 TextColor(fuse_color),
@@ -359,6 +362,7 @@ pub fn update_secret_mode(
                                                 TextFont {
                                                     font: fonts.mono.clone(),
                                                     font_size: 2.0 * PIXEL_SCALE as f32,
+                                                    line_height: LineHeight::RelativeToFont(1.0),
                                                     ..Default::default()
                                                 },
                                                 TextColor(COLORS[0].into()),
@@ -375,7 +379,7 @@ pub fn update_secret_mode(
                         *round_progress = 0;
 
                         let new_texture = game_textures.get_penguin_texture(Penguin(*round));
-                        let (entity, mut sprite, mut base_texture) = query.single_mut();
+                        let (entity, mut sprite, mut base_texture) = query.single_mut().unwrap();
                         sprite.image = new_texture.clone();
                         *base_texture = BaseTexture(new_texture.clone());
 
@@ -418,14 +422,14 @@ pub fn finish_secret_mode(
     query2: Query<(Entity, &Position), With<Bomb>>,
     mut ev_explosion: EventWriter<ExplosionEvent>,
 ) {
-    let (player_entity, player_position) = query.single();
+    let (player_entity, player_position) = query.single().unwrap();
     if query2.iter().any(|(_, p)| *p == *player_position) {
         secret_mode_context.in_game_state =
             SecretModeInGameState::Stopping(Timer::from_seconds(0.5, TimerMode::Once));
 
         commands.entity(player_entity).remove::<HumanControlled>();
         for (entity, _) in query2.iter() {
-            ev_explosion.send(ExplosionEvent { bomb: entity });
+            ev_explosion.write(ExplosionEvent { bomb: entity });
         }
     }
 }
@@ -437,7 +441,7 @@ pub fn teardown(
     mut next_state: ResMut<NextState<AppState>>,
 ) {
     for entity in query.iter() {
-        commands.entity(entity).despawn_recursive();
+        commands.entity(entity).despawn();
     }
 
     commands.remove_resource::<WorldID>();

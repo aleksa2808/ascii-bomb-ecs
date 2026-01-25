@@ -1,8 +1,9 @@
 use std::time::Duration;
 
 use bevy::{
+    platform::collections::{HashMap, HashSet},
     prelude::*,
-    utils::{HashMap, HashSet},
+    text::LineHeight,
     window::PrimaryWindow,
 };
 use rand::{
@@ -34,7 +35,7 @@ pub fn resize_window(
     mut primary_query: Query<&mut Window, With<PrimaryWindow>>,
     map_size: Res<MapSize>,
 ) {
-    primary_query.get_single_mut().unwrap().resolution.set(
+    primary_query.single_mut().unwrap().resolution.set(
         (map_size.columns * TILE_WIDTH) as f32,
         (HUD_HEIGHT + map_size.rows * TILE_HEIGHT) as f32,
     );
@@ -59,7 +60,7 @@ pub fn setup_penguin_portraits(
     query: Query<Entity, With<PenguinPortraitDisplay>>,
     query2: Query<&Penguin>,
 ) {
-    if let Ok(e) = query.get_single() {
+    if let Ok(e) = query.single() {
         let penguin_tags = query2.iter().copied().collect::<Vec<Penguin>>();
         commands.entity(e).with_children(|parent| {
             init_penguin_portraits(parent, &penguin_tags, &hud_colors, &game_textures);
@@ -77,18 +78,18 @@ pub fn hud_update(
     let remaining_seconds = (game_timer.0.duration() - game_timer.0.elapsed())
         .as_secs_f32()
         .ceil() as usize;
-    query.single_mut().0 = format_hud_time(remaining_seconds);
+    query.single_mut().unwrap().0 = format_hud_time(remaining_seconds);
 
     // remove dead penguin portraits :(
     for (entity, PenguinPortrait(penguin)) in query3.iter() {
         if !query2.iter().any(|p| p.0 == penguin.0) {
-            commands.entity(entity).despawn_recursive();
+            commands.entity(entity).despawn();
         }
     }
 }
 
 pub fn hud_indicate_pause(mut query: Query<&mut Text, With<GameTimerDisplay>>) {
-    query.single_mut().0 = String::from("PAUSE");
+    query.single_mut().unwrap().0 = String::from("PAUSE");
 }
 
 pub fn move_cooldown_tick(time: Res<Time>, mut query: Query<&mut MoveCooldown>) {
@@ -120,7 +121,7 @@ pub fn handle_user_input(
             (InputAction::Right, Direction::Right),
         ] {
             if inputs.is_active(input_action) {
-                ev_player_action.send(PlayerActionEvent {
+                ev_player_action.write(PlayerActionEvent {
                     player: entity,
                     action: PlayerAction::Move(direction),
                 });
@@ -128,7 +129,7 @@ pub fn handle_user_input(
         }
 
         if inputs.is_active(InputAction::Space) {
-            ev_player_action.send(PlayerActionEvent {
+            ev_player_action.write(PlayerActionEvent {
                 player: entity,
                 action: PlayerAction::DropBomb,
             });
@@ -143,7 +144,7 @@ pub fn handle_user_input(
             (InputAction::D, Direction::Right),
         ] {
             if inputs.is_active(input_action) {
-                ev_player_action.send(PlayerActionEvent {
+                ev_player_action.write(PlayerActionEvent {
                     player: entity,
                     action: PlayerAction::Move(direction),
                 });
@@ -151,7 +152,7 @@ pub fn handle_user_input(
         }
 
         if inputs.is_active(InputAction::G) {
-            ev_player_action.send(PlayerActionEvent {
+            ev_player_action.write(PlayerActionEvent {
                 player: entity,
                 action: PlayerAction::DropBomb,
             });
@@ -186,7 +187,7 @@ pub fn mob_ai(
         if let Some(direction) = mob_ai.direction {
             let result = solids.get(&position.offset(direction, 1));
             if result.is_none() || (wall_hack.is_some() && matches!(result, Some(true))) {
-                ev_player_action.send(PlayerActionEvent {
+                ev_player_action.write(PlayerActionEvent {
                     player: entity,
                     action: PlayerAction::Move(direction),
                 });
@@ -209,7 +210,7 @@ pub fn mob_ai(
             });
             if let Some(direction) = passable_dir {
                 mob_ai.direction = passable_dir;
-                ev_player_action.send(PlayerActionEvent {
+                ev_player_action.write(PlayerActionEvent {
                     player: entity,
                     action: PlayerAction::Move(direction),
                 });
@@ -518,7 +519,7 @@ pub fn bot_ai(
         if let Some((action, intention)) = action {
             println!("bot {:?}: {:?} - {:?}", entity, intention, action);
 
-            ev_player_action.send(PlayerActionEvent {
+            ev_player_action.write(PlayerActionEvent {
                 player: entity,
                 action,
             });
@@ -677,7 +678,7 @@ pub fn pick_up_item(
                 }
             };
 
-            commands.entity(ie).despawn_recursive();
+            commands.entity(ie).despawn();
         }
     }
 }
@@ -736,6 +737,7 @@ pub fn bomb_drop(
                                     TextFont {
                                         font: fonts.mono.clone(),
                                         font_size: 2.0 * PIXEL_SCALE as f32,
+                                        line_height: LineHeight::RelativeToFont(1.0),
                                         ..Default::default()
                                     },
                                     TextColor(fuse_color),
@@ -745,6 +747,7 @@ pub fn bomb_drop(
                                     TextFont {
                                         font: fonts.mono.clone(),
                                         font_size: 2.0 * PIXEL_SCALE as f32,
+                                        line_height: LineHeight::RelativeToFont(1.0),
                                         ..Default::default()
                                     },
                                     TextColor(COLORS[0].into()),
@@ -759,10 +762,10 @@ pub fn bomb_drop(
 pub fn animate_fuse(
     time: Res<Time>,
     query: Query<&Bomb>,
-    mut query2: Query<(Entity, &Parent, &mut Fuse, &mut Transform), With<Text2d>>,
-    mut writer: TextUiWriter,
+    mut query2: Query<(Entity, &ChildOf, &mut Fuse, &mut Transform), With<Text2d>>,
+    mut writer: Text2dWriter,
 ) {
-    for (entity, parent, mut fuse, mut transform) in query2.iter_mut() {
+    for (entity, child_of, mut fuse, mut transform) in query2.iter_mut() {
         fuse.animation_timer.tick(time.delta());
         let fraction_remaining = fuse.animation_timer.fraction_remaining();
         let fuse_char = match fraction_remaining {
@@ -772,7 +775,7 @@ pub fn animate_fuse(
             _ => unreachable!(),
         };
 
-        let bomb = query.get(parent.get()).unwrap();
+        let bomb = query.get(child_of.parent()).unwrap();
         let fraction_remaining = bomb.timer.fraction_remaining();
 
         *writer.text(entity, 1) = fuse_char.into();
@@ -809,7 +812,7 @@ pub fn fire_tick(mut commands: Commands, time: Res<Time>, mut query: Query<(Enti
     for (entity, mut fire) in query.iter_mut() {
         fire.timer.tick(time.delta());
         if fire.timer.finished() {
-            commands.entity(entity).despawn_recursive();
+            commands.entity(entity).despawn();
         }
     }
 }
@@ -826,7 +829,7 @@ pub fn crumbling_tick(
         crumbling.timer.tick(time.delta());
 
         if crumbling.timer.finished() {
-            commands.entity(entity).despawn_recursive();
+            commands.entity(entity).despawn();
             if matches!(exit_position, Some(ref p) if p.0 == *position) {
                 commands.spawn((
                     Transform::from_xyz(get_x(position.x), get_y(position.y), 10.0),
@@ -859,7 +862,7 @@ pub fn burning_item_tick(
     for (entity, mut burning_item) in query.iter_mut() {
         burning_item.timer.tick(time.delta());
         if burning_item.timer.finished() {
-            commands.entity(entity).despawn_recursive();
+            commands.entity(entity).despawn();
         }
     }
 }
@@ -895,10 +898,10 @@ pub fn explode_bombs(
         .iter()
         .filter(|(e, b, _)| b.timer.finished() || exploded_bombs.contains(e))
     {
-        commands.entity(entity).despawn_recursive();
+        commands.entity(entity).despawn();
 
         if let Some(owner) = bomb.owner {
-            ev_bomb_restock.send(BombRestockEvent {
+            ev_bomb_restock.write(BombRestockEvent {
                 satchel_owner: owner,
             });
         }
@@ -930,7 +933,7 @@ pub fn explode_bombs(
                 let position = position.offset(direction, i);
 
                 if fireproof_positions.contains(&position) {
-                    ev_burn.send(BurnEvent { position });
+                    ev_burn.write(BurnEvent { position });
                     break;
                 }
 
@@ -999,7 +1002,7 @@ pub fn animate_immortality(
 
 pub fn fire_effect(mut query: Query<&Position, With<Fire>>, mut ev_burn: EventWriter<BurnEvent>) {
     for position in query.iter_mut() {
-        ev_burn.send(BurnEvent {
+        ev_burn.write(BurnEvent {
             position: *position,
         });
     }
@@ -1015,7 +1018,7 @@ pub fn melee_attack(
             .iter()
             .filter(|(_, p, tid)| **p == *attacker_position && tid.0 != attacker_team_id.0)
         {
-            ev_damage.send(DamageEvent { target: e });
+            ev_damage.write(DamageEvent { target: e });
         }
     }
 }
@@ -1033,7 +1036,7 @@ pub fn player_burn(
                 continue;
             }
 
-            ev_damage.send(DamageEvent { target: pe });
+            ev_damage.write(DamageEvent { target: pe });
         }
     }
 }
@@ -1057,7 +1060,7 @@ pub fn player_damage(
     mut ev_damage: EventReader<DamageEvent>,
     mut ev_player_death_event: EventWriter<PlayerDeathEvent>,
 ) {
-    let mut damaged_players = HashSet::default();
+    let mut damaged_players: HashSet<Entity> = HashSet::default();
 
     for DamageEvent { target } in ev_damage.read() {
         if let Ok((
@@ -1085,9 +1088,9 @@ pub fn player_damage(
                 health.lives -= 1;
                 if health.lives == 0 {
                     println!("player died from damage: {:?}", pe);
-                    commands.entity(pe).despawn_recursive();
+                    commands.entity(pe).despawn();
 
-                    ev_player_death_event.send(PlayerDeathEvent);
+                    ev_player_death_event.write(PlayerDeathEvent);
 
                     // TODO: move to story_mode
                     if let Some(ref mut game_score) = game_score {
@@ -1166,7 +1169,7 @@ pub fn item_burn(
     mut query: Query<(Entity, &Position), With<Item>>,
     mut ev_burn: EventReader<BurnEvent>,
 ) {
-    let mut burned = HashSet::default();
+    let mut burned: HashSet<Entity> = HashSet::default();
 
     for BurnEvent { position } in ev_burn.read() {
         for e in query
@@ -1181,7 +1184,7 @@ pub fn item_burn(
 
             println!("burned item: {:?}", position);
 
-            commands.entity(e).despawn_recursive();
+            commands.entity(e).despawn();
             // burning item
             commands.spawn((
                 Transform::from_xyz(get_x(position.x), get_y(position.y), 20.0),
@@ -1208,12 +1211,12 @@ pub fn exit_burn(
     mut ev_burn: EventReader<BurnEvent>,
 ) {
     // we do checks here because some levels don't have exits (e.g. boss rooms)
-    if let Ok((_, mut exit)) = query.get_single_mut() {
+    if let Ok((_, mut exit)) = query.single_mut() {
         exit.spawn_cooldown.tick(time.delta());
     }
 
     for BurnEvent { position } in ev_burn.read() {
-        if let Ok((exit_position, mut exit)) = query.get_single_mut() {
+        if let Ok((exit_position, mut exit)) = query.single_mut() {
             if *exit_position == *position && exit.spawn_cooldown.ready() {
                 println!("exit burned: {:?}", position);
 
@@ -1310,16 +1313,16 @@ pub fn wall_of_death_update(
 
     let mut clear_position_and_spawn_wall = |position: Position| {
         for (e, _, bomb, player) in query2.iter().filter(|(_, p, _, _)| **p == position) {
-            commands.entity(e).despawn_recursive();
+            commands.entity(e).despawn();
 
             if player.is_some() {
                 println!("player died from wall of death: {:?}", e);
-                ev_player_death_event.send(PlayerDeathEvent);
+                ev_player_death_event.write(PlayerDeathEvent);
             }
 
             if let Some(bomb) = bomb {
                 if let Some(owner) = bomb.owner {
-                    ev_bomb_restock.send(BombRestockEvent {
+                    ev_bomb_restock.write(BombRestockEvent {
                         satchel_owner: owner,
                     });
                 }
