@@ -60,13 +60,13 @@ impl Plugin for StoryModePlugin {
                 finish_level
                     .after(Set::TimeUpdate)
                     .after(Set::PlayerMovement)
-                    .after(Set::PlayerDeathEvent),
+                    .after(Set::PlayerDeathMessage),
                 // update HUD
                 hud_update
                     .after(Set::TimeUpdate)
-                    .after(Set::PlayerDeathEvent),
+                    .after(Set::PlayerDeathMessage),
                 hud_lives_indicator_update.after(Set::DamageApplication),
-                hud_points_indicator_update.after(Set::PlayerDeathEvent),
+                hud_points_indicator_update.after(Set::PlayerDeathMessage),
             )
                 .run_if(in_state(AppState::StoryModeInGame)),
         );

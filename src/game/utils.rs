@@ -126,7 +126,7 @@ pub fn init_penguin_portraits(
                     },
                     ..Default::default()
                 },
-                BorderColor(hud_colors.portrait_border_color),
+                BorderColor::all(hud_colors.portrait_border_color),
                 PenguinPortrait(*penguin),
                 UIComponent,
             ))

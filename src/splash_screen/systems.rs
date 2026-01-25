@@ -15,7 +15,7 @@ use super::{
 };
 
 pub fn setup_splash_screen(mut commands: Commands, fonts: Res<Fonts>) {
-    commands.spawn((Camera2d, StateScoped(AppState::SplashScreen)));
+    commands.spawn((Camera2d, DespawnOnExit(AppState::SplashScreen)));
 
     let right_position = MENU_WIDTH - SPLASH_SCREEN_TEXT_RIGHT.len() * PIXEL_SCALE;
 
@@ -29,7 +29,7 @@ pub fn setup_splash_screen(mut commands: Commands, fonts: Res<Fonts>) {
                 ..Default::default()
             },
             BackgroundColor(COLORS[0].into()),
-            StateScoped(AppState::SplashScreen),
+            DespawnOnExit(AppState::SplashScreen),
         ))
         .with_children(|parent| {
             left_text = Some(
@@ -97,7 +97,7 @@ pub fn splash_screen_update(
                 MENU_WIDTH / 2 - (SPLASH_SCREEN_TEXT_RIGHT.len() - 5) * PIXEL_SCALE;
 
             timer.tick(time.delta());
-            if timer.finished() {
+            if timer.is_finished() {
                 timer.reset();
 
                 splash_screen_context.left_position =
@@ -124,7 +124,7 @@ pub fn splash_screen_update(
         }
         SplashScreenTextState::Holding(ref mut timer) => {
             timer.tick(time.delta());
-            if timer.finished() {
+            if timer.is_finished() {
                 next_state.set(AppState::MainMenu);
             }
         }

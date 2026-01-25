@@ -1,5 +1,4 @@
 use bevy::{
-    ecs::event::Events,
     input::keyboard::{Key, KeyboardInput},
     prelude::*,
     text::LineHeight,
@@ -13,7 +12,7 @@ use crate::{
         },
         types::InputAction,
     },
-    game::{components::*, constants::*, events::*, resources::*, utils::*},
+    game::{components::*, constants::*, messages::*, resources::*, utils::*},
     map_transition::MapTransitionInput,
     AppState,
 };
@@ -501,7 +500,7 @@ pub fn finish_level(
     }
 
     // if the timer expired or the protagonist is dead
-    if game_timer.0.finished() || query.iter().count() == 0 {
+    if game_timer.0.is_finished() || query.iter().count() == 0 {
         level_outcome = Some(LevelOutcome::Loss);
     }
 
@@ -588,7 +587,7 @@ pub fn setup_boss_speech(
                                     },
                                     ..Default::default()
                                 },
-                                BorderColor(hud_colors.portrait_border_color),
+                                BorderColor::all(hud_colors.portrait_border_color),
                                 UIComponent,
                             ))
                             .with_children(|parent| {
@@ -800,7 +799,7 @@ pub fn high_score_name_input_update(
     mut commands: Commands,
     context: Res<HighScoreNameInputContext>,
     inputs: Res<InputActionStatusTracker>,
-    mut char_input_events: EventReader<KeyboardInput>,
+    mut char_input_messages: MessageReader<KeyboardInput>,
     mut persistent_high_scores: ResMut<PersistentHighScores>,
     game_score: Res<GameScore>,
     mut query: Query<&mut Text>,
@@ -815,15 +814,15 @@ pub fn high_score_name_input_update(
 
     let name = &mut query.get_mut(context.name_text).unwrap().0;
 
-    for event in char_input_events.read() {
+    for message in char_input_messages.read() {
         // Only check for characters when the key is pressed.
-        // TODO: this was in the migration guide, but is it really needed if we get the input from an EventReader?
-        if !event.state.is_pressed() {
+        // TODO: this was in the migration guide, but is it really needed if we get the input from a MessageReader?
+        if !message.state.is_pressed() {
             continue;
         }
 
         const MAX_NAME_LENGTH: usize = 20;
-        match &event.logical_key {
+        match &message.logical_key {
             Key::Character(chars) => {
                 for char in chars.chars() {
                     if name.len() < MAX_NAME_LENGTH && (char == ' ' || char.is_ascii_graphic()) {
@@ -861,10 +860,10 @@ pub fn teardown(
     mut commands: Commands,
     query: Query<Entity, With<PostGameCleanup>>,
     story_mode_context: Res<StoryModeContext>,
-    mut player_action_events: ResMut<Events<PlayerActionEvent>>,
-    mut explosion_events: ResMut<Events<ExplosionEvent>>,
-    mut burn_events: ResMut<Events<BurnEvent>>,
-    mut damage_events: ResMut<Events<DamageEvent>>,
+    mut player_action_messages: ResMut<Messages<PlayerActionMessage>>,
+    mut explosion_messages: ResMut<Messages<ExplosionMessage>>,
+    mut burn_messages: ResMut<Messages<BurnMessage>>,
+    mut damage_messages: ResMut<Messages<DamageMessage>>,
     mut next_state: ResMut<NextState<AppState>>,
 ) {
     // clear entities
@@ -872,11 +871,11 @@ pub fn teardown(
         commands.entity(entity).despawn();
     }
 
-    // clear events
-    player_action_events.clear();
-    explosion_events.clear();
-    burn_events.clear();
-    damage_events.clear();
+    // clear messages
+    player_action_messages.clear();
+    explosion_messages.clear();
+    burn_messages.clear();
+    damage_messages.clear();
 
     // clear resources
     // common

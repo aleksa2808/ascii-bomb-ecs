@@ -273,7 +273,7 @@ pub fn spawn_battle_mode_sub_menu_modal(
                 },
                 ..Default::default()
             },
-            BorderColor(menu_colors.modal_foreground_color),
+            BorderColor::all(menu_colors.modal_foreground_color),
         ))
         .with_children(|parent| {
             // spawn modal border

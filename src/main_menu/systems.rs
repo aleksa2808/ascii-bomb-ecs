@@ -46,7 +46,7 @@ pub fn setup_menu(
     game_option_store: Res<GameOptionStore>,
     persistent_high_scores: Res<PersistentHighScores>,
 ) {
-    commands.spawn((Camera2d, StateScoped(AppState::MainMenu)));
+    commands.spawn((Camera2d, DespawnOnExit(AppState::MainMenu)));
 
     let mut menu_background_animation_context = None;
     commands
@@ -57,7 +57,7 @@ pub fn setup_menu(
                 ..Default::default()
             },
             BackgroundColor(menu_colors.background_color),
-            StateScoped(AppState::MainMenu),
+            DespawnOnExit(AppState::MainMenu),
         ))
         .with_children(|parent| {
             let title_text = r"
@@ -197,7 +197,7 @@ __██__
                         },
                         ..Default::default()
                     },
-                    BorderColor(menu_colors.modal_foreground_color),
+                    BorderColor::all(menu_colors.modal_foreground_color),
                 ))
                 .with_children(|parent| {
                     // spawn modal border
@@ -289,7 +289,7 @@ pub fn menu_navigation(
     inputs: Res<InputActionStatusTracker>,
     mut query: Query<(Entity, &Children), With<MenuContentBox>>,
     mut query3: Query<(Entity, &Children), With<BattleModeSubMenuContentBox>>,
-    mut ev_exit: EventWriter<AppExit>,
+    mut app_exit_message_writer: MessageWriter<AppExit>,
 ) {
     let mut menu_changed = false;
     if let Some(ref mut sub_menu_state) = menu_state.battle_mode_sub_menu_state {
@@ -405,7 +405,7 @@ pub fn menu_navigation(
                     }
                 }
                 MenuAction::Exit => {
-                    ev_exit.write(AppExit::Success);
+                    app_exit_message_writer.write(AppExit::Success);
                     return;
                 }
                 MenuAction::Back => {
@@ -502,7 +502,7 @@ pub fn menu_demo_mode_trigger(
             demo_mode_start_timer.0.reset();
         } else {
             demo_mode_start_timer.0.tick(time.delta());
-            if demo_mode_start_timer.0.finished() {
+            if demo_mode_start_timer.0.is_finished() {
                 // state switching should fail here if there's a manually triggered state already queued
                 if let NextState::Unchanged = *next_state {
                     println!("Starting demo mode!");

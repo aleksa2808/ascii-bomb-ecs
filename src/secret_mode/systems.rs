@@ -12,7 +12,7 @@ use crate::{
     game::{
         components::*,
         constants::{TILE_HEIGHT, TILE_WIDTH},
-        events::ExplosionEvent,
+        messages::ExplosionMessage,
         resources::{GameContext, GameTextures, HUDColors, MapSize, WorldID},
         types::{Cooldown, Direction},
         utils::{get_x, get_y, init_hud, spawn_map},
@@ -261,7 +261,7 @@ pub fn update_secret_mode(
         let new_state = match &mut secret_mode_context.in_game_state {
             SecretModeInGameState::Initial(timer) => {
                 timer.tick(time.delta());
-                if timer.finished() {
+                if timer.is_finished() {
                     Some(SecretModeInGameState::Started {
                         move_cooldown: Cooldown::from_seconds(0.25),
                         round_progress: 0,
@@ -333,7 +333,7 @@ pub fn update_secret_mode(
                                     parent
                                         .spawn((
                                             Text2d::default(),
-                                            TextLayout::new_with_justify(JustifyText::Center),
+                                            TextLayout::new_with_justify(Justify::Center),
                                             Transform::from_xyz(
                                                 0.0,
                                                 TILE_HEIGHT as f32 / 8.0 * 2.0,
@@ -420,7 +420,7 @@ pub fn finish_secret_mode(
     mut secret_mode_context: ResMut<SecretModeContext>,
     query: Query<(Entity, &Position), With<Player>>,
     query2: Query<(Entity, &Position), With<Bomb>>,
-    mut ev_explosion: EventWriter<ExplosionEvent>,
+    mut explosion_message_writer: MessageWriter<ExplosionMessage>,
 ) {
     let (player_entity, player_position) = query.single().unwrap();
     if query2.iter().any(|(_, p)| *p == *player_position) {
@@ -429,7 +429,7 @@ pub fn finish_secret_mode(
 
         commands.entity(player_entity).remove::<HumanControlled>();
         for (entity, _) in query2.iter() {
-            ev_explosion.write(ExplosionEvent { bomb: entity });
+            explosion_message_writer.write(ExplosionMessage { bomb: entity });
         }
     }
 }

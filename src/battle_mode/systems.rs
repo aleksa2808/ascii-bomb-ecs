@@ -1,7 +1,4 @@
-use bevy::{
-    ecs::event::Events, platform::collections::HashSet, prelude::*, text::LineHeight,
-    window::PrimaryWindow,
-};
+use bevy::{platform::collections::HashSet, prelude::*, text::LineHeight, window::PrimaryWindow};
 use rand::{prelude::IteratorRandom, Rng};
 
 use crate::{
@@ -12,7 +9,7 @@ use crate::{
     game::{
         components::*,
         constants::{TILE_HEIGHT, TILE_WIDTH},
-        events::*,
+        messages::*,
         resources::*,
         utils::*,
     },
@@ -234,7 +231,7 @@ pub fn finish_freeze(
     mut next_state: ResMut<NextState<AppState>>,
 ) {
     freeze_timer.0.tick(time.delta());
-    if freeze_timer.0.finished() {
+    if freeze_timer.0.is_finished() {
         commands.remove_resource::<FreezeTimer>();
         next_state.set(AppState::BattleModeInGame);
     }
@@ -256,9 +253,9 @@ pub fn on_death_item_pinata(
             With<Exit>,
         )>,
     >,
-    mut ev_player_death_event: EventReader<PlayerDeathEvent>,
+    mut player_death_message_reader: MessageReader<PlayerDeathMessage>,
 ) {
-    for _ in ev_player_death_event.read() {
+    for _ in player_death_message_reader.read() {
         let invalid_positions: HashSet<Position> = query.iter().copied().collect();
         let valid_positions = (0..map_size.rows)
             .flat_map(|y| {
@@ -286,7 +283,7 @@ pub fn finish_round(
     mut next_state: ResMut<NextState<AppState>>,
 ) {
     let mut round_over = false;
-    if game_timer.0.finished() || query.iter().count() == 0 {
+    if game_timer.0.is_finished() || query.iter().count() == 0 {
         battle_mode_context.round_outcome = Some(RoundOutcome::Tie);
         round_over = true;
     } else if let Ok(penguin) = query.single() {
@@ -477,7 +474,7 @@ pub fn leaderboard_display_update(
     mut next_state: ResMut<NextState<AppState>>,
 ) {
     leaderboard_display_context.timer.tick(time.delta());
-    if leaderboard_display_context.timer.finished() {
+    if leaderboard_display_context.timer.is_finished() {
         commands
             .entity(leaderboard_display_context.leaderboard_display_box)
             .despawn();
@@ -489,10 +486,10 @@ pub fn leaderboard_display_update(
 pub fn teardown(
     mut commands: Commands,
     query: Query<Entity, With<PostGameCleanup>>,
-    mut player_action_events: ResMut<Events<PlayerActionEvent>>,
-    mut explosion_events: ResMut<Events<ExplosionEvent>>,
-    mut burn_events: ResMut<Events<BurnEvent>>,
-    mut damage_events: ResMut<Events<DamageEvent>>,
+    mut player_action_messages: ResMut<Messages<PlayerActionMessage>>,
+    mut explosion_messages: ResMut<Messages<ExplosionMessage>>,
+    mut burn_messages: ResMut<Messages<BurnMessage>>,
+    mut damage_messages: ResMut<Messages<DamageMessage>>,
     mut next_state: ResMut<NextState<AppState>>,
 ) {
     // clear entities
@@ -500,11 +497,11 @@ pub fn teardown(
         commands.entity(entity).despawn();
     }
 
-    // clear events
-    player_action_events.clear();
-    explosion_events.clear();
-    burn_events.clear();
-    damage_events.clear();
+    // clear messages
+    player_action_messages.clear();
+    explosion_messages.clear();
+    burn_messages.clear();
+    damage_messages.clear();
 
     // clear resources
     // common

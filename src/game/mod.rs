@@ -5,12 +5,12 @@ use bevy::{
 
 use crate::AppState;
 
-use self::{events::*, resources::*, systems::*};
+use self::{messages::*, resources::*, systems::*};
 
 mod ai;
 pub mod components;
 pub mod constants;
-pub mod events;
+pub mod messages;
 pub mod resources;
 pub mod systems;
 pub mod types;
@@ -19,7 +19,7 @@ pub mod utils;
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
 pub enum Set {
     TimeUpdate,
-    BombRestockEvent,
+    BombRestockMessage,
     ItemSpawn,
     ItemDespawn,
     Input,
@@ -28,9 +28,9 @@ pub enum Set {
     BombSpawn,
     FireSpawn,
     PlayerSpawn,
-    DamageEvent,
+    DamageMessage,
     DamageApplication,
-    PlayerDeathEvent,
+    PlayerDeathMessage,
 }
 
 pub fn common_game_systems() -> ScheduleConfigs<ScheduleSystem> {
@@ -60,18 +60,18 @@ pub fn common_game_systems() -> ScheduleConfigs<ScheduleSystem> {
         // handle bomb logic
         bomb_drop.in_set(Set::BombSpawn).after(Set::Input),
         explode_bombs
-            .in_set(Set::BombRestockEvent)
+            .in_set(Set::BombRestockMessage)
             .in_set(Set::FireSpawn)
             .after(Set::TimeUpdate)
             .after(Set::MovingObjectUpdate),
-        bomb_restock.after(Set::BombRestockEvent),
+        bomb_restock.after(Set::BombRestockMessage),
         (
             // burn
             fire_effect.after(Set::TimeUpdate).after(Set::FireSpawn),
             // burn reactions
             (
                 player_burn
-                    .in_set(Set::DamageEvent)
+                    .in_set(Set::DamageMessage)
                     .after(Set::PlayerMovement),
                 bomb_burn
                     .after(Set::BombSpawn)
@@ -84,16 +84,16 @@ pub fn common_game_systems() -> ScheduleConfigs<ScheduleSystem> {
             .chain(),
         // player specifics
         melee_attack
-            .in_set(Set::DamageEvent)
+            .in_set(Set::DamageMessage)
             .after(Set::PlayerSpawn)
             .after(Set::PlayerMovement),
         player_damage
             .in_set(Set::DamageApplication)
-            .in_set(Set::PlayerDeathEvent)
+            .in_set(Set::PlayerDeathMessage)
             .after(Set::PlayerMovement)
-            .after(Set::DamageEvent),
+            .after(Set::DamageMessage),
         pick_up_item
-            .after(Set::PlayerDeathEvent)
+            .after(Set::PlayerDeathMessage)
             .after(Set::ItemSpawn)
             .after(Set::ItemDespawn),
         // animation
@@ -109,12 +109,12 @@ impl Plugin for GamePlugin {
         app.init_resource::<HUDColors>()
             .init_resource::<GameTextures>()
             .init_resource::<Sounds>()
-            .add_event::<PlayerActionEvent>()
-            .add_event::<ExplosionEvent>()
-            .add_event::<BombRestockEvent>()
-            .add_event::<DamageEvent>()
-            .add_event::<BurnEvent>()
-            .add_event::<PlayerDeathEvent>()
+            .add_message::<PlayerActionMessage>()
+            .add_message::<ExplosionMessage>()
+            .add_message::<BombRestockMessage>()
+            .add_message::<DamageMessage>()
+            .add_message::<BurnMessage>()
+            .add_message::<PlayerDeathMessage>()
             .add_systems(OnEnter(AppState::Paused), hud_indicate_pause)
             .add_systems(
                 Update,

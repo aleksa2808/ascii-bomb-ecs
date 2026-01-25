@@ -93,7 +93,7 @@ impl Cooldown {
             CooldownState::Ready => (),
             CooldownState::CoolingDown(ref mut timer) => {
                 timer.tick(delta);
-                if timer.finished() {
+                if timer.is_finished() {
                     self.state = CooldownState::Ready;
                 }
             }

@@ -76,9 +76,9 @@ pub fn run() {
     let mut app = App::new();
 
     #[cfg(not(target_arch = "wasm32"))]
-    let resolution = WindowResolution::new(MENU_WIDTH as f32, MENU_HEIGHT as f32);
+    let resolution = WindowResolution::new(MENU_WIDTH as u32, MENU_HEIGHT as u32);
     #[cfg(target_arch = "wasm32")]
-    let resolution = WindowResolution::new(MENU_WIDTH as f32, MENU_HEIGHT as f32)
+    let resolution = WindowResolution::new(MENU_WIDTH as u32, MENU_HEIGHT as u32)
         .with_scale_factor_override(1.0);
 
     app.add_plugins(
@@ -98,7 +98,6 @@ pub fn run() {
             .set(ImagePlugin::default_nearest()),
     )
     .init_state::<AppState>()
-    .enable_state_scoped_entities::<AppState>()
     .add_plugins(AudioPlugin);
 
     #[cfg(target_arch = "wasm32")]

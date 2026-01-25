@@ -55,14 +55,14 @@ impl Plugin for BattleModePlugin {
                 common_game_systems(),
                 game_timer_tick.in_set(Set::TimeUpdate),
                 wall_of_death_update
-                    .in_set(Set::PlayerDeathEvent)
-                    .in_set(Set::BombRestockEvent)
+                    .in_set(Set::PlayerDeathMessage)
+                    .in_set(Set::BombRestockMessage)
                     .in_set(Set::ItemDespawn),
                 (
                     on_death_item_pinata.in_set(Set::ItemSpawn),
                     (finish_round, hud_update).after(Set::TimeUpdate),
                 )
-                    .after(Set::PlayerDeathEvent),
+                    .after(Set::PlayerDeathMessage),
             )
                 .run_if(in_state(AppState::BattleModeInGame)),
         );

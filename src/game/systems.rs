@@ -25,7 +25,7 @@ use super::{
     ai::*,
     components::*,
     constants::*,
-    events::*,
+    messages::*,
     resources::*,
     types::{Direction, *},
     utils::*,
@@ -109,7 +109,7 @@ pub fn handle_user_input(
     inputs: Res<InputActionStatusTracker>,
     game_context: Res<GameContext>,
     query: Query<(Entity, &HumanControlled), With<Player>>,
-    mut ev_player_action: EventWriter<PlayerActionEvent>,
+    mut player_action_message_writer: MessageWriter<PlayerActionMessage>,
     state: Res<State<AppState>>,
     mut next_state: ResMut<NextState<AppState>>,
 ) {
@@ -121,7 +121,7 @@ pub fn handle_user_input(
             (InputAction::Right, Direction::Right),
         ] {
             if inputs.is_active(input_action) {
-                ev_player_action.write(PlayerActionEvent {
+                player_action_message_writer.write(PlayerActionMessage {
                     player: entity,
                     action: PlayerAction::Move(direction),
                 });
@@ -129,7 +129,7 @@ pub fn handle_user_input(
         }
 
         if inputs.is_active(InputAction::Space) {
-            ev_player_action.write(PlayerActionEvent {
+            player_action_message_writer.write(PlayerActionMessage {
                 player: entity,
                 action: PlayerAction::DropBomb,
             });
@@ -144,7 +144,7 @@ pub fn handle_user_input(
             (InputAction::D, Direction::Right),
         ] {
             if inputs.is_active(input_action) {
-                ev_player_action.write(PlayerActionEvent {
+                player_action_message_writer.write(PlayerActionMessage {
                     player: entity,
                     action: PlayerAction::Move(direction),
                 });
@@ -152,7 +152,7 @@ pub fn handle_user_input(
         }
 
         if inputs.is_active(InputAction::G) {
-            ev_player_action.write(PlayerActionEvent {
+            player_action_message_writer.write(PlayerActionMessage {
                 player: entity,
                 action: PlayerAction::DropBomb,
             });
@@ -176,7 +176,7 @@ pub fn handle_user_input(
 pub fn mob_ai(
     mut query: Query<(Entity, &Position, &mut MobAI, Option<&WallHack>), With<Player>>,
     query2: Query<(&Position, Option<&Destructible>), With<Solid>>,
-    mut ev_player_action: EventWriter<PlayerActionEvent>,
+    mut player_action_message_writer: MessageWriter<PlayerActionMessage>,
 ) {
     let solids: HashMap<Position, bool> = query2.iter().map(|(p, d)| (*p, d.is_some())).collect();
 
@@ -187,7 +187,7 @@ pub fn mob_ai(
         if let Some(direction) = mob_ai.direction {
             let result = solids.get(&position.offset(direction, 1));
             if result.is_none() || (wall_hack.is_some() && matches!(result, Some(true))) {
-                ev_player_action.write(PlayerActionEvent {
+                player_action_message_writer.write(PlayerActionMessage {
                     player: entity,
                     action: PlayerAction::Move(direction),
                 });
@@ -210,7 +210,7 @@ pub fn mob_ai(
             });
             if let Some(direction) = passable_dir {
                 mob_ai.direction = passable_dir;
-                ev_player_action.write(PlayerActionEvent {
+                player_action_message_writer.write(PlayerActionMessage {
                     player: entity,
                     action: PlayerAction::Move(direction),
                 });
@@ -246,7 +246,7 @@ pub fn bot_ai(
     query11: Query<&Position, With<Item>>,
     map_size: Res<MapSize>,
     wall_of_death: Option<Res<WallOfDeath>>,
-    mut ev_player_action: EventWriter<PlayerActionEvent>,
+    mut player_action_message_writer: MessageWriter<PlayerActionMessage>,
 ) {
     // TODO: this is wasted work for situations where there aren't any bots
     let mut rng = rand::rng();
@@ -519,7 +519,7 @@ pub fn bot_ai(
         if let Some((action, intention)) = action {
             println!("bot {:?}: {:?} - {:?}", entity, intention, action);
 
-            ev_player_action.write(PlayerActionEvent {
+            player_action_message_writer.write(PlayerActionMessage {
                 player: entity,
                 action,
             });
@@ -529,7 +529,7 @@ pub fn bot_ai(
 
 pub fn player_move(
     mut commands: Commands,
-    mut ev_player_action: EventReader<PlayerActionEvent>,
+    mut player_action_message_reader: MessageReader<PlayerActionMessage>,
     mut p: ParamSet<(
         Query<
             (
@@ -557,7 +557,7 @@ pub fn player_move(
         .map(|(e, _, p, d, b)| (*p, (e, d.is_some(), b.is_some())))
         .collect();
 
-    for (entity, direction) in ev_player_action.read().filter_map(|p| {
+    for (entity, direction) in player_action_message_reader.read().filter_map(|p| {
         if let PlayerAction::Move(direction) = p.action {
             Some((p.player, direction))
         } else {
@@ -688,11 +688,11 @@ pub fn bomb_drop(
     game_textures: Res<GameTextures>,
     fonts: Res<Fonts>,
     world_id: Res<WorldID>,
-    mut ev_player_action: EventReader<PlayerActionEvent>,
+    mut player_action_message_reader: MessageReader<PlayerActionMessage>,
     mut query: Query<(&Position, &mut BombSatchel)>,
     query2: Query<&Position, Or<(With<Solid>, With<Exit>, With<BurningItem>)>>,
 ) {
-    for entity in ev_player_action
+    for entity in player_action_message_reader
         .read()
         .filter(|pa| matches!(pa.action, PlayerAction::DropBomb))
         .map(|pa| pa.player)
@@ -725,7 +725,7 @@ pub fn bomb_drop(
                         parent
                             .spawn((
                                 Text2d::default(),
-                                TextLayout::new_with_justify(JustifyText::Center),
+                                TextLayout::new_with_justify(Justify::Center),
                                 Transform::from_xyz(0.0, TILE_HEIGHT as f32 / 8.0 * 2.0, 0.0),
                                 Fuse {
                                     animation_timer: Timer::from_seconds(0.1, TimerMode::Repeating),
@@ -811,7 +811,7 @@ pub fn bomb_tick(time: Res<Time>, mut query: Query<&mut Bomb>) {
 pub fn fire_tick(mut commands: Commands, time: Res<Time>, mut query: Query<(Entity, &mut Fire)>) {
     for (entity, mut fire) in query.iter_mut() {
         fire.timer.tick(time.delta());
-        if fire.timer.finished() {
+        if fire.timer.is_finished() {
             commands.entity(entity).despawn();
         }
     }
@@ -828,7 +828,7 @@ pub fn crumbling_tick(
     for (entity, mut crumbling, position) in query.iter_mut() {
         crumbling.timer.tick(time.delta());
 
-        if crumbling.timer.finished() {
+        if crumbling.timer.is_finished() {
             commands.entity(entity).despawn();
             if matches!(exit_position, Some(ref p) if p.0 == *position) {
                 commands.spawn((
@@ -861,7 +861,7 @@ pub fn burning_item_tick(
 ) {
     for (entity, mut burning_item) in query.iter_mut() {
         burning_item.timer.tick(time.delta());
-        if burning_item.timer.finished() {
+        if burning_item.timer.is_finished() {
             commands.entity(entity).despawn();
         }
     }
@@ -874,16 +874,17 @@ pub fn explode_bombs(
     sounds: Res<Sounds>,
     query: Query<(Entity, &Bomb, &Position)>,
     query1: Query<(Entity, &Position, Option<&Bomb>), Or<(With<Solid>, With<Exit>)>>,
-    mut ev_explosion: EventReader<ExplosionEvent>,
-    mut ev_bomb_restock: EventWriter<BombRestockEvent>,
-    mut ev_burn: EventWriter<BurnEvent>,
+    mut explostion_message_reader: MessageReader<ExplosionMessage>,
+    mut bomb_restock_message_writer: MessageWriter<BombRestockMessage>,
+    mut burn_message_writer: MessageWriter<BurnMessage>,
 ) {
-    let exploded_bombs: HashSet<Entity> = ev_explosion.read().map(|e| e.bomb).collect();
+    let exploded_bombs: HashSet<Entity> =
+        explostion_message_reader.read().map(|e| e.bomb).collect();
     let fireproof_positions: HashSet<Position> = query1
         .iter()
         .filter_map(|(e, p, b)| {
             // ignore bombs that went off
-            if !matches!(b, Some(b) if b.timer.finished() || exploded_bombs.contains(&e)) {
+            if !matches!(b, Some(b) if b.timer.is_finished() || exploded_bombs.contains(&e)) {
                 Some(p)
             } else {
                 None
@@ -896,12 +897,12 @@ pub fn explode_bombs(
 
     for (entity, bomb, position) in query
         .iter()
-        .filter(|(e, b, _)| b.timer.finished() || exploded_bombs.contains(e))
+        .filter(|(e, b, _)| b.timer.is_finished() || exploded_bombs.contains(e))
     {
         commands.entity(entity).despawn();
 
         if let Some(owner) = bomb.owner {
-            ev_bomb_restock.write(BombRestockEvent {
+            bomb_restock_message_writer.write(BombRestockMessage {
                 satchel_owner: owner,
             });
         }
@@ -933,7 +934,7 @@ pub fn explode_bombs(
                 let position = position.offset(direction, i);
 
                 if fireproof_positions.contains(&position) {
-                    ev_burn.write(BurnEvent { position });
+                    burn_message_writer.write(BurnMessage { position });
                     break;
                 }
 
@@ -944,11 +945,11 @@ pub fn explode_bombs(
 }
 
 pub fn bomb_restock(
-    mut ev_bomb_restock: EventReader<BombRestockEvent>,
+    mut bomb_restock_message_reader: MessageReader<BombRestockMessage>,
     mut query: Query<&mut BombSatchel>,
 ) {
-    for event in ev_bomb_restock.read() {
-        if let Ok(mut bomb_satchel) = query.get_mut(event.satchel_owner) {
+    for message in bomb_restock_message_reader.read() {
+        if let Ok(mut bomb_satchel) = query.get_mut(message.satchel_owner) {
             bomb_satchel.bombs_available += 1;
         }
     }
@@ -978,7 +979,7 @@ pub fn animate_immortality(
 ) {
     // animate currently immortal players
     for (mut immortal, mut sprite, base_texture, immortal_texture) in p.p0().iter_mut() {
-        if !immortal.timer.finished() {
+        if !immortal.timer.is_finished() {
             immortal.animation_timer.tick(time.delta());
             let fraction_remaining = immortal.animation_timer.fraction_remaining();
             match fraction_remaining {
@@ -1000,9 +1001,12 @@ pub fn animate_immortality(
     }
 }
 
-pub fn fire_effect(mut query: Query<&Position, With<Fire>>, mut ev_burn: EventWriter<BurnEvent>) {
+pub fn fire_effect(
+    mut query: Query<&Position, With<Fire>>,
+    mut burn_message_writer: MessageWriter<BurnMessage>,
+) {
     for position in query.iter_mut() {
-        ev_burn.write(BurnEvent {
+        burn_message_writer.write(BurnMessage {
             position: *position,
         });
     }
@@ -1011,14 +1015,14 @@ pub fn fire_effect(mut query: Query<&Position, With<Fire>>, mut ev_burn: EventWr
 pub fn melee_attack(
     query: Query<(&Position, &TeamID), With<MeleeAttacker>>,
     query2: Query<(Entity, &Position, &TeamID), With<Player>>,
-    mut ev_damage: EventWriter<DamageEvent>,
+    mut damage_message_writer: MessageWriter<DamageMessage>,
 ) {
     for (attacker_position, attacker_team_id) in query.iter() {
         for (e, _, _) in query2
             .iter()
             .filter(|(_, p, tid)| **p == *attacker_position && tid.0 != attacker_team_id.0)
         {
-            ev_damage.write(DamageEvent { target: e });
+            damage_message_writer.write(DamageMessage { target: e });
         }
     }
 }
@@ -1026,17 +1030,17 @@ pub fn melee_attack(
 pub fn player_burn(
     query: Query<(Entity, &Position), (With<Player>, Without<Immortal>)>,
     query2: Query<&Position, With<Wall>>,
-    mut ev_burn: EventReader<BurnEvent>,
-    mut ev_damage: EventWriter<DamageEvent>,
+    mut burn_message_reader: MessageReader<BurnMessage>,
+    mut damage_message_writer: MessageWriter<DamageMessage>,
 ) {
-    for BurnEvent { position } in ev_burn.read() {
+    for BurnMessage { position } in burn_message_reader.read() {
         for (pe, player_pos) in query.iter().filter(|(_, pp)| **pp == *position) {
             if query2.iter().any(|wall_pos| *wall_pos == *player_pos) {
                 // Anakin, I have the high ground
                 continue;
             }
 
-            ev_damage.write(DamageEvent { target: pe });
+            damage_message_writer.write(DamageMessage { target: pe });
         }
     }
 }
@@ -1057,12 +1061,12 @@ pub fn player_damage(
         ),
         (With<Player>, Without<Immortal>),
     >,
-    mut ev_damage: EventReader<DamageEvent>,
-    mut ev_player_death_event: EventWriter<PlayerDeathEvent>,
+    mut damage_message_reader: MessageReader<DamageMessage>,
+    mut player_death_message_writer: MessageWriter<PlayerDeathMessage>,
 ) {
     let mut damaged_players: HashSet<Entity> = HashSet::default();
 
-    for DamageEvent { target } in ev_damage.read() {
+    for DamageMessage { target } in damage_message_reader.read() {
         if let Ok((
             pe,
             mut health,
@@ -1090,7 +1094,7 @@ pub fn player_damage(
                     println!("player died from damage: {:?}", pe);
                     commands.entity(pe).despawn();
 
-                    ev_player_death_event.write(PlayerDeathEvent);
+                    player_death_message_writer.write(PlayerDeathMessage);
 
                     // TODO: move to story_mode
                     if let Some(ref mut game_score) = game_score {
@@ -1125,8 +1129,11 @@ pub fn player_damage(
     }
 }
 
-pub fn bomb_burn(mut query: Query<(&mut Bomb, &Position)>, mut ev_burn: EventReader<BurnEvent>) {
-    for BurnEvent { position } in ev_burn.read() {
+pub fn bomb_burn(
+    mut query: Query<(&mut Bomb, &Position)>,
+    mut ev_burn: MessageReader<BurnMessage>,
+) {
+    for BurnMessage { position } in ev_burn.read() {
         query
             .iter_mut()
             .filter(|(_, p)| **p == *position)
@@ -1147,9 +1154,9 @@ pub fn destructible_wall_burn(
         (Entity, &Position, &mut Sprite, Option<&Crumbling>),
         (With<Wall>, With<Destructible>),
     >,
-    mut ev_burn: EventReader<BurnEvent>,
+    mut ev_burn: MessageReader<BurnMessage>,
 ) {
-    for BurnEvent { position } in ev_burn.read() {
+    for BurnMessage { position } in ev_burn.read() {
         for (e, _, mut sprite, perishable) in
             query.iter_mut().filter(|(_, p, _, _)| **p == *position)
         {
@@ -1167,11 +1174,11 @@ pub fn item_burn(
     game_textures: Res<GameTextures>,
     mut commands: Commands,
     mut query: Query<(Entity, &Position), With<Item>>,
-    mut ev_burn: EventReader<BurnEvent>,
+    mut ev_burn: MessageReader<BurnMessage>,
 ) {
     let mut burned: HashSet<Entity> = HashSet::default();
 
-    for BurnEvent { position } in ev_burn.read() {
+    for BurnMessage { position } in ev_burn.read() {
         for e in query
             .iter_mut()
             .filter(|(_, p)| **p == *position)
@@ -1208,14 +1215,14 @@ pub fn exit_burn(
     game_textures: Res<GameTextures>,
     mut commands: Commands,
     mut query: Query<(&Position, &mut Exit)>,
-    mut ev_burn: EventReader<BurnEvent>,
+    mut ev_burn: MessageReader<BurnMessage>,
 ) {
     // we do checks here because some levels don't have exits (e.g. boss rooms)
     if let Ok((_, mut exit)) = query.single_mut() {
         exit.spawn_cooldown.tick(time.delta());
     }
 
-    for BurnEvent { position } in ev_burn.read() {
+    for BurnMessage { position } in ev_burn.read() {
         if let Ok((exit_position, mut exit)) = query.single_mut() {
             if *exit_position == *position && exit.spawn_cooldown.ready() {
                 println!("exit burned: {:?}", position);
@@ -1261,8 +1268,8 @@ pub fn wall_of_death_update(
     map_size: Res<MapSize>,
     query: Query<&Position, (With<Wall>, Without<Destructible>)>,
     query2: Query<(Entity, &Position, Option<&Bomb>, Option<&Player>)>,
-    mut ev_player_death_event: EventWriter<PlayerDeathEvent>,
-    mut ev_bomb_restock: EventWriter<BombRestockEvent>,
+    mut player_death_message_writer: MessageWriter<PlayerDeathMessage>,
+    mut bomb_restock_message_writer: MessageWriter<BombRestockMessage>,
 ) {
     let get_next_position_direction = |mut position: Position,
                                        mut direction: Direction|
@@ -1317,12 +1324,12 @@ pub fn wall_of_death_update(
 
             if player.is_some() {
                 println!("player died from wall of death: {:?}", e);
-                ev_player_death_event.write(PlayerDeathEvent);
+                player_death_message_writer.write(PlayerDeathMessage);
             }
 
             if let Some(bomb) = bomb {
                 if let Some(owner) = bomb.owner {
-                    ev_bomb_restock.write(BombRestockEvent {
+                    bomb_restock_message_writer.write(BombRestockMessage {
                         satchel_owner: owner,
                     });
                 }
@@ -1348,7 +1355,7 @@ pub fn wall_of_death_update(
             WallOfDeath::Dormant(ref mut timer) => {
                 timer.tick(time.delta());
 
-                if timer.finished() {
+                if timer.is_finished() {
                     println!("Wall of Death activated!");
 
                     Some(WallOfDeath::Active(ActiveWallOfDeath {
