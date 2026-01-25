@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, text::LineHeight};
 
 use crate::{
     common::{
@@ -15,64 +15,62 @@ use super::{
 };
 
 pub fn setup_splash_screen(mut commands: Commands, fonts: Res<Fonts>) {
-    commands.spawn(Camera2dBundle::default());
+    commands.spawn((Camera2d, DespawnOnExit(AppState::SplashScreen)));
 
     let right_position = MENU_WIDTH - SPLASH_SCREEN_TEXT_RIGHT.len() * PIXEL_SCALE;
 
     let mut left_text = None;
     let mut right_text = None;
     commands
-        .spawn(NodeBundle {
-            style: Style {
+        .spawn((
+            Node {
                 width: Val::Percent(100.0),
                 height: Val::Percent(100.0),
                 ..Default::default()
             },
-            background_color: COLORS[0].into(),
-            ..Default::default()
-        })
+            BackgroundColor(COLORS[0].into()),
+            DespawnOnExit(AppState::SplashScreen),
+        ))
         .with_children(|parent| {
             left_text = Some(
                 parent
-                    .spawn(TextBundle {
-                        text: Text::from_section(
-                            SPLASH_SCREEN_TEXT_LEFT,
-                            TextStyle {
-                                font: fonts.mono.clone(),
-                                font_size: 2.0 * PIXEL_SCALE as f32,
-                                color: COLORS[15].into(),
-                            },
-                        ),
-                        style: Style {
+                    .spawn((
+                        Node {
                             position_type: PositionType::Absolute,
                             top: Val::Px((MENU_HEIGHT / 2) as f32),
                             left: Val::Px(0.0),
                             ..Default::default()
                         },
-                        ..Default::default()
-                    })
+                        Text::new(SPLASH_SCREEN_TEXT_LEFT),
+                        TextFont {
+                            font: fonts.mono.clone(),
+                            font_size: 2.0 * PIXEL_SCALE as f32,
+                            ..Default::default()
+                        },
+                        LineHeight::RelativeToFont(1.0),
+                        TextColor(COLORS[15].into()),
+                    ))
                     .id(),
             );
 
             right_text = Some(
                 parent
-                    .spawn(TextBundle {
-                        text: Text::from_section(
-                            SPLASH_SCREEN_TEXT_RIGHT,
-                            TextStyle {
-                                font: fonts.mono.clone(),
-                                font_size: 2.0 * PIXEL_SCALE as f32,
-                                color: COLORS[15].into(),
-                            },
-                        ),
-                        style: Style {
+                    .spawn((
+                        Node {
                             position_type: PositionType::Absolute,
                             top: Val::Px((MENU_HEIGHT / 2 + 2 * PIXEL_SCALE) as f32),
                             left: Val::Px(right_position as f32),
                             ..Default::default()
                         },
-                        ..Default::default()
-                    })
+                        Text::new(SPLASH_SCREEN_TEXT_RIGHT),
+                        TextFont {
+                            font: fonts.mono.clone(),
+                            font_size: 2.0 * PIXEL_SCALE as f32,
+                            ..Default::default()
+                        },
+                        LineHeight::RelativeToFont(1.0),
+                        TextColor(COLORS[15].into()),
+                    ))
                     .id(),
             );
         });
@@ -89,7 +87,7 @@ pub fn setup_splash_screen(mut commands: Commands, fonts: Res<Fonts>) {
 pub fn splash_screen_update(
     time: Res<Time>,
     mut splash_screen_context: ResMut<SplashScreenContext>,
-    mut query: Query<&mut Style>,
+    mut query: Query<&mut Node>,
     mut next_state: ResMut<NextState<AppState>>,
 ) {
     match splash_screen_context.text_state {
@@ -99,7 +97,7 @@ pub fn splash_screen_update(
                 MENU_WIDTH / 2 - (SPLASH_SCREEN_TEXT_RIGHT.len() - 5) * PIXEL_SCALE;
 
             timer.tick(time.delta());
-            if timer.finished() {
+            if timer.is_finished() {
                 timer.reset();
 
                 splash_screen_context.left_position =
@@ -126,17 +124,13 @@ pub fn splash_screen_update(
         }
         SplashScreenTextState::Holding(ref mut timer) => {
             timer.tick(time.delta());
-            if timer.finished() {
+            if timer.is_finished() {
                 next_state.set(AppState::MainMenu);
             }
         }
     }
 }
 
-pub fn teardown(mut commands: Commands, query: Query<Entity, Without<Window>>) {
-    for entity in query.iter() {
-        commands.entity(entity).despawn();
-    }
-
+pub fn teardown(mut commands: Commands) {
     commands.remove_resource::<SplashScreenContext>();
 }

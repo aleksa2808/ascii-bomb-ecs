@@ -49,17 +49,14 @@ pub fn spawn_battle_mode_players(
         let base_texture = game_textures.get_penguin_texture(penguin_tag).clone();
         let immortal_texture = game_textures.immortal_penguin.clone();
         let mut entity_commands = commands.spawn((
-            SpriteBundle {
-                texture: base_texture.clone(),
-                transform: Transform::from_xyz(
-                    get_x(player_spawn_position.x),
-                    get_y(player_spawn_position.y),
-                    50.0,
-                ),
-                sprite: Sprite {
-                    custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
-                    ..Default::default()
-                },
+            Transform::from_xyz(
+                get_x(player_spawn_position.x),
+                get_y(player_spawn_position.y),
+                50.0,
+            ),
+            Sprite {
+                image: base_texture.clone(),
+                custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
                 ..Default::default()
             },
             BaseTexture(base_texture),
@@ -78,6 +75,7 @@ pub fn spawn_battle_mode_players(
                 bomb_range: 2,
             },
             TeamID(penguin_tag.0),
+            PostGameCleanup,
         ));
         match penguin_control_type {
             PenguinControlType::Human(i) => {

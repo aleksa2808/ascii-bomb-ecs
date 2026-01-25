@@ -3,7 +3,7 @@ use bevy::{ecs as bevy_ecs, prelude::*};
 use crate::{
     audio::{SoundHandles, SoundID},
     common::constants::COLORS,
-    loading::resources::AssetsLoading,
+    loading::resources::LoadingAssetHandles,
     AppState,
 };
 
@@ -69,17 +69,17 @@ impl FromWorld for GameTextures {
 
         let map_textures: Vec<MapTextures> = (1..=3)
             .map(|world_id| MapTextures {
-                empty: asset_server.load(format!("sprites/world/{}/empty.png", world_id).as_str()),
-                wall: asset_server.load(format!("sprites/world/{}/wall.png", world_id).as_str()),
+                empty: asset_server.load(format!("sprites/world/{}/empty.png", world_id)),
+                wall: asset_server.load(format!("sprites/world/{}/wall.png", world_id)),
                 destructible_wall: asset_server
-                    .load(format!("sprites/world/{}/destructible_wall.png", world_id).as_str()),
+                    .load(format!("sprites/world/{}/destructible_wall.png", world_id)),
                 burning_wall: asset_server
-                    .load(format!("sprites/world/{}/burning_wall.png", world_id).as_str()),
+                    .load(format!("sprites/world/{}/burning_wall.png", world_id)),
             })
             .collect();
 
         let penguin_variants: Vec<Handle<Image>> = (0..=14)
-            .map(|i| asset_server.load(format!("sprites/penguins/{}.png", i).as_str()))
+            .map(|i| asset_server.load(format!("sprites/penguins/{}.png", i)))
             .collect();
 
         let immortal_penguin_texture = asset_server.load("sprites/immortal_penguin.png");
@@ -136,39 +136,41 @@ impl FromWorld for GameTextures {
             burning_item: burning_item_texture.clone(),
         };
 
-        // register the textures in AssetsLoading
-        if let Some(mut assets_loading) = world.get_resource_mut::<AssetsLoading>() {
-            assets_loading.0.extend(map_textures.iter().flat_map(|mt| {
-                vec![
-                    mt.empty.clone_untyped(),
-                    mt.wall.clone_untyped(),
-                    mt.destructible_wall.clone_untyped(),
-                    mt.burning_wall.clone_untyped(),
-                ]
-            }));
-
-            assets_loading
+        // register the textures in cLoadingAssetHandles
+        if let Some(mut loading_asset_handles) = world.get_resource_mut::<LoadingAssetHandles>() {
+            loading_asset_handles
                 .0
-                .extend(penguin_variants.iter().map(|pt| pt.clone_untyped()));
+                .extend(map_textures.into_iter().flat_map(|mt| {
+                    vec![
+                        mt.empty.untyped(),
+                        mt.wall.untyped(),
+                        mt.destructible_wall.untyped(),
+                        mt.burning_wall.untyped(),
+                    ]
+                }));
 
-            assets_loading.0.append(&mut vec![
-                immortal_penguin_texture.clone_untyped(),
-                crook_texture.clone_untyped(),
-                immortal_crook_texture.clone_untyped(),
-                hatter_texture.clone_untyped(),
-                immortal_hatter_texture.clone_untyped(),
-                bat_texture.clone_untyped(),
-                immortal_bat_texture.clone_untyped(),
-                bomb_texture.clone_untyped(),
-                fire_texture.clone_untyped(),
-                exit_texture.clone_untyped(),
-                bombs_up_texture.clone_untyped(),
-                range_up_texture.clone_untyped(),
-                lives_up_texture.clone_untyped(),
-                wall_hack_texture.clone_untyped(),
-                bomb_push_texture.clone_untyped(),
-                immortal_texture.clone_untyped(),
-                burning_item_texture.clone_untyped(),
+            loading_asset_handles
+                .0
+                .extend(penguin_variants.into_iter().map(|pt| pt.untyped()));
+
+            loading_asset_handles.0.append(&mut vec![
+                immortal_penguin_texture.untyped(),
+                crook_texture.untyped(),
+                immortal_crook_texture.untyped(),
+                hatter_texture.untyped(),
+                immortal_hatter_texture.untyped(),
+                bat_texture.untyped(),
+                immortal_bat_texture.untyped(),
+                bomb_texture.untyped(),
+                fire_texture.untyped(),
+                exit_texture.untyped(),
+                bombs_up_texture.untyped(),
+                range_up_texture.untyped(),
+                lives_up_texture.untyped(),
+                wall_hack_texture.untyped(),
+                bomb_push_texture.untyped(),
+                immortal_texture.untyped(),
+                burning_item_texture.untyped(),
             ]);
         }
 
@@ -189,10 +191,10 @@ impl FromWorld for Sounds {
         let boom_handle = asset_server.load("sounds/boom.wav");
         let pause_handle = asset_server.load("sounds/pause.wav");
 
-        if let Some(mut assets_loading) = world.get_resource_mut::<AssetsLoading>() {
-            assets_loading.0.append(&mut vec![
-                boom_handle.clone_untyped(),
-                pause_handle.clone_untyped(),
+        if let Some(mut loading_asset_handles) = world.get_resource_mut::<LoadingAssetHandles>() {
+            loading_asset_handles.0.append(&mut vec![
+                boom_handle.clone().untyped(),
+                pause_handle.clone().untyped(),
             ]);
         }
 

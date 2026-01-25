@@ -1,4 +1,7 @@
-use bevy::{app::AppExit, prelude::*, utils::HashMap, window::PrimaryWindow};
+use bevy::{
+    app::AppExit, platform::collections::HashMap, prelude::*, text::LineHeight,
+    window::PrimaryWindow,
+};
 
 use crate::{
     audio::Audio,
@@ -29,7 +32,7 @@ use super::{
 
 pub fn resize_window(mut primary_query: Query<&mut Window, With<PrimaryWindow>>) {
     primary_query
-        .get_single_mut()
+        .single_mut()
         .unwrap()
         .resolution
         .set(MENU_WIDTH as f32, MENU_HEIGHT as f32);
@@ -43,19 +46,19 @@ pub fn setup_menu(
     game_option_store: Res<GameOptionStore>,
     persistent_high_scores: Res<PersistentHighScores>,
 ) {
-    commands.spawn(Camera2dBundle::default());
+    commands.spawn((Camera2d, DespawnOnExit(AppState::MainMenu)));
 
     let mut menu_background_animation_context = None;
     commands
-        .spawn(NodeBundle {
-            style: Style {
+        .spawn((
+            Node {
                 width: Val::Percent(100.0),
                 height: Val::Percent(100.0),
                 ..Default::default()
             },
-            background_color: menu_colors.background_color.into(),
-            ..Default::default()
-        })
+            BackgroundColor(menu_colors.background_color),
+            DespawnOnExit(AppState::MainMenu),
+        ))
         .with_children(|parent| {
             let title_text = r"
  ____   ____  __  __ ____  ______ _____  __  __          _   _ 
@@ -66,43 +69,41 @@ pub fn setup_menu(
 |____/ \____/|_|  |_|____/|______|_|  \_\_|  |_/_/    \_\_| \_|
 "
             .trim_matches('\n'); // trimming newlines is needed because of a bevy 0.11 bug where the last line wouldn't show
-            parent.spawn(TextBundle {
-                text: Text::from_section(
-                    title_text.to_string(),
-                    TextStyle {
-                        font: fonts.mono.clone(),
-                        font_size: 2.0 * PIXEL_SCALE as f32,
-                        color: COLORS[15].into(),
-                    },
-                ),
-                style: Style {
+            parent.spawn((
+                Node {
                     position_type: PositionType::Absolute,
                     top: Val::Px(12.0 * PIXEL_SCALE as f32),
                     left: Val::Px(17.0 * PIXEL_SCALE as f32),
                     ..Default::default()
                 },
-                ..Default::default()
-            });
+                Text::new(title_text),
+                TextFont {
+                    font: fonts.mono.clone(),
+                    font_size: 2.0 * PIXEL_SCALE as f32,
+                    ..Default::default()
+                },
+                LineHeight::RelativeToFont(1.0),
+                TextColor(COLORS[15].into()),
+            ));
 
             let mut place_text = |y, x, str: &str, c: usize| {
                 parent
-                    .spawn(TextBundle {
-                        text: Text::from_section(
-                            str.to_string(),
-                            TextStyle {
-                                font: fonts.mono.clone(),
-                                font_size: 2.0 * PIXEL_SCALE as f32,
-                                color: COLORS[c].into(),
-                            },
-                        ),
-                        style: Style {
+                    .spawn((
+                        Node {
                             position_type: PositionType::Absolute,
                             top: Val::Px(y as f32 * 2.0 * PIXEL_SCALE as f32),
                             left: Val::Px(x as f32 * PIXEL_SCALE as f32),
                             ..Default::default()
                         },
-                        ..Default::default()
-                    })
+                        Text::new(str),
+                        TextFont {
+                            font: fonts.mono.clone(),
+                            font_size: 2.0 * PIXEL_SCALE as f32,
+                            ..Default::default()
+                        },
+                        LineHeight::RelativeToFont(1.0),
+                        TextColor(COLORS[c].into()),
+                    ))
                     .id()
             };
 
@@ -181,8 +182,8 @@ __██__
 
             // spawn central modal
             parent
-                .spawn(NodeBundle {
-                    style: Style {
+                .spawn((
+                    Node {
                         position_type: PositionType::Absolute,
                         left: Val::Px(30.0 * PIXEL_SCALE as f32),
                         top: Val::Px(36.0 * PIXEL_SCALE as f32),
@@ -196,13 +197,18 @@ __██__
                         },
                         ..Default::default()
                     },
-                    background_color: menu_colors.modal_foreground_color.into(),
-                    ..Default::default()
-                })
+                    BorderColor::all(menu_colors.modal_foreground_color),
+                ))
                 .with_children(|parent| {
                     // spawn modal border
-                    parent.spawn(TextBundle {
-                        text: Text::from_section(
+                    parent.spawn((
+                        Node {
+                            position_type: PositionType::Absolute,
+                            top: Val::Px(-2.0 * PIXEL_SCALE as f32),
+                            left: Val::Px(-1.0 * PIXEL_SCALE as f32),
+                            ..Default::default()
+                        },
+                        Text::new(
                             r"
 ┌──────────────────────────────────────┐
 │                                      │
@@ -226,33 +232,25 @@ __██__
 └──────────────────────────────────────┘
 "
                             .trim_matches('\n'),
-                            TextStyle {
-                                font: fonts.mono.clone(),
-                                font_size: 2.0 * PIXEL_SCALE as f32,
-                                color: menu_colors.modal_background_color,
-                            },
                         ),
-                        style: Style {
-                            position_type: PositionType::Absolute,
-                            top: Val::Px(-2.0 * PIXEL_SCALE as f32),
-                            left: Val::Px(-1.0 * PIXEL_SCALE as f32),
+                        TextFont {
+                            font: fonts.mono.clone(),
+                            font_size: 2.0 * PIXEL_SCALE as f32,
                             ..Default::default()
                         },
-                        ..Default::default()
-                    });
+                        LineHeight::RelativeToFont(1.0),
+                        TextColor(menu_colors.modal_background_color),
+                    ));
 
                     // spawn menu type
                     parent
                         .spawn((
-                            NodeBundle {
-                                style: Style {
-                                    width: Val::Percent(100.0),
-                                    height: Val::Percent(100.0),
-                                    ..Default::default()
-                                },
-                                background_color: menu_colors.modal_background_color.into(),
+                            Node {
+                                width: Val::Percent(100.0),
+                                height: Val::Percent(100.0),
                                 ..Default::default()
                             },
+                            BackgroundColor(menu_colors.modal_background_color),
                             MenuContentBox,
                         ))
                         .with_children(|parent| {
@@ -291,7 +289,7 @@ pub fn menu_navigation(
     inputs: Res<InputActionStatusTracker>,
     mut query: Query<(Entity, &Children), With<MenuContentBox>>,
     mut query3: Query<(Entity, &Children), With<BattleModeSubMenuContentBox>>,
-    mut ev_exit: EventWriter<AppExit>,
+    mut app_exit_message_writer: MessageWriter<AppExit>,
 ) {
     let mut menu_changed = false;
     if let Some(ref mut sub_menu_state) = menu_state.battle_mode_sub_menu_state {
@@ -368,14 +366,16 @@ pub fn menu_navigation(
                 }
                 MenuAction::OpenBattleModeSubMenu => {
                     let sub_menu_state = BattleModeSubMenuState::default();
-                    commands.entity(query.single().0).with_children(|parent| {
-                        spawn_battle_mode_sub_menu_modal(
-                            parent,
-                            &sub_menu_state,
-                            &fonts,
-                            &menu_colors,
-                        );
-                    });
+                    commands
+                        .entity(query.single().unwrap().0)
+                        .with_children(|parent| {
+                            spawn_battle_mode_sub_menu_modal(
+                                parent,
+                                &sub_menu_state,
+                                &fonts,
+                                &menu_colors,
+                            );
+                        });
                     menu_state.battle_mode_sub_menu_state = Some(sub_menu_state);
                     return;
                 }
@@ -405,7 +405,7 @@ pub fn menu_navigation(
                     }
                 }
                 MenuAction::Exit => {
-                    ev_exit.send(AppExit);
+                    app_exit_message_writer.write(AppExit::Success);
                     return;
                 }
                 MenuAction::Back => {
@@ -463,18 +463,18 @@ pub fn menu_navigation(
     if menu_changed {
         if let Some(sub_menu_state) = &menu_state.battle_mode_sub_menu_state {
             // refresh sub menu
-            let (entity, children) = query3.single_mut();
+            let (entity, children) = query3.single_mut().unwrap();
             for child in children.iter() {
-                commands.entity(*child).despawn_recursive();
+                commands.entity(child).despawn();
             }
             commands.entity(entity).with_children(|parent| {
                 spawn_battle_mode_sub_menu_content(parent, sub_menu_state, &fonts, &menu_colors);
             });
         } else {
             // refresh main menu
-            let (entity, children) = query.single_mut();
+            let (entity, children) = query.single_mut().unwrap();
             for child in children.iter() {
-                commands.entity(*child).despawn_recursive();
+                commands.entity(child).despawn();
             }
             commands.entity(entity).with_children(|parent| {
                 spawn_menu_type(
@@ -502,9 +502,9 @@ pub fn menu_demo_mode_trigger(
             demo_mode_start_timer.0.reset();
         } else {
             demo_mode_start_timer.0.tick(time.delta());
-            if demo_mode_start_timer.0.finished() {
+            if demo_mode_start_timer.0.is_finished() {
                 // state switching should fail here if there's a manually triggered state already queued
-                if next_state.0.is_none() {
+                if let NextState::Unchanged = *next_state {
                     println!("Starting demo mode!");
                     commands.insert_resource(BattleModeConfiguration {
                         amount_of_players: 0,
@@ -522,38 +522,34 @@ pub fn menu_demo_mode_trigger(
 pub fn animate_menu_background(
     time: Res<Time>,
     mut menu_background_animation_context: ResMut<MenuBackgroundAnimationContext>,
-    mut query: Query<&mut Text>,
+    mut query: Query<(&mut Text, &mut TextColor)>,
 ) {
     menu_background_animation_context.timer.tick(time.delta());
-    let k = (menu_background_animation_context.timer.percent() * 3000.0) as usize;
+    let k = (menu_background_animation_context.timer.fraction() * 3000.0) as usize;
 
     for (entity, change_parameters) in &menu_background_animation_context.entity_change_parameters {
         match &change_parameters.values {
             MenuBackgroundEntityValues::Text(v1, v2) => {
-                query.get_mut(*entity).unwrap().sections[0].value =
-                    if k % change_parameters.modulo < change_parameters.threshold {
-                        v1.clone()
-                    } else {
-                        v2.clone()
-                    }
+                let (mut text, _) = query.get_mut(*entity).unwrap();
+                text.0 = if k % change_parameters.modulo < change_parameters.threshold {
+                    v1.clone()
+                } else {
+                    v2.clone()
+                }
             }
             MenuBackgroundEntityValues::Color(v1, v2) => {
-                query.get_mut(*entity).unwrap().sections[0].style.color =
-                    if k % change_parameters.modulo < change_parameters.threshold {
-                        *v1
-                    } else {
-                        *v2
-                    };
+                let (_, mut color) = query.get_mut(*entity).unwrap();
+                color.0 = if k % change_parameters.modulo < change_parameters.threshold {
+                    *v1
+                } else {
+                    *v2
+                };
             }
         }
     }
 }
 
-pub fn teardown(mut commands: Commands, query: Query<Entity, Without<Window>>) {
-    for entity in query.iter() {
-        commands.entity(entity).despawn();
-    }
-
+pub fn teardown(mut commands: Commands) {
     commands.remove_resource::<DemoModeStartTimer>();
     commands.remove_resource::<MenuBackgroundAnimationContext>();
 }

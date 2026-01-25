@@ -25,12 +25,7 @@ impl Plugin for StoryModePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             OnEnter(AppState::StoryModeSetup),
-            (
-                setup_story_mode,
-                apply_deferred,
-                (resize_window, spawn_cameras),
-            )
-                .chain(),
+            (setup_story_mode, (resize_window, spawn_cameras)).chain(),
         )
         .add_systems(OnEnter(AppState::StoryModeTeardown), teardown)
         .add_systems(
@@ -65,13 +60,13 @@ impl Plugin for StoryModePlugin {
                 finish_level
                     .after(Set::TimeUpdate)
                     .after(Set::PlayerMovement)
-                    .after(Set::PlayerDeathEvent),
+                    .after(Set::PlayerDeathMessage),
                 // update HUD
                 hud_update
                     .after(Set::TimeUpdate)
-                    .after(Set::PlayerDeathEvent),
+                    .after(Set::PlayerDeathMessage),
                 hud_lives_indicator_update.after(Set::DamageApplication),
-                hud_points_indicator_update.after(Set::PlayerDeathEvent),
+                hud_points_indicator_update.after(Set::PlayerDeathMessage),
             )
                 .run_if(in_state(AppState::StoryModeInGame)),
         );

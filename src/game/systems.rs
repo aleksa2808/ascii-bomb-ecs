@@ -1,12 +1,13 @@
 use std::time::Duration;
 
 use bevy::{
+    platform::collections::{HashMap, HashSet},
     prelude::*,
-    utils::{HashMap, HashSet},
+    text::LineHeight,
     window::PrimaryWindow,
 };
 use rand::{
-    prelude::{IteratorRandom, SliceRandom},
+    prelude::{IndexedRandom, IteratorRandom, SliceRandom},
     Rng,
 };
 
@@ -24,7 +25,7 @@ use super::{
     ai::*,
     components::*,
     constants::*,
-    events::*,
+    messages::*,
     resources::*,
     types::{Direction, *},
     utils::*,
@@ -34,21 +35,22 @@ pub fn resize_window(
     mut primary_query: Query<&mut Window, With<PrimaryWindow>>,
     map_size: Res<MapSize>,
 ) {
-    primary_query.get_single_mut().unwrap().resolution.set(
+    primary_query.single_mut().unwrap().resolution.set(
         (map_size.columns * TILE_WIDTH) as f32,
         (HUD_HEIGHT + map_size.rows * TILE_HEIGHT) as f32,
     );
 }
 
 pub fn spawn_cameras(mut commands: Commands, map_size: Res<MapSize>) {
-    commands.spawn(Camera2dBundle {
-        transform: Transform::from_xyz(
+    commands.spawn((
+        Camera2d,
+        Transform::from_xyz(
             ((map_size.columns * TILE_WIDTH) as f32) / 2.0,
             -((map_size.rows * TILE_HEIGHT - HUD_HEIGHT) as f32 / 2.0),
             999.9,
         ),
-        ..default()
-    });
+        PostGameCleanup,
+    ));
 }
 
 pub fn setup_penguin_portraits(
@@ -58,7 +60,7 @@ pub fn setup_penguin_portraits(
     query: Query<Entity, With<PenguinPortraitDisplay>>,
     query2: Query<&Penguin>,
 ) {
-    if let Ok(e) = query.get_single() {
+    if let Ok(e) = query.single() {
         let penguin_tags = query2.iter().copied().collect::<Vec<Penguin>>();
         commands.entity(e).with_children(|parent| {
             init_penguin_portraits(parent, &penguin_tags, &hud_colors, &game_textures);
@@ -76,18 +78,18 @@ pub fn hud_update(
     let remaining_seconds = (game_timer.0.duration() - game_timer.0.elapsed())
         .as_secs_f32()
         .ceil() as usize;
-    query.single_mut().sections[0].value = format_hud_time(remaining_seconds);
+    query.single_mut().unwrap().0 = format_hud_time(remaining_seconds);
 
     // remove dead penguin portraits :(
     for (entity, PenguinPortrait(penguin)) in query3.iter() {
         if !query2.iter().any(|p| p.0 == penguin.0) {
-            commands.entity(entity).despawn_recursive();
+            commands.entity(entity).despawn();
         }
     }
 }
 
 pub fn hud_indicate_pause(mut query: Query<&mut Text, With<GameTimerDisplay>>) {
-    query.single_mut().sections[0].value = String::from("PAUSE");
+    query.single_mut().unwrap().0 = String::from("PAUSE");
 }
 
 pub fn move_cooldown_tick(time: Res<Time>, mut query: Query<&mut MoveCooldown>) {
@@ -107,7 +109,7 @@ pub fn handle_user_input(
     inputs: Res<InputActionStatusTracker>,
     game_context: Res<GameContext>,
     query: Query<(Entity, &HumanControlled), With<Player>>,
-    mut ev_player_action: EventWriter<PlayerActionEvent>,
+    mut player_action_message_writer: MessageWriter<PlayerActionMessage>,
     state: Res<State<AppState>>,
     mut next_state: ResMut<NextState<AppState>>,
 ) {
@@ -119,7 +121,7 @@ pub fn handle_user_input(
             (InputAction::Right, Direction::Right),
         ] {
             if inputs.is_active(input_action) {
-                ev_player_action.send(PlayerActionEvent {
+                player_action_message_writer.write(PlayerActionMessage {
                     player: entity,
                     action: PlayerAction::Move(direction),
                 });
@@ -127,7 +129,7 @@ pub fn handle_user_input(
         }
 
         if inputs.is_active(InputAction::Space) {
-            ev_player_action.send(PlayerActionEvent {
+            player_action_message_writer.write(PlayerActionMessage {
                 player: entity,
                 action: PlayerAction::DropBomb,
             });
@@ -142,7 +144,7 @@ pub fn handle_user_input(
             (InputAction::D, Direction::Right),
         ] {
             if inputs.is_active(input_action) {
-                ev_player_action.send(PlayerActionEvent {
+                player_action_message_writer.write(PlayerActionMessage {
                     player: entity,
                     action: PlayerAction::Move(direction),
                 });
@@ -150,7 +152,7 @@ pub fn handle_user_input(
         }
 
         if inputs.is_active(InputAction::G) {
-            ev_player_action.send(PlayerActionEvent {
+            player_action_message_writer.write(PlayerActionMessage {
                 player: entity,
                 action: PlayerAction::DropBomb,
             });
@@ -174,7 +176,7 @@ pub fn handle_user_input(
 pub fn mob_ai(
     mut query: Query<(Entity, &Position, &mut MobAI, Option<&WallHack>), With<Player>>,
     query2: Query<(&Position, Option<&Destructible>), With<Solid>>,
-    mut ev_player_action: EventWriter<PlayerActionEvent>,
+    mut player_action_message_writer: MessageWriter<PlayerActionMessage>,
 ) {
     let solids: HashMap<Position, bool> = query2.iter().map(|(p, d)| (*p, d.is_some())).collect();
 
@@ -185,7 +187,7 @@ pub fn mob_ai(
         if let Some(direction) = mob_ai.direction {
             let result = solids.get(&position.offset(direction, 1));
             if result.is_none() || (wall_hack.is_some() && matches!(result, Some(true))) {
-                ev_player_action.send(PlayerActionEvent {
+                player_action_message_writer.write(PlayerActionMessage {
                     player: entity,
                     action: PlayerAction::Move(direction),
                 });
@@ -199,7 +201,7 @@ pub fn mob_ai(
             // pick potential directions in random order
             let mut potential_directions: Vec<Direction> =
                 potential_directions.into_iter().collect();
-            potential_directions.shuffle(&mut rand::thread_rng());
+            potential_directions.shuffle(&mut rand::rng());
 
             // move towards one that leads to passable terrain (if existing)
             let passable_dir = potential_directions.into_iter().find(|direction| {
@@ -208,7 +210,7 @@ pub fn mob_ai(
             });
             if let Some(direction) = passable_dir {
                 mob_ai.direction = passable_dir;
-                ev_player_action.send(PlayerActionEvent {
+                player_action_message_writer.write(PlayerActionMessage {
                     player: entity,
                     action: PlayerAction::Move(direction),
                 });
@@ -244,10 +246,10 @@ pub fn bot_ai(
     query11: Query<&Position, With<Item>>,
     map_size: Res<MapSize>,
     wall_of_death: Option<Res<WallOfDeath>>,
-    mut ev_player_action: EventWriter<PlayerActionEvent>,
+    mut player_action_message_writer: MessageWriter<PlayerActionMessage>,
 ) {
     // TODO: this is wasted work for situations where there aren't any bots
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let fire_positions: HashSet<Position> = query2.iter().copied().collect();
     let bomb_positions: HashSet<Position> = query3.iter().copied().collect();
     let fireproof_positions: HashSet<Position> = query5.iter().copied().collect();
@@ -283,7 +285,7 @@ pub fn bot_ai(
         // miss?
         match bot_difficulty {
             BotDifficulty::Easy | BotDifficulty::Medium => {
-                if rng.gen_range(0..100)
+                if rng.random_range(0..100)
                     < match bot_difficulty {
                         BotDifficulty::Easy => 30,
                         BotDifficulty::Medium => 15,
@@ -308,14 +310,14 @@ pub fn bot_ai(
             // miss?
             match bot_difficulty {
                 BotDifficulty::Easy | BotDifficulty::Medium => {
-                    if rng.gen_range(0..100)
+                    if rng.random_range(0..100)
                         < match bot_difficulty {
                             BotDifficulty::Easy => 30,
                             BotDifficulty::Medium => 15,
                             BotDifficulty::Hard => unreachable!(),
                         }
                     {
-                        com = rng.gen_range(0..8);
+                        com = rng.random_range(0..8);
                     }
                 }
                 BotDifficulty::Hard => (),
@@ -441,7 +443,7 @@ pub fn bot_ai(
                     }
                 }
                 6 => {
-                    if nav_flag == -1 && rng.gen_bool(0.125) {
+                    if nav_flag == -1 && rng.random_bool(0.125) {
                         let direction = Direction::LIST.choose(&mut rng).unwrap();
                         let position = position.offset(*direction, 1);
 
@@ -517,7 +519,7 @@ pub fn bot_ai(
         if let Some((action, intention)) = action {
             println!("bot {:?}: {:?} - {:?}", entity, intention, action);
 
-            ev_player_action.send(PlayerActionEvent {
+            player_action_message_writer.write(PlayerActionMessage {
                 player: entity,
                 action,
             });
@@ -527,7 +529,7 @@ pub fn bot_ai(
 
 pub fn player_move(
     mut commands: Commands,
-    mut ev_player_action: EventReader<PlayerActionEvent>,
+    mut player_action_message_reader: MessageReader<PlayerActionMessage>,
     mut p: ParamSet<(
         Query<
             (
@@ -555,7 +557,7 @@ pub fn player_move(
         .map(|(e, _, p, d, b)| (*p, (e, d.is_some(), b.is_some())))
         .collect();
 
-    for (entity, direction) in ev_player_action.iter().filter_map(|p| {
+    for (entity, direction) in player_action_message_reader.read().filter_map(|p| {
         if let PlayerAction::Move(direction) = p.action {
             Some((p.player, direction))
         } else {
@@ -653,7 +655,7 @@ pub fn pick_up_item(
     mut query: Query<(Entity, &mut Health, &Position, &mut BombSatchel), With<Player>>,
     query2: Query<(Entity, &Item, &Position)>,
 ) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     for (ie, i, ip) in query2.iter() {
         if let Some((pe, mut h, _, mut bomb_satchel)) = query
             .iter_mut()
@@ -676,7 +678,7 @@ pub fn pick_up_item(
                 }
             };
 
-            commands.entity(ie).despawn_recursive();
+            commands.entity(ie).despawn();
         }
     }
 }
@@ -686,12 +688,12 @@ pub fn bomb_drop(
     game_textures: Res<GameTextures>,
     fonts: Res<Fonts>,
     world_id: Res<WorldID>,
-    mut ev_player_action: EventReader<PlayerActionEvent>,
+    mut player_action_message_reader: MessageReader<PlayerActionMessage>,
     mut query: Query<(&Position, &mut BombSatchel)>,
     query2: Query<&Position, Or<(With<Solid>, With<Exit>, With<BurningItem>)>>,
 ) {
-    for entity in ev_player_action
-        .iter()
+    for entity in player_action_message_reader
+        .read()
         .filter(|pa| matches!(pa.action, PlayerAction::DropBomb))
         .map(|pa| pa.player)
     {
@@ -702,17 +704,10 @@ pub fn bomb_drop(
 
                 commands
                     .spawn((
-                        SpriteBundle {
-                            texture: game_textures.bomb.clone(),
-                            transform: Transform::from_xyz(
-                                get_x(position.x),
-                                get_y(position.y),
-                                25.0,
-                            ),
-                            sprite: Sprite {
-                                custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
-                                ..Default::default()
-                            },
+                        Transform::from_xyz(get_x(position.x), get_y(position.y), 25.0),
+                        Sprite {
+                            image: game_textures.bomb.clone(),
+                            custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
                             ..Default::default()
                         },
                         Bomb {
@@ -722,43 +717,42 @@ pub fn bomb_drop(
                         },
                         Solid,
                         *position,
+                        PostGameCleanup,
                     ))
                     .with_children(|parent| {
                         let fuse_color = COLORS[if world_id.0 == 2 { 12 } else { 14 }].into();
 
-                        let mut text = Text::from_section(
-                            '*',
-                            TextStyle {
-                                font: fonts.mono.clone(),
-                                font_size: 2.0 * PIXEL_SCALE as f32,
-                                color: fuse_color,
-                            },
-                        )
-                        .with_alignment(TextAlignment::Center);
-                        text.sections.push(TextSection {
-                            value: "┐\n │".into(),
-                            style: TextStyle {
-                                font: fonts.mono.clone(),
-                                font_size: 2.0 * PIXEL_SCALE as f32,
-                                color: COLORS[0].into(),
-                            },
-                        });
-
-                        parent.spawn((
-                            Text2dBundle {
-                                text,
-                                transform: Transform::from_xyz(
-                                    0.0,
-                                    TILE_HEIGHT as f32 / 8.0 * 2.0,
-                                    0.0,
-                                ),
-                                ..Default::default()
-                            },
-                            Fuse {
-                                color: fuse_color,
-                                animation_timer: Timer::from_seconds(0.1, TimerMode::Repeating),
-                            },
-                        ));
+                        parent
+                            .spawn((
+                                Text2d::default(),
+                                TextLayout::new_with_justify(Justify::Center),
+                                Transform::from_xyz(0.0, TILE_HEIGHT as f32 / 8.0 * 2.0, 0.0),
+                                Fuse {
+                                    animation_timer: Timer::from_seconds(0.1, TimerMode::Repeating),
+                                },
+                            ))
+                            .with_children(|p| {
+                                p.spawn((
+                                    TextSpan::new('*'),
+                                    TextFont {
+                                        font: fonts.mono.clone(),
+                                        font_size: 2.0 * PIXEL_SCALE as f32,
+                                        ..Default::default()
+                                    },
+                                    LineHeight::RelativeToFont(1.0),
+                                    TextColor(fuse_color),
+                                ));
+                                p.spawn((
+                                    TextSpan::new("┐\n │"),
+                                    TextFont {
+                                        font: fonts.mono.clone(),
+                                        font_size: 2.0 * PIXEL_SCALE as f32,
+                                        ..Default::default()
+                                    },
+                                    LineHeight::RelativeToFont(1.0),
+                                    TextColor(COLORS[0].into()),
+                                ));
+                            });
                     });
             }
         }
@@ -767,84 +761,43 @@ pub fn bomb_drop(
 
 pub fn animate_fuse(
     time: Res<Time>,
-    fonts: Res<Fonts>,
     query: Query<&Bomb>,
-    mut query2: Query<(&Parent, &mut Text, &mut Fuse, &mut Transform)>,
+    mut query2: Query<(Entity, &ChildOf, &mut Fuse, &mut Transform), With<Text2d>>,
+    mut writer: Text2dWriter,
 ) {
-    for (parent, mut text, mut fuse, mut transform) in query2.iter_mut() {
+    for (entity, child_of, mut fuse, mut transform) in query2.iter_mut() {
         fuse.animation_timer.tick(time.delta());
-        let percent_left = fuse.animation_timer.percent_left();
-        let fuse_char = match percent_left {
-            _ if (0.0..0.33).contains(&percent_left) => 'x',
-            _ if (0.33..0.66).contains(&percent_left) => '+',
-            _ if (0.66..=1.0).contains(&percent_left) => '*',
+        let fraction_remaining = fuse.animation_timer.fraction_remaining();
+        let fuse_char = match fraction_remaining {
+            _ if (0.0..0.33).contains(&fraction_remaining) => 'x',
+            _ if (0.33..0.66).contains(&fraction_remaining) => '+',
+            _ if (0.66..=1.0).contains(&fraction_remaining) => '*',
             _ => unreachable!(),
         };
 
-        let bomb = query.get(parent.get()).unwrap();
-        let percent_left = bomb.timer.percent_left();
+        let bomb = query.get(child_of.parent()).unwrap();
+        let fraction_remaining = bomb.timer.fraction_remaining();
 
-        match percent_left {
-            _ if (0.66..1.0).contains(&percent_left) => {
-                text.sections = vec![
-                    TextSection {
-                        value: fuse_char.into(),
-                        style: TextStyle {
-                            font: fonts.mono.clone(),
-                            font_size: 2.0 * PIXEL_SCALE as f32,
-                            color: fuse.color,
-                        },
-                    },
-                    TextSection {
-                        value: "┐\n │".into(),
-                        style: TextStyle {
-                            font: fonts.mono.clone(),
-                            font_size: 2.0 * PIXEL_SCALE as f32,
-                            color: COLORS[0].into(),
-                        },
-                    },
-                ];
+        *writer.text(entity, 1) = fuse_char.into();
+        match fraction_remaining {
+            _ if (0.66..=1.0).contains(&fraction_remaining) => {
                 let translation = &mut transform.translation;
                 translation.x = 0.0;
                 translation.y = TILE_HEIGHT as f32 / 8.0 * 2.0;
             }
-            _ if (0.33..0.66).contains(&percent_left) => {
-                text.sections = vec![
-                    TextSection {
-                        value: fuse_char.into(),
-                        style: TextStyle {
-                            font: fonts.mono.clone(),
-                            font_size: 2.0 * PIXEL_SCALE as f32,
-                            color: fuse.color,
-                        },
-                    },
-                    TextSection {
-                        value: "\n│".into(),
-                        style: TextStyle {
-                            font: fonts.mono.clone(),
-                            font_size: 2.0 * PIXEL_SCALE as f32,
-                            color: COLORS[0].into(),
-                        },
-                    },
-                ];
+            _ if (0.33..0.66).contains(&fraction_remaining) => {
+                *writer.text(entity, 2) = "\n│".into();
                 let translation = &mut transform.translation;
                 translation.x = TILE_WIDTH as f32 / 12.0;
                 translation.y = TILE_HEIGHT as f32 / 8.0 * 2.0;
             }
-            _ if (0.0..0.33).contains(&percent_left) => {
-                text.sections = vec![TextSection {
-                    value: fuse_char.into(),
-                    style: TextStyle {
-                        font: fonts.mono.clone(),
-                        font_size: 2.0 * PIXEL_SCALE as f32,
-                        color: fuse.color,
-                    },
-                }];
+            _ if (0.0..0.33).contains(&fraction_remaining) => {
+                *writer.text(entity, 2) = "".into();
                 let translation = &mut transform.translation;
                 translation.x = TILE_WIDTH as f32 / 12.0;
                 translation.y = TILE_HEIGHT as f32 / 8.0 * 1.0;
             }
-            _ => (),
+            _ => unreachable!(),
         }
     }
 }
@@ -858,8 +811,8 @@ pub fn bomb_tick(time: Res<Time>, mut query: Query<&mut Bomb>) {
 pub fn fire_tick(mut commands: Commands, time: Res<Time>, mut query: Query<(Entity, &mut Fire)>) {
     for (entity, mut fire) in query.iter_mut() {
         fire.timer.tick(time.delta());
-        if fire.timer.finished() {
-            commands.entity(entity).despawn_recursive();
+        if fire.timer.is_finished() {
+            commands.entity(entity).despawn();
         }
     }
 }
@@ -875,23 +828,21 @@ pub fn crumbling_tick(
     for (entity, mut crumbling, position) in query.iter_mut() {
         crumbling.timer.tick(time.delta());
 
-        if crumbling.timer.finished() {
-            commands.entity(entity).despawn_recursive();
+        if crumbling.timer.is_finished() {
+            commands.entity(entity).despawn();
             if matches!(exit_position, Some(ref p) if p.0 == *position) {
                 commands.spawn((
-                    SpriteBundle {
-                        texture: game_textures.exit.clone(),
-                        transform: Transform::from_xyz(get_x(position.x), get_y(position.y), 10.0),
-                        sprite: Sprite {
-                            custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
-                            ..Default::default()
-                        },
+                    Transform::from_xyz(get_x(position.x), get_y(position.y), 10.0),
+                    Sprite {
+                        image: game_textures.exit.clone(),
+                        custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
                         ..Default::default()
                     },
                     *position,
                     Exit::default(),
+                    PostGameCleanup,
                 ));
-            } else if rand::thread_rng().gen_range(0.0..1.0) < ITEM_SPAWN_CHANCE {
+            } else if rand::rng().random_range(0.0..1.0) < ITEM_SPAWN_CHANCE {
                 generate_item_at_position(
                     *position,
                     &mut commands,
@@ -910,8 +861,8 @@ pub fn burning_item_tick(
 ) {
     for (entity, mut burning_item) in query.iter_mut() {
         burning_item.timer.tick(time.delta());
-        if burning_item.timer.finished() {
-            commands.entity(entity).despawn_recursive();
+        if burning_item.timer.is_finished() {
+            commands.entity(entity).despawn();
         }
     }
 }
@@ -923,16 +874,17 @@ pub fn explode_bombs(
     sounds: Res<Sounds>,
     query: Query<(Entity, &Bomb, &Position)>,
     query1: Query<(Entity, &Position, Option<&Bomb>), Or<(With<Solid>, With<Exit>)>>,
-    mut ev_explosion: EventReader<ExplosionEvent>,
-    mut ev_bomb_restock: EventWriter<BombRestockEvent>,
-    mut ev_burn: EventWriter<BurnEvent>,
+    mut explostion_message_reader: MessageReader<ExplosionMessage>,
+    mut bomb_restock_message_writer: MessageWriter<BombRestockMessage>,
+    mut burn_message_writer: MessageWriter<BurnMessage>,
 ) {
-    let exploded_bombs: HashSet<Entity> = ev_explosion.iter().map(|e| e.bomb).collect();
+    let exploded_bombs: HashSet<Entity> =
+        explostion_message_reader.read().map(|e| e.bomb).collect();
     let fireproof_positions: HashSet<Position> = query1
         .iter()
         .filter_map(|(e, p, b)| {
             // ignore bombs that went off
-            if !matches!(b, Some(b) if b.timer.finished() || exploded_bombs.contains(&e)) {
+            if !matches!(b, Some(b) if b.timer.is_finished() || exploded_bombs.contains(&e)) {
                 Some(p)
             } else {
                 None
@@ -945,14 +897,14 @@ pub fn explode_bombs(
 
     for (entity, bomb, position) in query
         .iter()
-        .filter(|(e, b, _)| b.timer.finished() || exploded_bombs.contains(e))
+        .filter(|(e, b, _)| b.timer.is_finished() || exploded_bombs.contains(e))
     {
-        commands.entity(entity).despawn_recursive();
+        commands.entity(entity).despawn();
 
         if let Some(owner) = bomb.owner {
-            ev_bomb_restock.send(BombRestockEvent {
+            bomb_restock_message_writer.write(BombRestockMessage {
                 satchel_owner: owner,
-            })
+            });
         }
 
         if !sound_played {
@@ -962,19 +914,17 @@ pub fn explode_bombs(
 
         let spawn_fire = |commands: &mut Commands, position: Position| {
             commands.spawn((
-                SpriteBundle {
-                    texture: game_textures.fire.clone(),
-                    transform: Transform::from_xyz(get_x(position.x), get_y(position.y), 5.0),
-                    sprite: Sprite {
-                        custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
-                        ..Default::default()
-                    },
+                Transform::from_xyz(get_x(position.x), get_y(position.y), 5.0),
+                Sprite {
+                    image: game_textures.fire.clone(),
+                    custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
                     ..Default::default()
                 },
                 Fire {
                     timer: Timer::from_seconds(0.5, TimerMode::Once),
                 },
                 position,
+                PostGameCleanup,
             ));
         };
 
@@ -984,7 +934,7 @@ pub fn explode_bombs(
                 let position = position.offset(direction, i);
 
                 if fireproof_positions.contains(&position) {
-                    ev_burn.send(BurnEvent { position });
+                    burn_message_writer.write(BurnMessage { position });
                     break;
                 }
 
@@ -995,11 +945,11 @@ pub fn explode_bombs(
 }
 
 pub fn bomb_restock(
-    mut ev_bomb_restock: EventReader<BombRestockEvent>,
+    mut bomb_restock_message_reader: MessageReader<BombRestockMessage>,
     mut query: Query<&mut BombSatchel>,
 ) {
-    for event in ev_bomb_restock.iter() {
-        if let Ok(mut bomb_satchel) = query.get_mut(event.satchel_owner) {
+    for message in bomb_restock_message_reader.read() {
+        if let Ok(mut bomb_satchel) = query.get_mut(message.satchel_owner) {
             bomb_satchel.bombs_available += 1;
         }
     }
@@ -1022,43 +972,41 @@ pub fn immortality_tick(
 pub fn animate_immortality(
     time: Res<Time>,
     mut p: ParamSet<(
-        Query<(
-            &mut Immortal,
-            &mut Handle<Image>,
-            &BaseTexture,
-            &ImmortalTexture,
-        )>,
-        Query<(&mut Handle<Image>, &BaseTexture)>,
+        Query<(&mut Immortal, &mut Sprite, &BaseTexture, &ImmortalTexture)>,
+        Query<(&mut Sprite, &BaseTexture)>,
     )>,
     mut removals: RemovedComponents<Immortal>,
 ) {
     // animate currently immortal players
-    for (mut immortal, mut texture, base_texture, immortal_texture) in p.p0().iter_mut() {
-        if !immortal.timer.finished() {
+    for (mut immortal, mut sprite, base_texture, immortal_texture) in p.p0().iter_mut() {
+        if !immortal.timer.is_finished() {
             immortal.animation_timer.tick(time.delta());
-            let percent_left = immortal.animation_timer.percent_left();
-            match percent_left {
-                _ if (0.5..=1.0).contains(&percent_left) => {
-                    *texture = immortal_texture.0.clone();
+            let fraction_remaining = immortal.animation_timer.fraction_remaining();
+            match fraction_remaining {
+                _ if (0.5..=1.0).contains(&fraction_remaining) => {
+                    sprite.image = immortal_texture.0.clone();
                 }
-                _ => *texture = base_texture.0.clone(),
+                _ => sprite.image = base_texture.0.clone(),
             };
         } else {
-            *texture = base_texture.0.clone();
+            sprite.image = base_texture.0.clone();
         }
     }
 
     // revert the texture of players that stopped being immortal
-    for entity in removals.iter() {
-        if let Ok((mut texture, base_texture)) = p.p1().get_mut(entity) {
-            *texture = base_texture.0.clone();
+    for entity in removals.read() {
+        if let Ok((mut sprite, base_texture)) = p.p1().get_mut(entity) {
+            sprite.image = base_texture.0.clone();
         }
     }
 }
 
-pub fn fire_effect(mut query: Query<&Position, With<Fire>>, mut ev_burn: EventWriter<BurnEvent>) {
+pub fn fire_effect(
+    mut query: Query<&Position, With<Fire>>,
+    mut burn_message_writer: MessageWriter<BurnMessage>,
+) {
     for position in query.iter_mut() {
-        ev_burn.send(BurnEvent {
+        burn_message_writer.write(BurnMessage {
             position: *position,
         });
     }
@@ -1067,14 +1015,14 @@ pub fn fire_effect(mut query: Query<&Position, With<Fire>>, mut ev_burn: EventWr
 pub fn melee_attack(
     query: Query<(&Position, &TeamID), With<MeleeAttacker>>,
     query2: Query<(Entity, &Position, &TeamID), With<Player>>,
-    mut ev_damage: EventWriter<DamageEvent>,
+    mut damage_message_writer: MessageWriter<DamageMessage>,
 ) {
     for (attacker_position, attacker_team_id) in query.iter() {
         for (e, _, _) in query2
             .iter()
             .filter(|(_, p, tid)| **p == *attacker_position && tid.0 != attacker_team_id.0)
         {
-            ev_damage.send(DamageEvent { target: e });
+            damage_message_writer.write(DamageMessage { target: e });
         }
     }
 }
@@ -1082,17 +1030,17 @@ pub fn melee_attack(
 pub fn player_burn(
     query: Query<(Entity, &Position), (With<Player>, Without<Immortal>)>,
     query2: Query<&Position, With<Wall>>,
-    mut ev_burn: EventReader<BurnEvent>,
-    mut ev_damage: EventWriter<DamageEvent>,
+    mut burn_message_reader: MessageReader<BurnMessage>,
+    mut damage_message_writer: MessageWriter<DamageMessage>,
 ) {
-    for BurnEvent { position } in ev_burn.iter() {
+    for BurnMessage { position } in burn_message_reader.read() {
         for (pe, player_pos) in query.iter().filter(|(_, pp)| **pp == *position) {
             if query2.iter().any(|wall_pos| *wall_pos == *player_pos) {
                 // Anakin, I have the high ground
                 continue;
             }
 
-            ev_damage.send(DamageEvent { target: pe });
+            damage_message_writer.write(DamageMessage { target: pe });
         }
     }
 }
@@ -1104,31 +1052,29 @@ pub fn player_damage(
         (
             Entity,
             &mut Health,
-            &mut Handle<Image>,
+            &mut Sprite,
             &ImmortalTexture,
             &SpawnPosition,
             &mut Position,
             &mut Transform,
-            &mut Sprite,
             Option<&PointValue>,
         ),
         (With<Player>, Without<Immortal>),
     >,
-    mut ev_damage: EventReader<DamageEvent>,
-    mut ev_player_death_event: EventWriter<PlayerDeathEvent>,
+    mut damage_message_reader: MessageReader<DamageMessage>,
+    mut player_death_message_writer: MessageWriter<PlayerDeathMessage>,
 ) {
-    let mut damaged_players = HashSet::default();
+    let mut damaged_players: HashSet<Entity> = HashSet::default();
 
-    for DamageEvent { target } in ev_damage.iter() {
+    for DamageMessage { target } in damage_message_reader.read() {
         if let Ok((
             pe,
             mut health,
-            mut texture,
+            mut sprite,
             immortal_texture,
             spawn_position,
             mut position,
             mut transform,
-            mut sprite,
             point_value,
         )) = query.get_mut(*target)
         {
@@ -1146,9 +1092,9 @@ pub fn player_damage(
                 health.lives -= 1;
                 if health.lives == 0 {
                     println!("player died from damage: {:?}", pe);
-                    commands.entity(pe).despawn_recursive();
+                    commands.entity(pe).despawn();
 
-                    ev_player_death_event.send(PlayerDeathEvent);
+                    player_death_message_writer.write(PlayerDeathMessage);
 
                     // TODO: move to story_mode
                     if let Some(ref mut game_score) = game_score {
@@ -1177,14 +1123,17 @@ pub fn player_damage(
 
             if gain_immortality {
                 commands.entity(pe).insert(Immortal::default());
-                *texture = immortal_texture.0.clone();
+                sprite.image = immortal_texture.0.clone();
             }
         }
     }
 }
 
-pub fn bomb_burn(mut query: Query<(&mut Bomb, &Position)>, mut ev_burn: EventReader<BurnEvent>) {
-    for BurnEvent { position } in ev_burn.iter() {
+pub fn bomb_burn(
+    mut query: Query<(&mut Bomb, &Position)>,
+    mut ev_burn: MessageReader<BurnMessage>,
+) {
+    for BurnMessage { position } in ev_burn.read() {
         query
             .iter_mut()
             .filter(|(_, p)| **p == *position)
@@ -1202,18 +1151,20 @@ pub fn destructible_wall_burn(
     game_textures: Res<GameTextures>,
     mut commands: Commands,
     mut query: Query<
-        (Entity, &Position, &mut Handle<Image>, Option<&Crumbling>),
+        (Entity, &Position, &mut Sprite, Option<&Crumbling>),
         (With<Wall>, With<Destructible>),
     >,
-    mut ev_burn: EventReader<BurnEvent>,
+    mut ev_burn: MessageReader<BurnMessage>,
 ) {
-    for BurnEvent { position } in ev_burn.iter() {
-        for (e, _, mut t, perishable) in query.iter_mut().filter(|(_, p, _, _)| **p == *position) {
+    for BurnMessage { position } in ev_burn.read() {
+        for (e, _, mut sprite, perishable) in
+            query.iter_mut().filter(|(_, p, _, _)| **p == *position)
+        {
             if perishable.is_none() {
                 commands.entity(e).insert(Crumbling {
                     timer: Timer::from_seconds(0.5, TimerMode::Once),
                 });
-                *t = game_textures.get_map_textures().burning_wall.clone();
+                sprite.image = game_textures.get_map_textures().burning_wall.clone();
             }
         }
     }
@@ -1223,11 +1174,11 @@ pub fn item_burn(
     game_textures: Res<GameTextures>,
     mut commands: Commands,
     mut query: Query<(Entity, &Position), With<Item>>,
-    mut ev_burn: EventReader<BurnEvent>,
+    mut ev_burn: MessageReader<BurnMessage>,
 ) {
-    let mut burned = HashSet::default();
+    let mut burned: HashSet<Entity> = HashSet::default();
 
-    for BurnEvent { position } in ev_burn.iter() {
+    for BurnMessage { position } in ev_burn.read() {
         for e in query
             .iter_mut()
             .filter(|(_, p)| **p == *position)
@@ -1240,22 +1191,20 @@ pub fn item_burn(
 
             println!("burned item: {:?}", position);
 
-            commands.entity(e).despawn_recursive();
+            commands.entity(e).despawn();
             // burning item
             commands.spawn((
-                SpriteBundle {
-                    texture: game_textures.burning_item.clone(),
-                    transform: Transform::from_xyz(get_x(position.x), get_y(position.y), 20.0),
-                    sprite: Sprite {
-                        custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
-                        ..Default::default()
-                    },
+                Transform::from_xyz(get_x(position.x), get_y(position.y), 20.0),
+                Sprite {
+                    image: game_textures.burning_item.clone(),
+                    custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
                     ..Default::default()
                 },
                 *position,
                 BurningItem {
                     timer: Timer::from_seconds(0.5, TimerMode::Once),
                 },
+                PostGameCleanup,
             ));
         }
     }
@@ -1266,32 +1215,25 @@ pub fn exit_burn(
     game_textures: Res<GameTextures>,
     mut commands: Commands,
     mut query: Query<(&Position, &mut Exit)>,
-    mut ev_burn: EventReader<BurnEvent>,
+    mut ev_burn: MessageReader<BurnMessage>,
 ) {
     // we do checks here because some levels don't have exits (e.g. boss rooms)
-    if let Ok((_, mut exit)) = query.get_single_mut() {
+    if let Ok((_, mut exit)) = query.single_mut() {
         exit.spawn_cooldown.tick(time.delta());
     }
 
-    for BurnEvent { position } in ev_burn.iter() {
-        if let Ok((exit_position, mut exit)) = query.get_single_mut() {
+    for BurnMessage { position } in ev_burn.read() {
+        if let Ok((exit_position, mut exit)) = query.single_mut() {
             if *exit_position == *position && exit.spawn_cooldown.ready() {
                 println!("exit burned: {:?}", position);
 
                 // spawn mob
                 let base_texture = game_textures.crook.clone();
                 commands.spawn((
-                    SpriteBundle {
-                        texture: base_texture.clone(),
-                        transform: Transform::from_xyz(
-                            get_x(exit_position.x),
-                            get_y(exit_position.y),
-                            50.0,
-                        ),
-                        sprite: Sprite {
-                            custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
-                            ..Default::default()
-                        },
+                    Transform::from_xyz(get_x(exit_position.x), get_y(exit_position.y), 50.0),
+                    Sprite {
+                        image: base_texture.clone(),
+                        custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
                         ..Default::default()
                     },
                     BaseTexture(base_texture),
@@ -1309,6 +1251,7 @@ pub fn exit_burn(
                     MeleeAttacker,
                     TeamID(1),
                     Immortal::default(),
+                    PostGameCleanup,
                 ));
 
                 exit.spawn_cooldown.trigger();
@@ -1325,8 +1268,8 @@ pub fn wall_of_death_update(
     map_size: Res<MapSize>,
     query: Query<&Position, (With<Wall>, Without<Destructible>)>,
     query2: Query<(Entity, &Position, Option<&Bomb>, Option<&Player>)>,
-    mut ev_player_death_event: EventWriter<PlayerDeathEvent>,
-    mut ev_bomb_restock: EventWriter<BombRestockEvent>,
+    mut player_death_message_writer: MessageWriter<PlayerDeathMessage>,
+    mut bomb_restock_message_writer: MessageWriter<BombRestockMessage>,
 ) {
     let get_next_position_direction = |mut position: Position,
                                        mut direction: Direction|
@@ -1377,35 +1320,33 @@ pub fn wall_of_death_update(
 
     let mut clear_position_and_spawn_wall = |position: Position| {
         for (e, _, bomb, player) in query2.iter().filter(|(_, p, _, _)| **p == position) {
-            commands.entity(e).despawn_recursive();
+            commands.entity(e).despawn();
 
             if player.is_some() {
                 println!("player died from wall of death: {:?}", e);
-                ev_player_death_event.send(PlayerDeathEvent);
+                player_death_message_writer.write(PlayerDeathMessage);
             }
 
             if let Some(bomb) = bomb {
                 if let Some(owner) = bomb.owner {
-                    ev_bomb_restock.send(BombRestockEvent {
+                    bomb_restock_message_writer.write(BombRestockMessage {
                         satchel_owner: owner,
-                    })
+                    });
                 }
             }
         }
 
         commands.spawn((
-            SpriteBundle {
-                texture: game_textures.get_map_textures().wall.clone(),
-                transform: Transform::from_xyz(get_x(position.x), get_y(position.y), 10.0),
-                sprite: Sprite {
-                    custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
-                    ..Default::default()
-                },
+            Transform::from_xyz(get_x(position.x), get_y(position.y), 10.0),
+            Sprite {
+                image: game_textures.get_map_textures().wall.clone(),
+                custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
                 ..Default::default()
             },
             Wall,
             Solid,
             position,
+            PostGameCleanup,
         ));
     };
 
@@ -1414,7 +1355,7 @@ pub fn wall_of_death_update(
             WallOfDeath::Dormant(ref mut timer) => {
                 timer.tick(time.delta());
 
-                if timer.finished() {
+                if timer.is_finished() {
                     println!("Wall of Death activated!");
 
                     Some(WallOfDeath::Active(ActiveWallOfDeath {

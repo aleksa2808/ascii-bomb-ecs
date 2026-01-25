@@ -21,12 +21,7 @@ impl Plugin for SecretModePlugin {
         app.init_resource::<SecretModeMusic>()
             .add_systems(
                 OnEnter(AppState::SecretModeSetup),
-                (
-                    setup_secret_mode,
-                    apply_deferred,
-                    (resize_window, spawn_cameras),
-                )
-                    .chain(),
+                (setup_secret_mode, (resize_window, spawn_cameras)).chain(),
             )
             .add_systems(
                 Update,
@@ -41,7 +36,6 @@ impl Plugin for SecretModePlugin {
                 common_game_systems(),
                 (
                     update_secret_mode,
-                    apply_deferred,
                     finish_secret_mode
                         .after(Set::PlayerMovement)
                         .before(Set::FireSpawn),

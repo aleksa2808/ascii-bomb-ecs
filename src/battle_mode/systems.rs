@@ -1,6 +1,4 @@
-use bevy::{
-    ecs::event::Events, prelude::*, render::camera::Camera, utils::HashSet, window::PrimaryWindow,
-};
+use bevy::{platform::collections::HashSet, prelude::*, text::LineHeight, window::PrimaryWindow};
 use rand::{prelude::IteratorRandom, Rng};
 
 use crate::{
@@ -11,7 +9,7 @@ use crate::{
     game::{
         components::*,
         constants::{TILE_HEIGHT, TILE_WIDTH},
-        events::*,
+        messages::*,
         resources::*,
         utils::*,
     },
@@ -31,7 +29,7 @@ pub fn setup_battle_mode(
     battle_mode_configuration: Res<BattleModeConfiguration>,
     mut next_state: ResMut<NextState<AppState>>,
 ) {
-    let world_id = WorldID(rand::thread_rng().gen_range(1..=3));
+    let world_id = WorldID(rand::rng().random_range(1..=3));
     game_textures.set_map_textures(world_id);
 
     let (map_size, percent_of_passable_positions_to_fill) = get_battle_mode_map_size_fill(
@@ -41,17 +39,14 @@ pub fn setup_battle_mode(
     // spawn HUD
     commands
         .spawn((
-            NodeBundle {
-                style: Style {
-                    width: Val::Percent(100.0),
-                    height: Val::Percent(100.0),
-                    ..Default::default()
-                },
-                background_color: Color::NONE.into(),
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
                 ..Default::default()
             },
             UIRoot,
             UIComponent,
+            PostGameCleanup,
         ))
         .with_children(|parent| {
             init_hud(
@@ -114,7 +109,14 @@ pub fn battle_mode_manager(
     mut battle_mode_context: ResMut<BattleModeContext>,
     game_option_store: Res<GameOptionStore>,
     mut next_state: ResMut<NextState<AppState>>,
-    query: Query<Entity, (Without<Window>, Without<Camera>, Without<UIComponent>)>,
+    query: Query<
+        Entity,
+        (
+            With<PostGameCleanup>,
+            Without<Camera2d>,
+            Without<UIComponent>,
+        ),
+    >,
     query2: Query<Entity, With<PenguinPortrait>>,
     mut query4: Query<&mut Text, With<GameTimerDisplay>>,
 ) {
@@ -146,8 +148,7 @@ pub fn battle_mode_manager(
                     TimerMode::Once,
                 )));
                 // update HUD clock
-                query4.single_mut().sections[0].value =
-                    format_hud_time(BATTLE_MODE_ROUND_DURATION_SECS);
+                query4.single_mut().unwrap().0 = format_hud_time(BATTLE_MODE_ROUND_DURATION_SECS);
                 commands.insert_resource(WallOfDeath::Dormant(Timer::from_seconds(
                     BATTLE_MODE_ROUND_DURATION_SECS as f32 / 2.0,
                     TimerMode::Once,
@@ -192,7 +193,7 @@ pub fn battle_mode_manager(
 
                         // clear penguin portraits
                         for entity in query2.iter() {
-                            commands.entity(entity).despawn_recursive();
+                            commands.entity(entity).despawn();
                         }
 
                         battle_mode_context.state = BattleModeState::LeaderboardDisplay;
@@ -230,7 +231,7 @@ pub fn finish_freeze(
     mut next_state: ResMut<NextState<AppState>>,
 ) {
     freeze_timer.0.tick(time.delta());
-    if freeze_timer.0.finished() {
+    if freeze_timer.0.is_finished() {
         commands.remove_resource::<FreezeTimer>();
         next_state.set(AppState::BattleModeInGame);
     }
@@ -252,9 +253,9 @@ pub fn on_death_item_pinata(
             With<Exit>,
         )>,
     >,
-    mut ev_player_death_event: EventReader<PlayerDeathEvent>,
+    mut player_death_message_reader: MessageReader<PlayerDeathMessage>,
 ) {
-    for _ in ev_player_death_event.iter() {
+    for _ in player_death_message_reader.read() {
         let invalid_positions: HashSet<Position> = query.iter().copied().collect();
         let valid_positions = (0..map_size.rows)
             .flat_map(|y| {
@@ -264,7 +265,7 @@ pub fn on_death_item_pinata(
                 })
             })
             .filter(|p| !invalid_positions.contains(p));
-        for position in valid_positions.choose_multiple(&mut rand::thread_rng(), 3) {
+        for position in valid_positions.choose_multiple(&mut rand::rng(), 3) {
             generate_item_at_position(
                 position,
                 &mut commands,
@@ -282,10 +283,10 @@ pub fn finish_round(
     mut next_state: ResMut<NextState<AppState>>,
 ) {
     let mut round_over = false;
-    if game_timer.0.finished() || query.iter().count() == 0 {
+    if game_timer.0.is_finished() || query.iter().count() == 0 {
         battle_mode_context.round_outcome = Some(RoundOutcome::Tie);
         round_over = true;
-    } else if let Ok(penguin) = query.get_single() {
+    } else if let Ok(penguin) = query.single() {
         battle_mode_context.round_outcome = Some(RoundOutcome::Winner(*penguin));
         round_over = true;
     }
@@ -305,14 +306,15 @@ pub fn setup_leaderboard_display(
     query: Query<Entity, With<UIRoot>>,
 ) {
     let mut leaderboard_display_box = None;
-    let window = primary_query.get_single().unwrap();
+    let window = primary_query.single().unwrap();
 
-    commands.entity(query.single()).with_children(|parent| {
-        leaderboard_display_box = Some(
-            parent
-                .spawn((
-                    NodeBundle {
-                        style: Style {
+    commands
+        .entity(query.single().unwrap())
+        .with_children(|parent| {
+            leaderboard_display_box = Some(
+                parent
+                    .spawn((
+                        Node {
                             position_type: PositionType::Absolute,
                             left: Val::Px(0.0),
                             top: Val::Px(0.0),
@@ -320,17 +322,14 @@ pub fn setup_leaderboard_display(
                             height: Val::Px(window.height()),
                             ..Default::default()
                         },
-                        background_color: COLORS[0].into(),
-                        ..Default::default()
-                    },
-                    UIComponent,
-                ))
-                .with_children(|parent| {
-                    // spawn border
-                    let mut spawn_color = |y: usize, x: usize| {
-                        parent.spawn((
-                            NodeBundle {
-                                style: Style {
+                        BackgroundColor(COLORS[0].into()),
+                        UIComponent,
+                    ))
+                    .with_children(|parent| {
+                        // spawn border
+                        let mut spawn_color = |y: usize, x: usize| {
+                            parent.spawn((
+                                Node {
                                     position_type: PositionType::Absolute,
                                     left: Val::Px((x * PIXEL_SCALE) as f32),
                                     top: Val::Px((y * PIXEL_SCALE) as f32),
@@ -338,38 +337,33 @@ pub fn setup_leaderboard_display(
                                     height: Val::Px(PIXEL_SCALE as f32),
                                     ..Default::default()
                                 },
-                                background_color: (*COLORS
-                                    .iter()
-                                    .choose(&mut rand::thread_rng())
-                                    .unwrap())
-                                .into(),
-                                ..Default::default()
-                            },
-                            UIComponent,
-                        ));
-                    };
+                                BackgroundColor(
+                                    (*COLORS.iter().choose(&mut rand::rng()).unwrap()).into(),
+                                ),
+                                UIComponent,
+                            ));
+                        };
 
-                    let height = window.height() as usize / PIXEL_SCALE;
-                    let width = window.width() as usize / PIXEL_SCALE;
-                    for y in 0..height {
-                        spawn_color(y, 0);
-                        spawn_color(y, 1);
-                        spawn_color(y, width - 2);
-                        spawn_color(y, width - 1);
-                    }
-                    for x in 2..width - 2 {
-                        spawn_color(0, x);
-                        spawn_color(1, x);
-                        spawn_color(height - 2, x);
-                        spawn_color(height - 1, x);
-                    }
+                        let height = window.height() as usize / PIXEL_SCALE;
+                        let width = window.width() as usize / PIXEL_SCALE;
+                        for y in 0..height {
+                            spawn_color(y, 0);
+                            spawn_color(y, 1);
+                            spawn_color(y, width - 2);
+                            spawn_color(y, width - 1);
+                        }
+                        for x in 2..width - 2 {
+                            spawn_color(0, x);
+                            spawn_color(1, x);
+                            spawn_color(height - 2, x);
+                            spawn_color(height - 1, x);
+                        }
 
-                    for (penguin, score) in &battle_mode_context.leaderboard.scores {
-                        // spawn penguin portrait
-                        parent
-                            .spawn((
-                                NodeBundle {
-                                    style: Style {
+                        for (penguin, score) in &battle_mode_context.leaderboard.scores {
+                            // spawn penguin portrait
+                            parent
+                                .spawn((
+                                    Node {
                                         position_type: PositionType::Absolute,
                                         left: Val::Px(4.0 * PIXEL_SCALE as f32),
                                         top: Val::Px(((6 + penguin.0 * 12) * PIXEL_SCALE) as f32),
@@ -377,34 +371,31 @@ pub fn setup_leaderboard_display(
                                         height: Val::Px(TILE_HEIGHT as f32),
                                         ..Default::default()
                                     },
-                                    background_color: COLORS[2].into(),
-                                    ..Default::default()
-                                },
-                                UIComponent,
-                            ))
-                            .with_children(|parent| {
-                                parent.spawn((
-                                    ImageBundle {
-                                        style: Style {
+                                    BackgroundColor(COLORS[2].into()),
+                                    UIComponent,
+                                ))
+                                .with_children(|parent| {
+                                    parent.spawn((
+                                        Node {
                                             width: Val::Percent(100.0),
                                             height: Val::Percent(100.0),
                                             ..Default::default()
                                         },
-                                        image: game_textures
-                                            .get_penguin_texture(*penguin)
-                                            .clone()
-                                            .into(),
-                                        ..Default::default()
-                                    },
-                                    UIComponent,
-                                ));
-                            });
+                                        ImageNode {
+                                            image: game_textures
+                                                .get_penguin_texture(*penguin)
+                                                .clone()
+                                                .into(),
+                                            ..Default::default()
+                                        },
+                                        UIComponent,
+                                    ));
+                                });
 
-                        // spawn penguin trophies
-                        for i in 0..*score {
-                            parent.spawn((
-                                ImageBundle {
-                                    style: Style {
+                            // spawn penguin trophies
+                            for i in 0..*score {
+                                parent.spawn((
+                                    Node {
                                         position_type: PositionType::Absolute,
                                         top: Val::Px(((7 + penguin.0 * 12) * PIXEL_SCALE) as f32),
                                         left: Val::Px(((15 + i * 9) * PIXEL_SCALE) as f32),
@@ -412,50 +403,63 @@ pub fn setup_leaderboard_display(
                                         height: Val::Px(7.0 * PIXEL_SCALE as f32),
                                         ..Default::default()
                                     },
-                                    image: leaderboard_textures.trophy.clone().into(),
-                                    ..Default::default()
-                                },
-                                UIComponent,
-                            ));
-                        }
+                                    ImageNode {
+                                        image: leaderboard_textures.trophy.clone().into(),
+                                        ..Default::default()
+                                    },
+                                    UIComponent,
+                                ));
+                            }
 
-                        if let RoundOutcome::Winner(round_winner_penguin) =
-                            battle_mode_context.round_outcome.unwrap()
-                        {
-                            if *penguin == round_winner_penguin {
-                                let mut place_text = |y, x, str: &str, c: usize| {
-                                    parent.spawn((
-                                        TextBundle {
-                                            text: Text::from_section(
-                                                str.to_string(),
-                                                TextStyle {
-                                                    font: fonts.mono.clone(),
-                                                    font_size: 2.0 * PIXEL_SCALE as f32,
-                                                    color: COLORS[c].into(),
-                                                },
-                                            ),
-                                            style: Style {
+                            if let RoundOutcome::Winner(round_winner_penguin) =
+                                battle_mode_context.round_outcome.unwrap()
+                            {
+                                if *penguin == round_winner_penguin {
+                                    let mut place_text = |y, x, str: &str, c: usize| {
+                                        parent.spawn((
+                                            Node {
                                                 position_type: PositionType::Absolute,
                                                 top: Val::Px(y as f32 * PIXEL_SCALE as f32),
                                                 left: Val::Px(x as f32 * PIXEL_SCALE as f32),
                                                 ..Default::default()
                                             },
-                                            ..Default::default()
-                                        },
-                                        UIComponent,
-                                    ));
-                                };
+                                            Text::new(str),
+                                            TextFont {
+                                                font: fonts.mono.clone(),
+                                                font_size: 2.0 * PIXEL_SCALE as f32,
+                                                ..Default::default()
+                                            },
+                                            LineHeight::RelativeToFont(1.0),
+                                            TextColor(COLORS[c].into()),
+                                            UIComponent,
+                                        ));
+                                    };
 
-                                place_text(6 + penguin.0 * 12, 15 + (*score - 1) * 9 - 2, "*", 15);
-                                place_text(8 + penguin.0 * 12, 15 + (*score - 1) * 9 + 6, "*", 15);
-                                place_text(10 + penguin.0 * 12, 15 + (*score - 1) * 9 - 1, "*", 15);
+                                    place_text(
+                                        6 + penguin.0 * 12,
+                                        15 + (*score - 1) * 9 - 2,
+                                        "*",
+                                        15,
+                                    );
+                                    place_text(
+                                        8 + penguin.0 * 12,
+                                        15 + (*score - 1) * 9 + 6,
+                                        "*",
+                                        15,
+                                    );
+                                    place_text(
+                                        10 + penguin.0 * 12,
+                                        15 + (*score - 1) * 9 - 1,
+                                        "*",
+                                        15,
+                                    );
+                                }
                             }
                         }
-                    }
-                })
-                .id(),
-        );
-    });
+                    })
+                    .id(),
+            );
+        });
 
     commands.insert_resource(LeaderboardDisplayContext {
         leaderboard_display_box: leaderboard_display_box.unwrap(),
@@ -470,10 +474,10 @@ pub fn leaderboard_display_update(
     mut next_state: ResMut<NextState<AppState>>,
 ) {
     leaderboard_display_context.timer.tick(time.delta());
-    if leaderboard_display_context.timer.finished() {
+    if leaderboard_display_context.timer.is_finished() {
         commands
             .entity(leaderboard_display_context.leaderboard_display_box)
-            .despawn_recursive();
+            .despawn();
         commands.remove_resource::<LeaderboardDisplayContext>();
         next_state.set(AppState::BattleModeManager);
     }
@@ -481,11 +485,11 @@ pub fn leaderboard_display_update(
 
 pub fn teardown(
     mut commands: Commands,
-    query: Query<Entity, Without<Window>>,
-    mut player_action_events: ResMut<Events<PlayerActionEvent>>,
-    mut explosion_events: ResMut<Events<ExplosionEvent>>,
-    mut burn_events: ResMut<Events<BurnEvent>>,
-    mut damage_events: ResMut<Events<DamageEvent>>,
+    query: Query<Entity, With<PostGameCleanup>>,
+    mut player_action_messages: ResMut<Messages<PlayerActionMessage>>,
+    mut explosion_messages: ResMut<Messages<ExplosionMessage>>,
+    mut burn_messages: ResMut<Messages<BurnMessage>>,
+    mut damage_messages: ResMut<Messages<DamageMessage>>,
     mut next_state: ResMut<NextState<AppState>>,
 ) {
     // clear entities
@@ -493,11 +497,11 @@ pub fn teardown(
         commands.entity(entity).despawn();
     }
 
-    // clear events
-    player_action_events.clear();
-    explosion_events.clear();
-    burn_events.clear();
-    damage_events.clear();
+    // clear messages
+    player_action_messages.clear();
+    explosion_messages.clear();
+    burn_messages.clear();
+    damage_messages.clear();
 
     // clear resources
     // common

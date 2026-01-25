@@ -16,6 +16,10 @@ rustflags = ["-C", "link-arg=-fuse-ld=/usr/local/bin/zld", "-Zshare-generics=y"]
 linker = "rust-lld.exe"
 rustflags = ["-Zshare-generics=off"]
 
+[target.wasm32-unknown-unknown]
+# needed in order for getrandom 0.3.3 to work on wasm32
+rustflags = ['--cfg', 'getrandom_backend="wasm_js"']
+
 [profile.dev.package."*"]
 opt-level = 3
 

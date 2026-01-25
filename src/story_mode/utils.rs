@@ -54,8 +54,8 @@ pub fn spawn_story_mode_mobs(
         map_size.rows - 4,
         7,
     ];
-    let mut rng = rand::thread_rng();
-    let bias = rng.gen::<usize>() % 20;
+    let mut rng = rand::rng();
+    let bias = rng.random_range(0..20) as usize;
 
     let mut mob_spawn_positions = vec![];
     for i in 0..mob_number {
@@ -94,17 +94,14 @@ pub fn spawn_story_mode_mobs(
         mob_spawn_positions.push(mob_spawn_position);
 
         let mut ec = commands.spawn((
-            SpriteBundle {
-                texture: base_texture.clone(),
-                transform: Transform::from_xyz(
-                    get_x(mob_spawn_position.x),
-                    get_y(mob_spawn_position.y),
-                    50.0,
-                ),
-                sprite: Sprite {
-                    custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
-                    ..Default::default()
-                },
+            Transform::from_xyz(
+                get_x(mob_spawn_position.x),
+                get_y(mob_spawn_position.y),
+                50.0,
+            ),
+            Sprite {
+                image: base_texture.clone(),
+                custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
                 ..Default::default()
             },
             BaseTexture(base_texture),
@@ -122,6 +119,7 @@ pub fn spawn_story_mode_mobs(
             MeleeAttacker,
             TeamID(1),
             PointValue(point_value),
+            PostGameCleanup,
         ));
 
         if wall_hack {
@@ -146,17 +144,14 @@ pub fn spawn_story_mode_boss(
     let base_texture = game_textures.get_penguin_texture(boss_penguin_tag).clone();
     let immortal_texture = game_textures.immortal_penguin.clone();
     commands.spawn((
-        SpriteBundle {
-            texture: base_texture.clone(),
-            transform: Transform::from_xyz(
-                get_x(boss_spawn_position.x),
-                get_y(boss_spawn_position.y),
-                50.0,
-            ),
-            sprite: Sprite {
-                custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
-                ..Default::default()
-            },
+        Transform::from_xyz(
+            get_x(boss_spawn_position.x),
+            get_y(boss_spawn_position.y),
+            50.0,
+        ),
+        Sprite {
+            image: base_texture.clone(),
+            custom_size: Some(Vec2::new(TILE_WIDTH as f32, TILE_HEIGHT as f32)),
             ..Default::default()
         },
         BaseTexture(base_texture),
@@ -180,6 +175,7 @@ pub fn spawn_story_mode_boss(
         },
         TeamID(1),
         PointValue(200),
+        PostGameCleanup,
     ));
 
     (boss_spawn_position, boss_penguin_tag)

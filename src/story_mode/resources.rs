@@ -112,6 +112,5 @@ pub struct BossSpeechBoxEntities {
 
 #[derive(Resource)]
 pub struct HighScoreNameInputContext {
-    pub input_box: Entity,
     pub name_text: Entity,
 }

@@ -3,7 +3,7 @@ use bevy::{ecs as bevy_ecs, prelude::*, time::Timer};
 use crate::{
     audio::{SoundHandles, SoundID},
     game::types::Cooldown,
-    loading::resources::AssetsLoading,
+    loading::resources::LoadingAssetHandles,
 };
 
 #[derive(Resource)]
@@ -17,8 +17,10 @@ impl FromWorld for SecretModeMusic {
 
         let what_is_f_handle = asset_server.load("sounds/what_is_f.ogg");
 
-        if let Some(mut assets_loading) = world.get_resource_mut::<AssetsLoading>() {
-            assets_loading.0.push(what_is_f_handle.clone_untyped());
+        if let Some(mut loading_asset_handles) = world.get_resource_mut::<LoadingAssetHandles>() {
+            loading_asset_handles
+                .0
+                .push(what_is_f_handle.clone().untyped());
         }
 
         let mut sound_handles = world.get_resource_mut::<SoundHandles>().unwrap();

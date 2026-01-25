@@ -11,7 +11,7 @@ mod story_mode;
 #[cfg(target_arch = "wasm32")]
 mod web;
 
-use bevy::{ecs as bevy_ecs, prelude::*, window::WindowResolution};
+use bevy::{prelude::*, state as bevy_state, window::WindowResolution};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
@@ -76,9 +76,9 @@ pub fn run() {
     let mut app = App::new();
 
     #[cfg(not(target_arch = "wasm32"))]
-    let resolution = WindowResolution::new(MENU_WIDTH as f32, MENU_HEIGHT as f32);
+    let resolution = WindowResolution::new(MENU_WIDTH as u32, MENU_HEIGHT as u32);
     #[cfg(target_arch = "wasm32")]
-    let resolution = WindowResolution::new(MENU_WIDTH as f32, MENU_HEIGHT as f32)
+    let resolution = WindowResolution::new(MENU_WIDTH as u32, MENU_HEIGHT as u32)
         .with_scale_factor_override(1.0);
 
     app.add_plugins(
@@ -97,7 +97,7 @@ pub fn run() {
             // fixes blurry textures
             .set(ImagePlugin::default_nearest()),
     )
-    .add_state::<AppState>()
+    .init_state::<AppState>()
     .add_plugins(AudioPlugin);
 
     #[cfg(target_arch = "wasm32")]

@@ -3,7 +3,7 @@ use bevy::{ecs as bevy_ecs, prelude::*};
 use crate::AppState;
 
 #[derive(Default, Resource)]
-pub struct AssetsLoading(pub Vec<HandleUntyped>);
+pub struct LoadingAssetHandles(pub Vec<UntypedHandle>);
 
 #[derive(Resource)]
 pub struct LoadingContext {
