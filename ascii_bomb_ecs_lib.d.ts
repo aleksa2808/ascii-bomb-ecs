@@ -11,21 +11,9 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
+    readonly run: () => void;
     readonly set_input_active: (a: number) => void;
     readonly start_game: () => void;
-    readonly run: () => void;
-    readonly wgpu_render_bundle_draw: (a: number, b: number, c: number, d: number, e: number) => void;
-    readonly wgpu_render_bundle_draw_indexed: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
-    readonly wgpu_render_bundle_set_pipeline: (a: number, b: bigint) => void;
-    readonly wgpu_render_bundle_draw_indirect: (a: number, b: bigint, c: bigint) => void;
-    readonly wgpu_render_bundle_set_bind_group: (a: number, b: number, c: bigint, d: number, e: number) => void;
-    readonly wgpu_render_bundle_set_vertex_buffer: (a: number, b: number, c: bigint, d: bigint, e: bigint) => void;
-    readonly wgpu_render_bundle_set_push_constants: (a: number, b: number, c: number, d: number, e: number) => void;
-    readonly wgpu_render_bundle_draw_indexed_indirect: (a: number, b: bigint, c: bigint) => void;
-    readonly wgpu_render_bundle_insert_debug_marker: (a: number, b: number) => void;
-    readonly wgpu_render_bundle_pop_debug_group: (a: number) => void;
-    readonly wgpu_render_bundle_set_index_buffer: (a: number, b: bigint, c: number, d: bigint, e: bigint) => void;
-    readonly wgpu_render_bundle_push_debug_group: (a: number, b: number) => void;
     readonly wasm_bindgen_4c3e326071055935___closure__destroy___dyn_core_10728d4c20eeb4de___ops__function__FnMut__core_10728d4c20eeb4de___option__Option_web_sys_b546af3a7d8aee8d___features__gen_Blob__Blob_____Output_______: (a: number, b: number) => void;
     readonly wasm_bindgen_4c3e326071055935___closure__destroy___dyn_core_10728d4c20eeb4de___ops__function__FnMut__wasm_bindgen_4c3e326071055935___JsValue____Output_______: (a: number, b: number) => void;
     readonly wasm_bindgen_4c3e326071055935___convert__closures_____invoke___js_sys_e41f10bc3be8eec7___Array__web_sys_b546af3a7d8aee8d___features__gen_ResizeObserver__ResizeObserver_____: (a: number, b: number, c: any, d: any) => void;
